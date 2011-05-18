@@ -5,8 +5,6 @@
 
 namespace regen {
 
-#define DEF_VISITABLE virtual void Accept(ExprVisitor* visit) { visit->Visit(this); }
-
 class Expr;
 class StateExpr;
 class Literal;
@@ -42,30 +40,30 @@ public:
   virtual void Visit(Star *e) { Visit((UnaryExpr*)e); }
 };
 
-typedef struct Must {
+struct Must {
   std::string *is;
   std::string *left;
   std::string *right;
   std::set<std::string> in;
-} Must;
+};
 
-typedef struct Transition {
+struct Transition {
   std::set<StateExpr*> first;
   std::set<StateExpr*> last;
   std::set<StateExpr*> before;
   std::set<StateExpr*> follow;  
-} Transition;
+};
 
 class Expr {
 public:
-  typedef enum Type {
+  enum Type {
     Literal, CharClass, Dot, BegLine,
     EndLine, Concat, Union, Qmark,
     Star, Plus, Rpar, Lpar, EOP
-  } Type;
+  };
   
   Expr(): parent_(NULL) {}
-  virtual ~Expr();
+  virtual ~Expr() {}
 
   std::size_t expr_id() { return expr_id_; }
   void set_expr_id(std::size_t id) { expr_id_ = id; }
@@ -79,7 +77,7 @@ public:
 
   virtual void FillTransition() = 0;
   
-  DEF_VISITABLE;
+  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 protected:
   static void Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst);
   std::size_t expr_id_;
@@ -99,7 +97,7 @@ public:
   std::size_t state_id() { return state_id_; }
   void set_state_id(std::size_t id) { state_id_ = id; }
   Expr::Type type() { return type_; }
-  DEF_VISITABLE;
+  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
   const Expr::Type type_;
 private:
   std::size_t state_id_;
@@ -111,7 +109,7 @@ public:
   Literal(const char literal): literal_(literal), StateExpr(Expr::Literal) {}
   ~Literal() {}
   char literal() { return literal_; }
-  DEF_VISITABLE;
+  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   const char literal_;
   DISALLOW_COPY_AND_ASSIGN(Literal);
@@ -123,7 +121,7 @@ public:
   ~CharClass() { delete tbl_; }
   std::vector<bool> *tbl() { return tbl_; }
   bool Involve(const unsigned char literal) { return (*tbl_)[literal]; }
-  DEF_VISITABLE;
+  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   std::vector<bool> *tbl_;
   std::size_t count_;
@@ -134,7 +132,7 @@ class Dot: public StateExpr {
 public:
   Dot(): StateExpr(Expr::Dot) {}
   ~Dot() {}
-  DEF_VISITABLE;
+  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Dot);
 };
@@ -143,7 +141,7 @@ class BegLine: public StateExpr {
 public:
   BegLine(): StateExpr(Expr::BegLine) {}
   ~BegLine() {}
-  DEF_VISITABLE;
+  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   DISALLOW_COPY_AND_ASSIGN(BegLine);
 };
@@ -152,7 +150,7 @@ class EndLine: public StateExpr {
 public:
   EndLine(): StateExpr(Expr::EndLine) {}  
   ~EndLine() {}
-  DEF_VISITABLE;
+  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   DISALLOW_COPY_AND_ASSIGN(EndLine);
 };
@@ -161,7 +159,7 @@ class EOP: public StateExpr {
 public:
   EOP(): StateExpr(Expr::EOP) { min_length_ = max_length_ = 0; }
   ~EOP() {}
-  DEF_VISITABLE;
+  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   DISALLOW_COPY_AND_ASSIGN(EOP);
 };
@@ -174,7 +172,7 @@ public:
   void  set_lhs(Expr *lhs) { lhs_ = lhs; }
   Expr* rhs() { return rhs_; }
   void  set_rhs(Expr *rhs) { rhs_ = rhs; }
-  DEF_VISITABLE;
+  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 protected:
   Expr *rhs_;
   Expr *lhs_;
@@ -187,7 +185,7 @@ public:
   Concat(Expr *lhs, Expr *rhs);
   ~Concat() {}
   void FillTransition();
-  DEF_VISITABLE;
+  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Concat);
 };
@@ -197,7 +195,7 @@ public:
   Union(Expr *lhs, Expr *rhs);
   ~Union() {}
   void FillTransition();
-  DEF_VISITABLE;
+  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Union);
 };
@@ -209,7 +207,7 @@ public:
   Expr* lhs() { return lhs_; }
   void  set_lhs(Expr *lhs) { lhs_ = lhs; }
   static UnaryExpr* DispatchNew(Expr::Type type, Expr* lhs);
-  DEF_VISITABLE;
+  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 protected:
   Expr *lhs_;
 private:
@@ -221,7 +219,7 @@ public:
   Qmark(Expr *lhs);
   ~Qmark() {}
   void FillTransition();
-  DEF_VISITABLE;
+  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Qmark);
 };
@@ -231,7 +229,7 @@ public:
   Star(Expr *lhs);
   ~Star() {}
   void FillTransition();
-  DEF_VISITABLE;
+  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Star);
 };
@@ -241,7 +239,7 @@ public:
   Plus(Expr *lhs);
   ~Plus() {}
   void FillTransition();
-  DEF_VISITABLE;
+  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Plus);
 };

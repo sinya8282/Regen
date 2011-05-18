@@ -20,14 +20,14 @@ public:
   std::size_t min_length() { return min_length_; }
   std::size_t must_max_length() { return must_max_length_; }
 
-  const std::string& must_max_word() { return *must_max_word_; }
+  const std::string& must_max_word() { return must_max_word_; }
   void set_max_length(std::size_t len) { max_length_ = len; }
   void set_min_length(std::size_t len) { min_length_ = len; }
   void set_must_max_length(std::size_t len) { must_max_length_ = len; }
-  void set_must_max_word(const std::string& string) { must_max_word_ = new std::string(string); }
+  void set_must_max_word(const std::string& string) { must_max_word_ = string; }
   void set_transition(std::vector<int>*tbl, bool accept, int default_state);
-  bool Matching(const std::string &str) { Matching((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
-  bool Matching(const unsigned char *str, const unsigned char *end);
+  bool IsMatched(const std::string &str) { IsMatched((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
+  bool IsMatched(const unsigned char *str, const unsigned char *end);
   const std::vector<int> &GetTransition(std::size_t state) { return *transition_[state]; };
   int GetDefaultNext(std::size_t state) { return defaults_[state]; }
   bool IsAcceptState(std::size_t state) { return accepts_[state]; }
@@ -39,7 +39,7 @@ public:
   std::size_t max_length_;
   std::size_t min_length_;
   std::size_t must_max_length_;
-  std::string *must_max_word_;
+  std::string must_max_word_;
 };
 
 } // namespace regen

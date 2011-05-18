@@ -24,11 +24,11 @@ void PrintExprVisitor::Visit(CharClass* e)
 {
   std::size_t continuance = 256;
   std::size_t index = 0;
-  unsigned char c;
+  int c;
   
   printf("[");
 
-  for (c = '\0'; c < 255; c++) {
+  for (c = 0; c < 256; c++) {
     if ((*e->tbl())[c]) {
       if (continuance == 256) {
         continuance = c;

@@ -9,6 +9,7 @@
 #include <vector>
 #include <queue>
 #include <deque>
+#include <functional>
 #include <map>
 #include <iostream>
 #include <typeinfo>
@@ -29,5 +30,18 @@
 #define errmsg(format, args...) fprintf(stderr, "in %s: "format, __FUNCTION__, ## args)
 #define exitmsg(format, args...) { errmsg(format, ## args), exit(-1); }
 #define DISALLOW_COPY_AND_ASSIGN(TypeName) TypeName(const TypeName&); void operator=(const TypeName&)
+
+namespace regen {
+
+template<typename T>
+struct DeleteObject:
+    public std::unary_function<const T*, void> {
+  void operator()(const T* ptr) const
+  {
+    delete ptr;
+  }
+};
+
+} // namespace regen
 
 #endif // REGEN_UTIL_H_

@@ -11,6 +11,7 @@ namespace regen {
 class Regex {
 public:
   Regex(const std::string &regex);
+  ~Regex() { delete expr_root_; };
   void PrintRegex();
   void PrintExtendedRegex();
   void PrintParseTree();
@@ -21,7 +22,7 @@ public:
   std::size_t max_lenlgth() { return expr_root_->max_length(); }
   std::size_t min_lenlgth() { return expr_root_->min_length(); }
   std::size_t must_max_length() { return must_max_length_; }
-  const std::string& must_max_word() { return *must_max_word_; }
+  const std::string& must_max_word() { return must_max_word_; }
 private:
   Expr::Type lex();
   Expr* e0();
@@ -37,7 +38,7 @@ private:
   std::vector<StateExpr*> states_;
   Must must_;
   std::size_t must_max_length_;
-  const std::string *must_max_word_;
+  const std::string must_max_word_;
   std::vector<bool> involved_char_;
   std::size_t count_involved_char_;
 

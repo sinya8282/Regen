@@ -33,13 +33,13 @@ void DotGenerate(DFA *dfa)
   for (int state = 0; state < dfa->size(); state++) {
     const std::vector<int> &transition = dfa->GetTransition(state);
 
-    for (int input = 0; input < 255; input++) {
+    for (int input = 0; input < 256; input++) {
       if (transition[input] != DFA::REJECT &&
           transition[input] != dfa->GetDefaultNext(state)) {
         printf("  q%d -> q%d [label=\"", state, transition[input]);
-        if (input < 254 && transition[input] == transition[input+1]) {
+        if (input < 255 && transition[input] == transition[input+1]) {
           printf("[%s", normalize(input));
-          while (++input < 254) {
+          while (++input < 255) {
             if (transition[input] != transition[input+1]) break;
           }
           printf("-%s]", normalize(input));
@@ -57,7 +57,7 @@ void DotGenerate(DFA *dfa)
     }
 
   }
-  puts("\n}");
+  puts("}");
 }
 
 }

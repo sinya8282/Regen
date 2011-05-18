@@ -10,6 +10,8 @@ int main(int argc, char *argv[]) {
   regen::Regex* r = new regen::Regex(str);
   regen::DFA *dfa = r->CreateDFA();
   regen::Generator::DotGenerate(dfa);
+  delete r;
+  delete dfa;
   return 0;
 }
 

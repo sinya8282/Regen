@@ -1,21 +1,18 @@
 #include "regex.h"
 #include "exprutil.h"
 
-void dump(const std::set<regen::StateExpr*> &nfa)
+// for debug
+void nfadump(const std::set<regen::StateExpr*> &nfa, bool verbose = false)
 {
   std::set<regen::StateExpr*>::iterator iter = nfa.begin();
   while (iter != nfa.end()) {
-    printf("%d, ", (*iter)->state_id());
-    ++iter;
-  }
-  puts("");
-}
-
-void dump1(const std::set<regen::StateExpr*> &nfa)
-{
-  std::set<regen::StateExpr*>::iterator iter = nfa.begin();
-  while (iter != nfa.end()) {
-    regen::PrintExprVisitor::Print(*iter);
+    printf("%"PRIuS"", (*iter)->state_id());
+    if (verbose) {
+      printf("(");
+      regen::PrintExprVisitor::Print(*iter);
+      printf(")");
+    }
+    printf(", ");
     ++iter;
   }
   puts("");
@@ -26,7 +23,7 @@ namespace regen {
 Regex::Regex(const std::string &regex):
     regex_(regex),
     parse_ptr_(regex.c_str()),
-    involved_char_(std::vector<bool>(255, false)),
+    involved_char_(std::vector<bool>(256, false)),
     dfa_(NULL)
 {
   parse();
@@ -64,7 +61,7 @@ std::vector<bool> * Regex::create_tbl() {
   bool comp, range;
   char lastc;
 
-  std::vector<bool> *tbl = new std::vector<bool>(255, false);
+  std::vector<bool> *tbl = new std::vector<bool>(256, false);
 
   if (*parse_ptr_ == '^') {
     parse_ptr_++;
@@ -112,7 +109,7 @@ std::vector<bool> * Regex::create_tbl() {
 
   parse_ptr_++;
 
-  for (i = 0; i < 255; i++) {
+  for (i = 0; i < 256; i++) {
     if ((*tbl)[i]) {
       lastc = (char)i;
       count++;
@@ -297,7 +294,7 @@ DFA* Regex::CreateDFA()
   while(!queue.empty()) {
     nfa_states = queue.front();
     queue.pop();
-    std::vector<NFA> transition(255);
+    std::vector<NFA> transition(256);
     NFA::iterator iter = nfa_states.begin();
     bool is_accept = false;
     default_next.clear();
@@ -306,14 +303,14 @@ DFA* Regex::CreateDFA()
       NFA &next = (*iter)->transition().follow;
       switch ((*iter)->type()) {
         case Expr::Literal: {
-          Literal* literal = dynamic_cast<Literal*>(*iter);
+          Literal* literal = static_cast<Literal*>(*iter);
           unsigned char index = (unsigned char)literal->literal();
           transition[index].insert(next.begin(), next.end());
           break;
         }
         case Expr::CharClass: {
-          CharClass* charclass = dynamic_cast<CharClass*>(*iter);
-          for (int i = 0; i < 255; i++) {
+          CharClass* charclass = static_cast<CharClass*>(*iter);
+          for (int i = 0; i < 256; i++) {
             if (charclass->Involve(static_cast<unsigned char>(i))) {
               transition[i].insert(next.begin(), next.end());
             }
@@ -321,7 +318,7 @@ DFA* Regex::CreateDFA()
           break;
         }
         case Expr::Dot: {
-          for (int i = 0; i < 255; i++) {
+          for (int i = 0; i < 256; i++) {
             transition[i].insert(next.begin(), next.end());
           }
           default_next.insert(next.begin(), next.end());
@@ -348,10 +345,10 @@ DFA* Regex::CreateDFA()
       ++iter;
     }
 
-    std::vector<int> *dfa_transition = new std::vector<int>(255, DFA::REJECT);
-    //if (is_accept) goto settransition; // left shortest matching
+    std::vector<int> *dfa_transition = new std::vector<int>(256, DFA::REJECT);
+    //if (is_accept) goto settransition; // only support Most-Left-Shortest matching
     
-    for (int i = 0; i < 255; i++) {
+    for (int i = 0; i < 256; i++) {
       NFA &next = transition[i];
       if (next.empty()) continue;
 

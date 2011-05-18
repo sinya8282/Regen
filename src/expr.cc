@@ -2,8 +2,6 @@
 
 namespace regen {
 
-Expr::~Expr() {}
-
 void Expr::Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst) {
   std::set<StateExpr*>::iterator iter = src.begin();
   while (iter != src.end()) {
