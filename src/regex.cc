@@ -24,9 +24,10 @@ Regex::Regex(const std::string &regex):
     regex_(regex),
     parse_ptr_(regex.c_str()),
     involved_char_(std::vector<bool>(256, false)),
-    dfa_(NULL)
+    dfa_(DFA())
 {
-  parse();
+  Parse();
+  CreateDFA();
 }
 
 Expr::Type Regex::lex()
@@ -55,18 +56,16 @@ Expr::Type Regex::lex()
   return token_type_;
 }
 
-std::vector<bool> * Regex::create_tbl() {
+std::size_t Regex::MakeCharClassTable(std::vector<bool> &table) {
   std::size_t i;
   std::size_t count = 0;
   bool comp, range;
   char lastc;
 
-  std::vector<bool> *tbl = new std::vector<bool>(256, false);
-
   if (*parse_ptr_ == '^') {
     parse_ptr_++;
     for (i = 32; i < 126; i ++) {
-      (*tbl)[i] = true;
+      table[i] = true;
     }
     comp = false;
   } else {
@@ -74,7 +73,7 @@ std::vector<bool> * Regex::create_tbl() {
   }
 
   if (*parse_ptr_ == ']' || *parse_ptr_ == '-') {
-    (*tbl)[(unsigned char)*parse_ptr_] = true;
+    table[(unsigned char)*parse_ptr_] = true;
     lastc = *parse_ptr_++;
   }
 
@@ -90,11 +89,11 @@ std::vector<bool> * Regex::create_tbl() {
       }
     }
 
-    (*tbl)[(unsigned char)*parse_ptr_] = comp;
+    table[(unsigned char)*parse_ptr_] = comp;
 
     if (range) {
       for (i = (unsigned char)(*parse_ptr_) - 1; i > (unsigned char)lastc; i--) {
-        (*tbl)[i] = comp;
+        table[i] = comp;
       }
       range = false;
     }
@@ -103,28 +102,27 @@ std::vector<bool> * Regex::create_tbl() {
   if (*parse_ptr_ == '\0') exitmsg(" [ ] imbalance");
 
   if (range) {
-    (*tbl)['-'] = comp;
+    table['-'] = comp;
     range = false;
   }
 
   parse_ptr_++;
 
   for (i = 0; i < 256; i++) {
-    if ((*tbl)[i]) {
+    if (table[i]) {
       lastc = (char)i;
       count++;
     }
   }
+
   if (count == 1) {
-    delete tbl;
-    tbl = NULL;
     parse_lit_ = lastc;
   }
 
-  return tbl;
+  return count;
 }
 
-void Regex::parse()
+void Regex::Parse()
 {
   Expr* e;
   StateExpr *eop;
@@ -135,38 +133,22 @@ void Regex::parse()
 
   if (token_type_ != Expr::EOP) exitmsg("expected end of pattern.");
 
-  //fill_words(e);
-
-  /*
-  std::set<std::string *>::iterator iter = must->in.begin();
-  while (iter != must->in.end()) {
-    if ((*iter)->length() > must_max_length) {
-      must_max_length = (*iter)->length();
-      must_max_word = *iter;
-    }
-  ++iter;
-  }
-  */
-
-  {
-    Expr *dotstar;
-    StateExpr *dot;
-    dot = new Dot();
-    dot->set_expr_id(++expr_id_);
-    dot->set_state_id(++state_id_);
-    dotstar = new Star(dot);
-    dotstar->set_expr_id(++expr_id_);
-    e = new Concat(dotstar, e);
-    e->set_expr_id(++expr_id_);
-  }
+  // add '.*' to top of regular expression.
+  Expr *dotstar;
+  StateExpr *dot;
+  dot = new Dot();
+  dot->set_expr_id(++expr_id_);
+  dot->set_state_id(++state_id_);
+  dotstar = new Star(dot);
+  dotstar->set_expr_id(++expr_id_);
+  e = new Concat(dotstar, e);
+  e->set_expr_id(++expr_id_);
   
   eop = new EOP();
   eop->set_expr_id(0);
   eop->set_state_id(0);
   e = new Concat(e, eop);
   e->set_expr_id(++expr_id_);
-
-  //fill_follow(eop);
 
   expr_root_ = e;
   expr_root_->FillTransition();
@@ -228,7 +210,6 @@ Regex::e3()
 {
   Expr *e;
   StateExpr *s;
-  std::vector<bool> *tbl;
 
   switch(token_type_) {
     case Expr::Literal:
@@ -243,18 +224,23 @@ Regex::e3()
     case Expr::Dot:
       s = new Dot();
       goto setid;
-    case Expr::CharClass:
-      tbl = create_tbl();
-      if (tbl == NULL) {
+    case Expr::CharClass: {
+      CharClass *cc = new CharClass();
+      std::vector<bool> &table = cc->table();
+      cc->set_count(MakeCharClassTable(table));
+      if (cc->count() == 1) {
+        // '[a]' just be matched 'a'.
         s = new Literal(parse_lit_);
+        delete cc;
       } else {
-        s = new CharClass(tbl);
+        s = cc;
       }
       goto setid;
+    }
     case Expr::Lpar:
       lex();
       e = e0();
-      if (token_type_ != Expr::Rpar); //exitmsg("expected a ')'");
+      if (token_type_ != Expr::Rpar) exitmsg("expected a ')'");
       goto noid;
     default:
       exitmsg("expected a Literal or '('!");
@@ -271,13 +257,8 @@ noid:
   return e;
 }
 
-DFA* Regex::CreateDFA()
+void Regex::CreateDFA()
 {
-  if (dfa_ != NULL) {
-    return dfa_;
-  }
-
-  dfa_ = new DFA();
   std::size_t dfa_id = 0;
 
   typedef std::set<StateExpr*> NFA;
@@ -345,8 +326,8 @@ DFA* Regex::CreateDFA()
       ++iter;
     }
 
-    std::vector<int> *dfa_transition = new std::vector<int>(256, DFA::REJECT);
-    //if (is_accept) goto settransition; // only support Most-Left-Shortest matching
+    std::vector<int> dfa_transition(256, DFA::REJECT);
+    if (is_accept) goto settransition; // only support Most-Left-Shortest matching
     
     for (int i = 0; i < 256; i++) {
       NFA &next = transition[i];
@@ -356,24 +337,22 @@ DFA* Regex::CreateDFA()
         dfa_map.insert(std::map<NFA, std::size_t>::value_type(next, dfa_id++));
         queue.push(next);
       }
-      (*dfa_transition)[i] = dfa_map[next];
+      dfa_transition[i] = dfa_map[next];
     }
  settransition:
-    dfa_->set_transition(dfa_transition, is_accept, dfa_map[default_next]);
+    dfa_.set_transition(dfa_transition, is_accept, dfa_map[default_next]);
   }
-
-  return dfa_;
 }
 
-void Regex::PrintRegex() {
+void Regex::PrintRegex() const {
   PrintRegexVisitor::Print(expr_root_);
 }
 
-void Regex::PrintParseTree() {
+void Regex::PrintParseTree() const {
   PrintParseTreeVisitor::Print(expr_root_);
 }
 
-void Regex::DumpExprTree() {
+void Regex::DumpExprTree() const {
   DumpExprVisitor::Dump(expr_root_);
 }
 

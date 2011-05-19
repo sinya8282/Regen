@@ -1,13 +1,13 @@
 #ifndef REGEN_GENERATOR_H_
 #define REGEN_GENERATOR_H_
 
-#include "dfa.h"
+#include "regex.h"
 
 namespace regen {
 
 namespace Generator {
 
-void DotGenerate(DFA *dfa);
+void DotGenerate(const Regex &regex);
 
 } // namespace Generator
 

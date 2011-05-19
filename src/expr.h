@@ -117,13 +117,15 @@ private:
 
 class CharClass: public StateExpr {
 public:
-  CharClass(std::vector<bool> *tbl): tbl_(tbl), StateExpr(Expr::CharClass) {}
-  ~CharClass() { delete tbl_; }
-  std::vector<bool> *tbl() { return tbl_; }
-  bool Involve(const unsigned char literal) { return (*tbl_)[literal]; }
+  CharClass():table_(std::vector<bool>(255, false)), StateExpr(Expr::CharClass) { }
+  ~CharClass() {}
+  std::vector<bool>& table() { return table_; }
+  void set_count(std::size_t count) { count_ = count; }
+  std::size_t count() const { return count_; }
+  bool Involve(const unsigned char literal) const { return table_[literal]; }
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
-  std::vector<bool> *tbl_;
+  std::vector<bool> table_;
   std::size_t count_;
   DISALLOW_COPY_AND_ASSIGN(CharClass);
 };

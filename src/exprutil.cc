@@ -29,7 +29,7 @@ void PrintExprVisitor::Visit(CharClass* e)
   printf("[");
 
   for (c = 0; c < 256; c++) {
-    if ((*e->tbl())[c]) {
+    if (e->Involve(c)) {
       if (continuance == 256) {
         continuance = c;
       }
