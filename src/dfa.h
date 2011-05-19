@@ -27,7 +27,7 @@ public:
 
   bool IsMatched(const std::string &str) const { IsMatched((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
   bool IsMatched(const unsigned char *str, const unsigned char *end) const;
-  const std::vector<int> &GetTransition(std::size_t state) const { return transition_[state]; };
+  const std::vector<int> &GetTransition(std::size_t state) const { return transition_[state]; }
   int GetDefaultNext(std::size_t state) const { return defaults_[state]; }
   bool IsAcceptState(std::size_t state) const { return accepts_[state]; }
   

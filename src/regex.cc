@@ -64,7 +64,8 @@ std::size_t Regex::MakeCharClassTable(std::vector<bool> &table) {
 
   if (*parse_ptr_ == '^') {
     parse_ptr_++;
-    for (i = 32; i < 126; i ++) {
+    for (i = ' '; i <= '~'; i ++) {
+      // ascii charactor code only
       table[i] = true;
     }
     comp = false;

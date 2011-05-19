@@ -8,6 +8,8 @@ namespace regen {
 namespace Generator {
 
 void DotGenerate(const Regex &regex);
+void CGenerate(const Regex &regex);
+void XbyakGenerate(const Regex &regex);
 
 } // namespace Generator
 

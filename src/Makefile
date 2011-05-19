@@ -1,4 +1,4 @@
-CFLAGS=-O0 -g3
+CFLAGS=-O0 -g3 -fno-operator-names
 CC=g++
 
 regen: regex expr exprutil dfa generator
