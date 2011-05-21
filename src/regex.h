@@ -32,16 +32,16 @@ private:
   Expr* e3();
   void Parse();
   void CreateDFA();
-  std::size_t MakeCharClassTable(std::vector<bool> &table);
+  std::size_t MakeCharClassTable(std::bitset<256> &table);
 
   const std::string regex_;
   Expr *expr_root_;
 
-  std::vector<StateExpr*> states_;
+  std::deque<StateExpr*> states_;
   Must must_;
   std::size_t must_max_length_;
   const std::string must_max_word_;
-  std::vector<bool> involved_char_;
+  std::bitset<256> involved_char_;
   std::size_t count_involved_char_;
 
   Expr::Type token_type_;

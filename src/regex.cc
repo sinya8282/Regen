@@ -23,7 +23,7 @@ namespace regen {
 Regex::Regex(const std::string &regex):
     regex_(regex),
     parse_ptr_(regex.c_str()),
-    involved_char_(std::vector<bool>(256, false)),
+    involved_char_(std::bitset<256>()),
     dfa_(DFA())
 {
   Parse();
@@ -56,7 +56,7 @@ Expr::Type Regex::lex()
   return token_type_;
 }
 
-std::size_t Regex::MakeCharClassTable(std::vector<bool> &table) {
+std::size_t Regex::MakeCharClassTable(std::bitset<256> &table) {
   std::size_t i;
   std::size_t count = 0;
   bool comp, range;
@@ -66,7 +66,7 @@ std::size_t Regex::MakeCharClassTable(std::vector<bool> &table) {
     parse_ptr_++;
     for (i = ' '; i <= '~'; i ++) {
       // ascii charactor code only
-      table[i] = true;
+      table.set(i);
     }
     comp = false;
   } else {
@@ -74,7 +74,7 @@ std::size_t Regex::MakeCharClassTable(std::vector<bool> &table) {
   }
 
   if (*parse_ptr_ == ']' || *parse_ptr_ == '-') {
-    table[(unsigned char)*parse_ptr_] = true;
+    table.set((unsigned char)*parse_ptr_);
     lastc = *parse_ptr_++;
   }
 
@@ -90,11 +90,11 @@ std::size_t Regex::MakeCharClassTable(std::vector<bool> &table) {
       }
     }
 
-    table[(unsigned char)*parse_ptr_] = comp;
+    table.set(*parse_ptr_, comp);
 
     if (range) {
       for (i = (unsigned char)(*parse_ptr_) - 1; i > (unsigned char)lastc; i--) {
-        table[i] = comp;
+        table.set(i, comp);
       }
       range = false;
     }
@@ -103,7 +103,7 @@ std::size_t Regex::MakeCharClassTable(std::vector<bool> &table) {
   if (*parse_ptr_ == '\0') exitmsg(" [ ] imbalance");
 
   if (range) {
-    table['-'] = comp;
+    table.set('-', comp);
     range = false;
   }
 
@@ -135,19 +135,20 @@ void Regex::Parse()
   if (token_type_ != Expr::EOP) exitmsg("expected end of pattern.");
 
   // add '.*' to top of regular expression.
-  Expr *dotstar;
-  StateExpr *dot;
-  dot = new Dot();
-  dot->set_expr_id(++expr_id_);
-  dot->set_state_id(++state_id_);
-  dotstar = new Star(dot);
-  dotstar->set_expr_id(++expr_id_);
-  e = new Concat(dotstar, e);
-  e->set_expr_id(++expr_id_);
+  // Expr *dotstar;
+  // StateExpr *dot;
+  // dot = new Dot();
+  // dot->set_expr_id(++expr_id_);
+  // dot->set_state_id(++state_id_);
+  // dotstar = new Star(dot);
+  // dotstar->set_expr_id(++expr_id_);
+  // e = new Concat(dotstar, e);
+  // e->set_expr_id(++expr_id_);
   
   eop = new EOP();
   eop->set_expr_id(0);
   eop->set_state_id(0);
+  states_.push_front(eop);
   e = new Concat(e, eop);
   e->set_expr_id(++expr_id_);
 
@@ -227,7 +228,7 @@ Regex::e3()
       goto setid;
     case Expr::CharClass: {
       CharClass *cc = new CharClass();
-      std::vector<bool> &table = cc->table();
+      std::bitset<256> &table = cc->table();
       cc->set_count(MakeCharClassTable(table));
       if (cc->count() == 1) {
         // '[a]' just be matched 'a'.
@@ -267,14 +268,14 @@ void Regex::CreateDFA()
   std::map<NFA, int> dfa_map;
   std::queue<NFA> queue;
   NFA default_next;
-  NFA nfa_states = expr_root_->transition().first;
+  NFA first_states = expr_root_->transition().first;
 
   dfa_map.insert(std::map<NFA ,int>::value_type(default_next, DFA::REJECT));
-  dfa_map.insert(std::map<NFA ,int>::value_type(nfa_states, dfa_id++));
-  queue.push(nfa_states);
+  dfa_map.insert(std::map<NFA ,int>::value_type(first_states, dfa_id++));
+  queue.push(first_states);
 
   while(!queue.empty()) {
-    nfa_states = queue.front();
+    NFA nfa_states = queue.front();
     queue.pop();
     std::vector<NFA> transition(256);
     NFA::iterator iter = nfa_states.begin();
@@ -327,8 +328,21 @@ void Regex::CreateDFA()
       ++iter;
     }
 
+    std::vector<NFA>::iterator trans = transition.begin();
+    while (trans != transition.end() && false) {
+      std::set<StateExpr*>::iterator next_ = trans->begin();
+      while (next_ != trans->end()) {
+        if ((*next_)->type() == Expr::EOP) goto loopend;
+        ++next_;
+      }
+      trans->insert(first_states.begin(), first_states.end());
+   loopend:
+      ++trans;
+    }
+    default_next.insert(first_states.begin(), first_states.end());
+    
     std::vector<int> dfa_transition(256, DFA::REJECT);
-    if (is_accept) goto settransition; // only support Most-Left-Shortest matching
+    //if (is_accept) goto settransition; // only support Most-Left-Shortest matching
     
     for (int i = 0; i < 256; i++) {
       NFA &next = transition[i];

@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <string>
 #include <set>
+#include <bitset>
 #include <vector>
 #include <queue>
 #include <deque>

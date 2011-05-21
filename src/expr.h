@@ -117,15 +117,15 @@ private:
 
 class CharClass: public StateExpr {
 public:
-  CharClass():table_(std::vector<bool>(255, false)), StateExpr(Expr::CharClass) { }
+  CharClass():table_(std::bitset<256>()), StateExpr(Expr::CharClass) { }
   ~CharClass() {}
-  std::vector<bool>& table() { return table_; }
+  std::bitset<256>& table() { return table_; }
   void set_count(std::size_t count) { count_ = count; }
   std::size_t count() const { return count_; }
   bool Involve(const unsigned char literal) const { return table_[literal]; }
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
-  std::vector<bool> table_;
+  std::bitset<256> table_;
   std::size_t count_;
   DISALLOW_COPY_AND_ASSIGN(CharClass);
 };
