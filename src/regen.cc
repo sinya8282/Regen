@@ -54,6 +54,7 @@ int main(int argc, char *argv[]) {
       regen::Generator::DotGenerate(r);
       break;
     case XGEN:
+      // JIT compile, and evalute that.
       regen::Generator::XbyakGenerate(r);
       break;
     case EVAL:
