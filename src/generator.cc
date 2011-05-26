@@ -112,12 +112,24 @@ XbyakGenerator::XbyakGenerator(const DFA &dfa, std::size_t state_code_size = 16)
 
   const uint8_t* code_addr_top = getCurr();
   const uint8_t** transition_table_ptr = (const uint8_t **)(code_addr_top + (dfa.size()+3)*state_code_size + (((dfa.size()+3)*state_code_size) % 4096));
-  
+
+#ifdef XBYAK32
+64 ONLY
+#elif defined(XBYAK64_WIN)
+  const Xbyak::Reg64 arg1(rcx);
+  const Xbyak::Reg64 arg2(rdx);
+  const Xbyak::Reg64 tbl (r8);
+  const Xbyak::Reg64 retr(rax);
+  const Xbyak::Reg64 tmp1(r10);
+  const Xbyak::Reg64 tmp2(r11);  
+#else
   const Xbyak::Reg64 arg1(rdi);
   const Xbyak::Reg64 arg2(rsi);
   const Xbyak::Reg64 tbl (rdx);
+  const Xbyak::Reg64 retr(rax);
   const Xbyak::Reg64 tmp1(r10);
   const Xbyak::Reg64 tmp2(r11);
+#endif
 
   // setup enviroment on register
   mov(tbl,  (uint64_t)transition_table_ptr);
@@ -125,13 +137,13 @@ XbyakGenerator::XbyakGenerator(const DFA &dfa, std::size_t state_code_size = 16)
 
   L("accept");
   const uint8_t *accept_state_addr = getCurr();
-  mov(eax, 1); // return true
+  mov(retr, 1); // return true
   ret();
 
   L("reject");
   const uint8_t *reject_state_addr = getCurr();
   rdtsc();
-  xor(eax, eax); // return false
+  xor(retr, retr); // return false
   ret();
 
   align(16);
