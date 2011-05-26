@@ -1,22 +1,22 @@
 CFLAGS=-O0 -g3 -fno-operator-names
 CC=g++
 
-regen: regex expr exprutil dfa generator
+regen: regen.cc regex.o expr.o exprutil.o dfa.o generator.o
 	$(CC) $(CFLAGS) regen.cc regex.o expr.o exprutil.o dfa.o generator.o -o regen
 
-regex:
+regex.o: regex.cc regex.h
 	$(CC) $(CFLAGS) -c regex.cc -o regex.o
 
-expr:
+expr.o: expr.cc expr.h
 	$(CC) $(CFLAGS) -c expr.cc -o expr.o
 
-exprutil:
+exprutil.o: exprutil.cc exprutil.h
 	$(CC) $(CFLAGS) -c exprutil.cc -o exprutil.o
 
-dfa:
+dfa.o: dfa.cc dfa.h
 	$(CC) $(CFLAGS) -c dfa.cc -o dfa.o
 
-generator:
+generator.o: generator.cc generator.h
 	$(CC) $(CFLAGS) -c generator.cc -o generator.o
 
 clean:
