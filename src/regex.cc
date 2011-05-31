@@ -270,8 +270,8 @@ void Regex::CreateDFA()
   NFA default_next;
   NFA first_states = expr_root_->transition().first;
 
-  dfa_map.insert(std::map<NFA ,int>::value_type(default_next, DFA::REJECT));
-  dfa_map.insert(std::map<NFA ,int>::value_type(first_states, dfa_id++));
+  dfa_map[default_next] = DFA::REJECT;
+  dfa_map[first_states] = dfa_id++;
   queue.push(first_states);
 
   while(!queue.empty()) {
@@ -349,7 +349,7 @@ void Regex::CreateDFA()
       if (next.empty()) continue;
 
       if (dfa_map.find(next) == dfa_map.end()) {
-        dfa_map.insert(std::map<NFA, std::size_t>::value_type(next, dfa_id++));
+        dfa_map[next] = dfa_id++;
         queue.push(next);
       }
       dfa_transition[i] = dfa_map[next];
