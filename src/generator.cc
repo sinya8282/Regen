@@ -100,7 +100,7 @@ class XbyakGenerator: public Xbyak::CodeGenerator {
   const DFA dfa_;
 };
 
-XbyakGenerator::XbyakGenerator(const DFA &dfa, std::size_t state_code_size = 16):
+XbyakGenerator::XbyakGenerator(const DFA &dfa, std::size_t state_code_size = 32):
     /* dfa.size()*32 for code. <- code segment
      * padding for 4kb allign 
      * dfa.size()*256*sizeof(void *) for transition table. <- data segment */
