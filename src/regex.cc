@@ -341,11 +341,11 @@ void Regex::CreateDFA()
     }
     default_next.insert(first_states.begin(), first_states.end());
     
-    std::vector<int> dfa_transition(256, DFA::REJECT);
+    DFA::Transition &dfa_transition = dfa_.get_new_transition();
     //if (is_accept) goto settransition; // only support Most-Left-Shortest matching
     
     for (int i = 0; i < 256; i++) {
-      NFA &next = transition[i];
+      const NFA &next = transition[i];
       if (next.empty()) continue;
 
       if (dfa_map.find(next) == dfa_map.end()) {
@@ -355,7 +355,7 @@ void Regex::CreateDFA()
       dfa_transition[i] = dfa_map[next];
     }
  settransition:
-    dfa_.set_transition(dfa_transition, is_accept, dfa_map[default_next]);
+    dfa_.set_state_info(is_accept, dfa_map[default_next]);
   }
 }
 

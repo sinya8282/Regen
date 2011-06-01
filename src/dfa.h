@@ -6,10 +6,18 @@ namespace regen {
 
 class DFA {
 public:
-  typedef enum State {
+  
+  enum State {
     REJECT = -1,
     ACCEPT = -2
-  } State;
+  };  
+
+  struct Transition {
+    int t[256];
+    Transition(int fill = REJECT) { std::fill(t, t+256, fill); }
+    int &operator[](std::size_t index) { return t[index]; }
+    const int &operator[](std::size_t index) const { return t[index]; }
+  };
   
   bool empty() const { return (transition_.size() == 0); }
   std::size_t size() const { return transition_.size(); }
@@ -23,16 +31,17 @@ public:
   void set_min_length(std::size_t len) { min_length_ = len; }
   void set_must_max_length(std::size_t len) { must_max_length_ = len; }
   void set_must_max_word(const std::string& string) { must_max_word_ = string; }
-  void set_transition(std::vector<int>tbl, bool accept, int default_state);
+  Transition& get_new_transition();
+  void set_state_info(bool accept, int default_state);
 
   bool IsMatched(const std::string &str) const { IsMatched((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
   bool IsMatched(const unsigned char *str, const unsigned char *end) const;
-  const std::vector<int> &GetTransition(std::size_t state) const { return transition_[state]; }
+  const Transition &GetTransition(std::size_t state) const { return transition_[state]; }
   int GetDefaultNext(std::size_t state) const { return defaults_[state]; }
   bool IsAcceptState(std::size_t state) const { return accepts_[state]; }
-  
- private:
-  std::deque<std::vector<int> > transition_;
+
+private:
+  std::vector<Transition> transition_;
   std::deque<int> defaults_;
   std::deque<bool> accepts_;
   std::size_t max_length_;

@@ -17,6 +17,7 @@ public:
   void PrintParseTree() const;
   void DumpExprTree() const;
   bool IsMatched(const std::string &string) const { return dfa_.IsMatched(string); }
+  bool IsMatched(const unsigned char *begin, const unsigned char *end) const { return dfa_.IsMatched(begin, end); }
   const std::string& regex() const { return regex_; }
   const Must& must() const { return must_; }
   std::size_t max_lenlgth() const { return expr_root_->max_length(); }

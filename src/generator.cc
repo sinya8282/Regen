@@ -1,10 +1,6 @@
 #include "generator.h"
 #include <xbyak/xbyak.h>
 
-int add8_(int x) {
-  return x + 8;
-}
-
 namespace regen {
 
 namespace Generator {
@@ -37,7 +33,7 @@ void DotGenerate(const Regex &regex)
   }
   printf("  start [shape=point]\n  start -> q0\n\n");
   for (int state = 0; state < dfa.size(); state++) {
-    const std::vector<int> &transition = dfa.GetTransition(state);
+    const DFA::Transition &transition = dfa.GetTransition(state);
 
     for (int input = 0; input < 256; input++) {
       if (transition[input] != DFA::REJECT &&
@@ -72,7 +68,7 @@ void CGenerate(const Regex& regex)
   puts("typedef unsigned char *UCHARP;");
   const DFA &dfa = regex.dfa();
   for (int i = 0; i < dfa.size(); i++) {
-    const std::vector<int> &transition = dfa.GetTransition(i);
+    const DFA::Transition &transition = dfa.GetTransition(i);
     printf("void s%d(UCHARP beg, UCHARP buf, UCHARP end)\n{\n", i);
     if (dfa.IsAcceptState(i)) {
       puts("  return accept(beg, buf, end);");
@@ -114,7 +110,7 @@ XbyakGenerator::XbyakGenerator(const DFA &dfa, std::size_t state_code_size = 32)
   const uint8_t** transition_table_ptr = (const uint8_t **)(code_addr_top + (dfa.size()+3)*state_code_size + (((dfa.size()+3)*state_code_size) % 4096));
 
 #ifdef XBYAK32
-64 ONLY
+#error "64 only"
 #elif defined(XBYAK64_WIN)
   const Xbyak::Reg64 arg1(rcx);
   const Xbyak::Reg64 arg2(rdx);
@@ -146,7 +142,7 @@ XbyakGenerator::XbyakGenerator(const DFA &dfa, std::size_t state_code_size = 32)
   xor(retr, retr); // return false
   ret();
 
-  align(16);
+  align(32);
   
   // state code generation, and indexing every states address.
   for (int i = 0; i < dfa.size(); i++) {
@@ -156,7 +152,7 @@ XbyakGenerator::XbyakGenerator(const DFA &dfa, std::size_t state_code_size = 32)
     states_addr[i] = getCurr();
     cmp(arg1, arg2);
     if (dfa.IsAcceptState(i)) {
-      jmp("accept");
+      je("accept");
     } else {
       je("reject");
     }
@@ -164,12 +160,12 @@ XbyakGenerator::XbyakGenerator(const DFA &dfa, std::size_t state_code_size = 32)
     inc(arg1);
     jmp(ptr[tbl+i*256*8+tmp1*8]);
 
-    align(16);
+    align(32);
   }
   
   // backpatching (every states address)
   for (int i = 0; i < dfa.size(); i++) {
-    const std::vector<int> &trans = dfa.GetTransition(i);
+    const DFA::Transition &trans = dfa.GetTransition(i);
     for (int c = 0; c < 256; c++) {
       int next = trans[c];
       transition_table_ptr[i*256+c] =
@@ -184,13 +180,9 @@ void XbyakGenerate(const Regex &regex)
   XbyakGenerator xgen(dfa);
   bool (*dfa_)(const char *, const char *) = (bool (*)(const char *, const char *))xgen.getCode();
 
-  std::string text;
-  while (std::cin >> text) {
-    if (text.length() == 0) break;
-    const char *begin = text.c_str(), *end = begin+text.length();
-    bool result = dfa_(begin, end);
-    printf("%s is %s\n", text.c_str(), (result ? "match" : "not match"));
-  }
+  Util::mmap_t mm("hoge");
+  bool result = dfa_((char *)mm.ptr, (char *)mm.ptr+mm.size);
+  printf("%d\n", result);
 
   return;
 }
