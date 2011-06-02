@@ -16,7 +16,7 @@ void DFA::set_state_info(bool accept, int default_next)
 bool DFA::IsMatched(const unsigned char *str, const unsigned char *end) const
 {
   int state = 0, next;
-  while(str != end && (next = transition_[state][*str++]) != DFA::REJECT) {
+  while (str != end && (next = transition_[state][*str++]) != DFA::REJECT) {
     state = next;
   }
 
