@@ -58,13 +58,9 @@ int main(int argc, char *argv[]) {
       regen::Generator::XbyakGenerate(r);
       break;
     case EVAL:
-      for (;;) {
-        std::string input;
-        std::cin >> input;
-        if (r.IsMatched(input)) {
-          std::cout << input << std::endl;
-        }
-      }
+      regen::Util::mmap_t mm("hoge");
+      bool result = r.FullMatch((unsigned char *)mm.ptr, (unsigned char *)mm.ptr+mm.size);
+      printf("%d\n", result);
       break;
   }
   return 0;

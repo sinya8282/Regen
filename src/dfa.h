@@ -34,8 +34,8 @@ public:
   Transition& get_new_transition();
   void set_state_info(bool accept, int default_state);
 
-  bool IsMatched(const std::string &str) const { return IsMatched((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
-  bool IsMatched(const unsigned char *str, const unsigned char *end) const;
+  bool FullMatch(const std::string &str) const { return FullMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
+  bool FullMatch(const unsigned char *str, const unsigned char *end) const;
   const Transition &GetTransition(std::size_t state) const { return transition_[state]; }
   int GetDefaultNext(std::size_t state) const { return defaults_[state]; }
   bool IsAcceptState(std::size_t state) const { return accepts_[state]; }

@@ -359,6 +359,16 @@ void Regex::CreateDFA()
   }
 }
 
+bool Regex::FullMatch(const std::string &string)  const {
+  const unsigned char* begin = (const unsigned char *)string.c_str();
+  FullMatch(begin, begin+string.length());
+}
+
+
+bool Regex::FullMatch(const unsigned char *begin, const unsigned char * end)  const {
+  dfa_.FullMatch(begin, end);
+}
+
 void Regex::PrintRegex() const {
   PrintRegexVisitor::Print(expr_root_);
 }
