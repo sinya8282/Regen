@@ -19,7 +19,7 @@ public:
     const int &operator[](std::size_t index) const { return t[index]; }
   };
   
-  bool empty() const { return (transition_.size() == 0); }
+  bool empty() const { return transition_.empty(); }
   std::size_t size() const { return transition_.size(); }
   std::size_t start_state() const { return 0; }
   std::size_t max_length() const { return max_length_; }
