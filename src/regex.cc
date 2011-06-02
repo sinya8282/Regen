@@ -22,8 +22,8 @@ namespace regen {
 
 Regex::Regex(const std::string &regex):
     regex_(regex),
-    parse_ptr_(regex.c_str()),
     involved_char_(std::bitset<256>()),
+    parse_ptr_(regex.c_str()),
     dfa_(DFA())
 {
   Parse();
@@ -354,19 +354,19 @@ void Regex::CreateDFA()
       }
       dfa_transition[i] = dfa_map[next];
     }
- settransition:
+    //settransition:
     dfa_.set_state_info(is_accept, dfa_map[default_next]);
   }
 }
 
 bool Regex::FullMatch(const std::string &string)  const {
   const unsigned char* begin = (const unsigned char *)string.c_str();
-  FullMatch(begin, begin+string.length());
+  return FullMatch(begin, begin+string.length());
 }
 
 
 bool Regex::FullMatch(const unsigned char *begin, const unsigned char * end)  const {
-  dfa_.FullMatch(begin, end);
+  return dfa_.FullMatch(begin, end);
 }
 
 void Regex::PrintRegex() const {

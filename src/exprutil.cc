@@ -23,7 +23,6 @@ void PrintExprVisitor::Visit(Literal* e)
 void PrintExprVisitor::Visit(CharClass* e)
 {
   std::size_t continuance = 256;
-  std::size_t index = 0;
   int c;
   
   printf("[");

@@ -1,4 +1,4 @@
-CFLAGS=-O0 -g3 -fno-operator-names
+CFLAGS=-O0 -Wall -g3 -fno-operator-names
 CC=g++
 
 regen: regen.cc regex.o expr.o exprutil.o dfa.o generator.o

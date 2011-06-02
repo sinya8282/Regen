@@ -28,17 +28,17 @@ void DotGenerate(const Regex &regex)
   char buf[10];
   puts("digraph DFA {\n  rankdir=\"LR\"");
   const DFA &dfa = regex.dfa();
-  for (int i = 0; i < dfa.size(); i++) {
-    printf("  q%d [shape=%s, %s]\n", i, (dfa.IsAcceptState(i) ? accept : normal), thema);
+  for (std::size_t i = 0; i < dfa.size(); i++) {
+    printf("  q%"PRIuS" [shape=%s, %s]\n", i, (dfa.IsAcceptState(i) ? accept : normal), thema);
   }
   printf("  start [shape=point]\n  start -> q0\n\n");
-  for (int state = 0; state < dfa.size(); state++) {
+  for (std::size_t state = 0; state < dfa.size(); state++) {
     const DFA::Transition &transition = dfa.GetTransition(state);
 
     for (int input = 0; input < 256; input++) {
       if (transition[input] != DFA::REJECT &&
           transition[input] != dfa.GetDefaultNext(state)) {
-        printf("  q%d -> q%d [label=\"", state, transition[input]);
+        printf("  q%"PRIuS" -> q%d [label=\"", state, transition[input]);
         if (input < 255 && transition[input] == transition[input+1]) {
           printf("[%s", normalize(input, buf));
           while (++input < 255) {
@@ -54,7 +54,7 @@ void DotGenerate(const Regex &regex)
     
     if (dfa.GetDefaultNext(state) != DFA::REJECT
         && !dfa.IsAcceptState(state)) {
-      printf("  q%d -> q%d [color=red]\n",
+      printf("  q%"PRIuS" -> q%d [color=red]\n",
              state, dfa.GetDefaultNext(state));
     }
 
@@ -67,9 +67,9 @@ void CGenerate(const Regex& regex)
   puts("typedef unsigned char  UCHAR;");
   puts("typedef unsigned char *UCHARP;");
   const DFA &dfa = regex.dfa();
-  for (int i = 0; i < dfa.size(); i++) {
+  for (std::size_t i = 0; i < dfa.size(); i++) {
     const DFA::Transition &transition = dfa.GetTransition(i);
-    printf("void s%d(UCHARP beg, UCHARP buf, UCHARP end)\n{\n", i);
+    printf("void s%"PRIuS"(UCHARP beg, UCHARP buf, UCHARP end)\n{\n", i);
     if (dfa.IsAcceptState(i)) {
       puts("  return accept(beg, buf, end);");
     } else {
@@ -130,7 +130,6 @@ XbyakGenerator::XbyakGenerator(const DFA &dfa, std::size_t state_code_size = 32)
   jmp("s0");
 
   L("accept");
-  const uint8_t *accept_state_addr = getCurr();
   mov(rax, 1); // return true
   ret();
 
@@ -143,7 +142,7 @@ XbyakGenerator::XbyakGenerator(const DFA &dfa, std::size_t state_code_size = 32)
   
   // state code generation, and indexing every states address.
   L("s0");
-  for (int i = 0; i < dfa.size(); i++) {
+  for (std::size_t i = 0; i < dfa.size(); i++) {
     states_addr[i] = getCurr();
     cmp(arg1, arg2);
     if (dfa.IsAcceptState(i)) {
@@ -160,7 +159,7 @@ XbyakGenerator::XbyakGenerator(const DFA &dfa, std::size_t state_code_size = 32)
   }
   
   // backpatching (every states address)
-  for (int i = 0; i < dfa.size(); i++) {
+  for (std::size_t i = 0; i < dfa.size(); i++) {
     const DFA::Transition &trans = dfa.GetTransition(i);
     for (int c = 0; c < 256; c++) {
       int next = trans[c];

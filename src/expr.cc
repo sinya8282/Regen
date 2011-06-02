@@ -17,8 +17,8 @@ void Expr::Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst) {
 }
 
 StateExpr::StateExpr(Expr::Type type):
-    state_id_(0),
-    type_(type)
+    type_(type),
+    state_id_(0)
 {
   min_length_ = max_length_ = 1;
   transition_.first.insert(this);
@@ -38,8 +38,8 @@ UnaryExpr* UnaryExpr::DispatchNew(Expr::Type type, Expr* lhs)
     case Expr::Plus:
       ret = new regen::Plus(lhs);
       break;
-    defaut:
-      exitmsg("");
+    default:
+      exitmsg("invalid Expr type: %d", type);
   }
   return ret;
 }

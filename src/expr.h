@@ -106,7 +106,7 @@ private:
 
 class Literal: public StateExpr {
 public:
-  Literal(const char literal): literal_(literal), StateExpr(Expr::Literal) {}
+Literal(const char literal): StateExpr(Expr::Literal), literal_(literal) {}
   ~Literal() {}
   char literal() { return literal_; }
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
@@ -117,7 +117,7 @@ private:
 
 class CharClass: public StateExpr {
 public:
-  CharClass():table_(std::bitset<256>()), StateExpr(Expr::CharClass) { }
+  CharClass(): StateExpr(Expr::CharClass), table_(std::bitset<256>()) { }
   ~CharClass() {}
   std::bitset<256>& table() { return table_; }
   void set_count(std::size_t count) { count_ = count; }
@@ -176,8 +176,8 @@ public:
   void  set_rhs(Expr *rhs) { rhs_ = rhs; }
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 protected:
-  Expr *rhs_;
   Expr *lhs_;
+  Expr *rhs_;
 private:
   DISALLOW_COPY_AND_ASSIGN(BinaryExpr);
 };

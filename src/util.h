@@ -17,6 +17,10 @@
 #include <typeinfo>
 #include <fstream>
 
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+
 #ifdef _LP64
 #define __PRIS_PREFIX "z"
 #else
@@ -30,19 +34,42 @@
 #define PRIoS __PRIS_PREFIX "o"
 
 #define errmsg(format, args...) fprintf(stderr, "in %s: "format, __FUNCTION__, ## args)
-#define exitmsg(format, args...) { errmsg(format, ## args), exit(-1); }
+#define exitmsg(format, args...) { errmsg(format, ## args); exit(-1); }
 #define DISALLOW_COPY_AND_ASSIGN(TypeName) TypeName(const TypeName&); void operator=(const TypeName&)
 
 namespace regen {
 
-template<typename T>
-struct DeleteObject:
-    public std::unary_function<const T*, void> {
-  void operator()(const T* ptr) const
-  {
-    delete ptr;
+namespace Util {
+  
+struct mmap_t{
+  mmap_t(const char* path, bool write_mode=false, int flags=MAP_FILE|MAP_PRIVATE){
+    int OPEN_MODE=O_RDONLY;
+    int PROT = PROT_READ;
+    if(write_mode) {
+      OPEN_MODE=O_RDWR;
+      PROT |= PROT_WRITE;
+    }
+
+    int f = open(path, OPEN_MODE);
+    struct stat statbuf;
+    fstat(f, &statbuf);
+    ptr = mmap(0, statbuf.st_size, PROT, flags, f, 0);
+    size=statbuf.st_size;
+    close(f);
   }
+
+  ~mmap_t() {
+    munmap(ptr, size);
+  }
+
+  operator bool () const
+  { return ptr != (void *)-1; }
+
+  size_t size;
+  void *ptr;
 };
+
+} // namespace Util
 
 } // namespace regen
 
