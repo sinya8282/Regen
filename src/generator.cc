@@ -115,14 +115,12 @@ XbyakGenerator::XbyakGenerator(const DFA &dfa, std::size_t state_code_size = 32)
   const Xbyak::Reg64 arg1(rcx);
   const Xbyak::Reg64 arg2(rdx);
   const Xbyak::Reg64 tbl (r8);
-  const Xbyak::Reg64 retr(rax);
   const Xbyak::Reg64 tmp1(r10);
   const Xbyak::Reg64 tmp2(r11);  
 #else
   const Xbyak::Reg64 arg1(rdi);
   const Xbyak::Reg64 arg2(rsi);
   const Xbyak::Reg64 tbl (rdx);
-  const Xbyak::Reg64 retr(rax);
   const Xbyak::Reg64 tmp1(r10);
   const Xbyak::Reg64 tmp2(r11);
 #endif
@@ -133,32 +131,30 @@ XbyakGenerator::XbyakGenerator(const DFA &dfa, std::size_t state_code_size = 32)
 
   L("accept");
   const uint8_t *accept_state_addr = getCurr();
-  mov(retr, 1); // return true
+  mov(rax, 1); // return true
   ret();
 
   L("reject");
   const uint8_t *reject_state_addr = getCurr();
-  rdtsc();
-  xor(retr, retr); // return false
+  xor(rax, rax); // return false
   ret();
 
   align(32);
   
   // state code generation, and indexing every states address.
+  L("s0");
   for (int i = 0; i < dfa.size(); i++) {
-    char label_buf[100];
-    sprintf(label_buf, "s%d", i);
-    L(label_buf);
     states_addr[i] = getCurr();
     cmp(arg1, arg2);
     if (dfa.IsAcceptState(i)) {
-      je("accept");
+      je("accept", T_NEAR);
     } else {
-      je("reject");
+      je("reject", T_NEAR);
     }
     movzx(tmp1, byte[arg1]);
     inc(arg1);
     jmp(ptr[tbl+i*256*8+tmp1*8]);
+    mov(tmp2, i); // embedding state number (for debug).
 
     align(32);
   }
