@@ -33,25 +33,25 @@ Regex::Regex(const std::string &regex):
 Expr::Type Regex::lex()
 {
   if (*parse_ptr_ == '\0') {
-    return (token_type_ = Expr::EOP);
+    return (token_type_ = Expr::kEOP);
   } else switch (parse_lit_ = *parse_ptr_++) {
-      case '.': token_type_ = Expr::Dot;       break;
-      case '[': token_type_ = Expr::CharClass; break;
-      case '|': token_type_ = Expr::Union;     break;
-      case '?': token_type_ = Expr::Qmark;     break;
-      case '+': token_type_ = Expr::Plus;      break;
-      case '*': token_type_ = Expr::Star;      break;
-      case '(': token_type_ = Expr::Lpar;      break;
-      case ')': token_type_ = Expr::Rpar;      break;
-      case '^': token_type_ = Expr::BegLine;   break;
-      case '$': token_type_ = Expr::EndLine;   break;
+      case '.': token_type_ = Expr::kDot;       break;
+      case '[': token_type_ = Expr::kCharClass; break;
+      case '|': token_type_ = Expr::kUnion;     break;
+      case '?': token_type_ = Expr::kQmark;     break;
+      case '+': token_type_ = Expr::kPlus;      break;
+      case '*': token_type_ = Expr::kStar;      break;
+      case '(': token_type_ = Expr::kLpar;      break;
+      case ')': token_type_ = Expr::kRpar;      break;
+      case '^': token_type_ = Expr::kBegLine;   break;
+      case '$': token_type_ = Expr::kEndLine;   break;
       case '\\':
-        token_type_ = Expr::Literal;
+        token_type_ = Expr::kLiteral;
         if (*parse_ptr_ == '\0') exitmsg("bad '\\'");
         parse_lit_ = *parse_ptr_++;
         break;
       default:
-        token_type_ = Expr::Literal;
+        token_type_ = Expr::kLiteral;
   }
   return token_type_;
 }
@@ -132,7 +132,7 @@ void Regex::Parse()
 
   e = e0();
 
-  if (token_type_ != Expr::EOP) exitmsg("expected end of pattern.");
+  if (token_type_ != Expr::kEOP) exitmsg("expected end of pattern.");
 
   // add '.*' to top of regular expression.
   // Expr *dotstar;
@@ -161,7 +161,7 @@ Expr *Regex::e0()
   Expr *e, *f;
   e = e1();
   
-  while (token_type_ == Expr::Union) {
+  while (token_type_ == Expr::kUnion) {
   lex();
     f = e1();
     e = new Union(e, f);
@@ -176,12 +176,12 @@ Regex::e1()
   Expr *e, *f;
   e = e2();
 
-  while (token_type_ == Expr::Literal ||
-     token_type_ == Expr::CharClass ||
-     token_type_ == Expr::Dot ||
-     token_type_ == Expr::Lpar ||
-     token_type_ == Expr::EndLine ||
-     token_type_ == Expr::BegLine) {
+  while (token_type_ == Expr::kLiteral ||
+     token_type_ == Expr::kCharClass ||
+     token_type_ == Expr::kDot ||
+     token_type_ == Expr::kLpar ||
+     token_type_ == Expr::kEndLine ||
+     token_type_ == Expr::kBegLine) {
   f = e2();
   e = new Concat(e, f);
   e->set_expr_id(++expr_id_);
@@ -196,9 +196,9 @@ Regex::e2()
   Expr *e;
   e = e3();
 
-  while (token_type_ == Expr::Star ||
-     token_type_ == Expr::Plus ||
-     token_type_ == Expr::Qmark) {
+  while (token_type_ == Expr::kStar ||
+     token_type_ == Expr::kPlus ||
+     token_type_ == Expr::kQmark) {
     e = UnaryExpr::DispatchNew(token_type_, e);
     e->set_expr_id(++expr_id_);
     lex();
@@ -214,19 +214,19 @@ Regex::e3()
   StateExpr *s;
 
   switch(token_type_) {
-    case Expr::Literal:
+    case Expr::kLiteral:
       s = new Literal(parse_lit_);
       goto setid;
-    case Expr::BegLine:
+    case Expr::kBegLine:
       s = new BegLine();
       goto setid;
-    case Expr::EndLine:
+    case Expr::kEndLine:
       s = new EndLine();
       goto setid;
-    case Expr::Dot:
+    case Expr::kDot:
       s = new Dot();
       goto setid;
-    case Expr::CharClass: {
+    case Expr::kCharClass: {
       CharClass *cc = new CharClass();
       std::bitset<256> &table = cc->table();
       cc->set_count(MakeCharClassTable(table));
@@ -239,10 +239,10 @@ Regex::e3()
       }
       goto setid;
     }
-    case Expr::Lpar:
+    case Expr::kLpar:
       lex();
       e = e0();
-      if (token_type_ != Expr::Rpar) exitmsg("expected a ')'");
+      if (token_type_ != Expr::kRpar) exitmsg("expected a ')'");
       goto noid;
     default:
       exitmsg("expected a Literal or '('!");
@@ -285,13 +285,13 @@ void Regex::CreateDFA()
     while (iter != nfa_states.end()) {
       NFA &next = (*iter)->transition().follow;
       switch ((*iter)->type()) {
-        case Expr::Literal: {
+        case Expr::kLiteral: {
           Literal* literal = static_cast<Literal*>(*iter);
           unsigned char index = (unsigned char)literal->literal();
           transition[index].insert(next.begin(), next.end());
           break;
         }
-        case Expr::CharClass: {
+        case Expr::kCharClass: {
           CharClass* charclass = static_cast<CharClass*>(*iter);
           for (int i = 0; i < 256; i++) {
             if (charclass->Involve(static_cast<unsigned char>(i))) {
@@ -300,18 +300,18 @@ void Regex::CreateDFA()
           }
           break;
         }
-        case Expr::Dot: {
+        case Expr::kDot: {
           for (int i = 0; i < 256; i++) {
             transition[i].insert(next.begin(), next.end());
           }
           default_next.insert(next.begin(), next.end());
           break;
         }
-        case Expr::BegLine: {
+        case Expr::kBegLine: {
           transition['\n'].insert(next.begin(), next.end());
           break;
         }
-        case Expr::EndLine: {
+        case Expr::kEndLine: {
           NFA::iterator next_iter = next.begin();
           while (next_iter != next.end()) {
             transition['\n'].insert(*next_iter);
@@ -319,7 +319,7 @@ void Regex::CreateDFA()
           }
           break;
         }
-        case Expr::EOP: {
+        case Expr::kEOP: {
           is_accept = true;
           break;
         }
@@ -332,7 +332,7 @@ void Regex::CreateDFA()
     while (trans != transition.end() && false) {
       std::set<StateExpr*>::iterator next_ = trans->begin();
       while (next_ != trans->end()) {
-        if ((*next_)->type() == Expr::EOP) goto loopend;
+        if ((*next_)->type() == Expr::kEOP) goto loopend;
         ++next_;
       }
       trans->insert(first_states.begin(), first_states.end());

@@ -57,9 +57,9 @@ struct Transition {
 class Expr {
 public:
   enum Type {
-    Literal, CharClass, Dot, BegLine,
-    EndLine, Concat, Union, Qmark,
-    Star, Plus, Rpar, Lpar, EOP
+    kLiteral, kCharClass, kDot, kBegLine,
+    kEndLine, kConcat, kUnion, kQmark,
+    kStar, kPlus, kRpar, kLpar, kEOP
   };
   
   Expr(): parent_(NULL) {}
@@ -106,7 +106,7 @@ private:
 
 class Literal: public StateExpr {
 public:
-Literal(const char literal): StateExpr(Expr::Literal), literal_(literal) {}
+Literal(const char literal): StateExpr(Expr::kLiteral), literal_(literal) {}
   ~Literal() {}
   char literal() { return literal_; }
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
@@ -117,7 +117,7 @@ private:
 
 class CharClass: public StateExpr {
 public:
-  CharClass(): StateExpr(Expr::CharClass), table_(std::bitset<256>()) { }
+  CharClass(): StateExpr(Expr::kCharClass), table_(std::bitset<256>()) { }
   ~CharClass() {}
   std::bitset<256>& table() { return table_; }
   void set_count(std::size_t count) { count_ = count; }
@@ -132,7 +132,7 @@ private:
 
 class Dot: public StateExpr {
 public:
-  Dot(): StateExpr(Expr::Dot) {}
+  Dot(): StateExpr(Expr::kDot) {}
   ~Dot() {}
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
@@ -141,7 +141,7 @@ private:
 
 class BegLine: public StateExpr {
 public:
-  BegLine(): StateExpr(Expr::BegLine) {}
+  BegLine(): StateExpr(Expr::kBegLine) {}
   ~BegLine() {}
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
@@ -150,7 +150,7 @@ private:
 
 class EndLine: public StateExpr {
 public:
-  EndLine(): StateExpr(Expr::EndLine) {}  
+  EndLine(): StateExpr(Expr::kEndLine) {}  
   ~EndLine() {}
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
@@ -159,7 +159,7 @@ private:
 
 class EOP: public StateExpr {
 public:
-  EOP(): StateExpr(Expr::EOP) { min_length_ = max_length_ = 0; }
+  EOP(): StateExpr(Expr::kEOP) { min_length_ = max_length_ = 0; }
   ~EOP() {}
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:

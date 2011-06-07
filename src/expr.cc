@@ -29,13 +29,13 @@ UnaryExpr* UnaryExpr::DispatchNew(Expr::Type type, Expr* lhs)
 {
   UnaryExpr *ret;
   switch (type) {
-    case Expr::Qmark:
+    case Expr::kQmark:
       ret = new regen::Qmark(lhs);
       break;
-    case Expr::Star:
+    case Expr::kStar:
       ret = new regen::Star(lhs);
       break;
-    case Expr::Plus:
+    case Expr::kPlus:
       ret = new regen::Plus(lhs);
       break;
     default:
