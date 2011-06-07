@@ -12,6 +12,8 @@ class CharClass;
 class Dot;
 class BegLine;
 class EndLine;
+class Null;
+class Recursive;
 class EOP;
 class BinaryExpr;
 class Concat;
@@ -30,6 +32,8 @@ public:
   virtual void Visit(Dot *e) { Visit((StateExpr*)e); }
   virtual void Visit(BegLine *e) { Visit((StateExpr*)e); }
   virtual void Visit(EndLine *e) { Visit((StateExpr*)e); }
+  virtual void Visit(Null *e) { Visit((StateExpr*)e); }
+  virtual void Visit(Recursive *e) { Visit((StateExpr*)e); }  
   virtual void Visit(EOP *e) { Visit((StateExpr*)e); }
   virtual void Visit(BinaryExpr *e) { Visit((Expr*)e); }
   virtual void Visit(Concat *e) { Visit((BinaryExpr*)e); }
@@ -59,7 +63,8 @@ public:
   enum Type {
     kLiteral, kCharClass, kDot, kBegLine,
     kEndLine, kConcat, kUnion, kQmark,
-    kStar, kPlus, kRpar, kLpar, kEOP
+    kStar, kPlus, kRpar, kLpar, kNull,
+    kRecursive, kEOP
   };
   
   Expr(): parent_(NULL) {}
@@ -75,6 +80,7 @@ public:
   Expr* parent() { return parent_; }
   void set_parent(Expr *parent) { parent_ = parent; }
 
+  virtual Expr::Type type() = 0;
   virtual void FillTransition() = 0;
   
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
@@ -91,14 +97,12 @@ private:
 
 class StateExpr: public Expr {
 public:
-  StateExpr(Expr::Type type);
+  StateExpr();
   virtual ~StateExpr() {}
   void FillTransition() {}
   std::size_t state_id() { return state_id_; }
   void set_state_id(std::size_t id) { state_id_ = id; }
-  Expr::Type type() { return type_; }
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  const Expr::Type type_;
 private:
   std::size_t state_id_;
   DISALLOW_COPY_AND_ASSIGN(StateExpr);
@@ -106,9 +110,10 @@ private:
 
 class Literal: public StateExpr {
 public:
-Literal(const char literal): StateExpr(Expr::kLiteral), literal_(literal) {}
+  Literal(const char literal): literal_(literal) {}
   ~Literal() {}
   char literal() { return literal_; }
+  Expr::Type type() { return Expr::kLiteral; }
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   const char literal_;
@@ -117,12 +122,13 @@ private:
 
 class CharClass: public StateExpr {
 public:
-  CharClass(): StateExpr(Expr::kCharClass), table_(std::bitset<256>()) { }
+  CharClass(): table_(std::bitset<256>()) { }
   ~CharClass() {}
   std::bitset<256>& table() { return table_; }
   void set_count(std::size_t count) { count_ = count; }
   std::size_t count() const { return count_; }
   bool Involve(const unsigned char literal) const { return table_[literal]; }
+  Expr::Type type() { return Expr::kCharClass; }
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   std::bitset<256> table_;
@@ -132,8 +138,9 @@ private:
 
 class Dot: public StateExpr {
 public:
-  Dot(): StateExpr(Expr::kDot) {}
+  Dot() {}
   ~Dot() {}
+  Expr::Type type() { return Expr::kDot; }
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Dot);
@@ -141,8 +148,9 @@ private:
 
 class BegLine: public StateExpr {
 public:
-  BegLine(): StateExpr(Expr::kBegLine) {}
+  BegLine() {}
   ~BegLine() {}
+  Expr::Type type() { return Expr::kBegLine; }
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   DISALLOW_COPY_AND_ASSIGN(BegLine);
@@ -150,17 +158,41 @@ private:
 
 class EndLine: public StateExpr {
 public:
-  EndLine(): StateExpr(Expr::kEndLine) {}  
+  EndLine() {}
   ~EndLine() {}
+  Expr::Type type() { return Expr::kEndLine; }
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   DISALLOW_COPY_AND_ASSIGN(EndLine);
 };
 
+class Null: public StateExpr {
+public:
+  Null() {}
+  ~Null() {}
+  Expr::Type type() { return Expr::kNull; }
+  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
+private:
+  DISALLOW_COPY_AND_ASSIGN(Null);
+};
+
+class Recursive: public StateExpr {
+public:
+  Recursive(std::size_t recursive_depth): recursive_depth_(recursive_depth) {}
+  ~Recursive() {}
+  Expr::Type type() { return Expr::kRecursive; }  
+  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  std::size_t recursive_depth() { return recursive_depth_; }
+private:
+  std::size_t recursive_depth_;
+  DISALLOW_COPY_AND_ASSIGN(Recursive);
+};
+
 class EOP: public StateExpr {
 public:
-  EOP(): StateExpr(Expr::kEOP) { min_length_ = max_length_ = 0; }
+  EOP() { min_length_ = max_length_ = 0; }
   ~EOP() {}
+  Expr::Type type() { return Expr::kEOP; }  
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   DISALLOW_COPY_AND_ASSIGN(EOP);
@@ -187,6 +219,7 @@ public:
   Concat(Expr *lhs, Expr *rhs);
   ~Concat() {}
   void FillTransition();
+  Expr::Type type() { return Expr::kConcat; }  
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Concat);
@@ -197,6 +230,7 @@ public:
   Union(Expr *lhs, Expr *rhs);
   ~Union() {}
   void FillTransition();
+  Expr::Type type() { return Expr::kUnion; }
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Union);
@@ -221,6 +255,7 @@ public:
   Qmark(Expr *lhs);
   ~Qmark() {}
   void FillTransition();
+  Expr::Type type() { return Expr::kQmark; }
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Qmark);
@@ -231,6 +266,7 @@ public:
   Star(Expr *lhs);
   ~Star() {}
   void FillTransition();
+  Expr::Type type() { return Expr::kStar; }
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Star);
@@ -241,6 +277,7 @@ public:
   Plus(Expr *lhs);
   ~Plus() {}
   void FillTransition();
+  Expr::Type type() { return Expr::kPlus; }
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Plus);

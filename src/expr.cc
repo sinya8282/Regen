@@ -16,8 +16,7 @@ void Expr::Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst) {
   }
 }
 
-StateExpr::StateExpr(Expr::Type type):
-    type_(type),
+StateExpr::StateExpr():
     state_id_(0)
 {
   min_length_ = max_length_ = 1;
