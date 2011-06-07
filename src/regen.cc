@@ -4,12 +4,12 @@
 #include "generator.h"
 
 int main(int argc, char *argv[]) {
-  enum Generate { CGEN, DOTGEN, XGEN, EVAL};
+  enum Generate { CGEN, DOTGEN, XGEN, EVAL, REGEN};
   std::string regex;
   int opt;
   Generate generate = CGEN;
 
-  while ((opt = getopt(argc, argv, "dcxef:")) != -1) {
+  while ((opt = getopt(argc, argv, "dcxepf:")) != -1) {
     switch(opt) {
       case 'f': {
         std::ifstream ifs(optarg);
@@ -30,6 +30,10 @@ int main(int argc, char *argv[]) {
       }
       case 'e': {
         generate = EVAL;
+        break;
+      }
+      case 'p': {
+        generate = REGEN;
         break;
       }
       default: exitmsg("USAGE: regen [options] regexp\n");
@@ -57,11 +61,15 @@ int main(int argc, char *argv[]) {
       // JIT compile, and evalute that.
       regen::Generator::XbyakGenerate(r);
       break;
-    case EVAL:
+    case REGEN:
+      r.PrintRegex();
+      break;
+    case EVAL: {
       regen::Util::mmap_t mm("hoge");
       bool result = r.FullMatch((unsigned char *)mm.ptr, (unsigned char *)mm.ptr+mm.size);
       printf("%d\n", result);
       break;
+      }
   }
   return 0;
 }
