@@ -10,7 +10,7 @@ namespace regen {
 
 class Regex {
 public:
-  Regex(const std::string &regex);
+  Regex(const std::string &regex, std::size_t recursive_depth);
   ~Regex() { delete expr_root_; };
   void PrintRegex() const;
   void PrintExtendedRegex() const;
@@ -25,6 +25,7 @@ public:
   std::size_t must_max_length() const { return must_max_length_; }
   const std::string& must_max_word() const { return must_max_word_; }
   const DFA& dfa() const { return dfa_; }
+
 private:
   Expr::Type lex();
   Expr* e0();
@@ -37,6 +38,8 @@ private:
 
   const std::string regex_;
   Expr *expr_root_;
+  std::stack<const char *> recursive_stack_;
+  std::size_t recursive_depth_;
 
   std::deque<StateExpr*> states_;
   Must must_;

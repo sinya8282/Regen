@@ -7,9 +7,10 @@ int main(int argc, char *argv[]) {
   enum Generate { CGEN, DOTGEN, XGEN, EVAL, REGEN};
   std::string regex;
   int opt;
+  int recursive_depth = 2;
   Generate generate = CGEN;
 
-  while ((opt = getopt(argc, argv, "dcxepf:")) != -1) {
+  while ((opt = getopt(argc, argv, "dcxepf:r:")) != -1) {
     switch(opt) {
       case 'f': {
         std::ifstream ifs(optarg);
@@ -36,6 +37,10 @@ int main(int argc, char *argv[]) {
         generate = REGEN;
         break;
       }
+      case 'r': {
+       recursive_depth = atoi(optarg);
+       break;
+      }
       default: exitmsg("USAGE: regen [options] regexp\n");
     }
   }
@@ -48,7 +53,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  regen::Regex r = regen::Regex(regex);
+  regen::Regex r = regen::Regex(regex, recursive_depth);
 
   switch (generate) {
     case CGEN:

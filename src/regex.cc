@@ -20,8 +20,9 @@ void nfadump(const std::set<regen::StateExpr*> &nfa, bool verbose = false)
 
 namespace regen {
 
-Regex::Regex(const std::string &regex):
+Regex::Regex(const std::string &regex, std::size_t recursive_depth = 2):
     regex_(regex),
+    recursive_depth_(recursive_depth),
     involved_char_(std::bitset<256>()),
     parse_ptr_(regex.c_str()),
     dfa_(DFA())
@@ -33,7 +34,13 @@ Regex::Regex(const std::string &regex):
 Expr::Type Regex::lex()
 {
   if (*parse_ptr_ == '\0') {
-    return (token_type_ = Expr::kEOP);
+    if (recursive_stack_.empty()) {
+      token_type_ = Expr::kEOP;
+    } else {
+      parse_ptr_ = recursive_stack_.top();
+      recursive_stack_.pop();
+      token_type_ = Expr::kRpar;      
+    }
   } else switch (parse_lit_ = *parse_ptr_++) {
       case '.': token_type_ = Expr::kDot;       break;
       case '[': token_type_ = Expr::kCharClass; break;
@@ -41,7 +48,23 @@ Expr::Type Regex::lex()
       case '?': token_type_ = Expr::kQmark;     break;
       case '+': token_type_ = Expr::kPlus;      break;
       case '*': token_type_ = Expr::kStar;      break;
-      case '(': token_type_ = Expr::kLpar;      break;
+      case '(': {
+        if (*parse_ptr_     == '?' &&
+            *(parse_ptr_+1) == 'R' &&
+            *(parse_ptr_+2) == ')') {
+          parse_ptr_ += 3;
+          if (recursive_stack_.size() >= recursive_depth_) {
+            return lex();
+          } else {
+            recursive_stack_.push(parse_ptr_);
+            parse_ptr_ = regex_.c_str();
+            token_type_ = Expr::kLpar;
+          }
+        } else {
+          token_type_ = Expr::kLpar;
+        }
+        break;
+      }
       case ')': token_type_ = Expr::kRpar;      break;
       case '^': token_type_ = Expr::kBegLine;   break;
       case '$': token_type_ = Expr::kEndLine;   break;
