@@ -27,8 +27,8 @@ protected:
 class PrintRegexVisitor: public ExprVisitor {
 public:
   void Visit(StateExpr *e) { PrintExprVisitor::Print(e); }
-  void Visit(BinaryExpr *e) { printf("("); e->lhs()->Accept(this); PrintExprVisitor::Print(e); e->rhs()->Accept(this); printf(")"); }
-  void Visit(UnaryExpr *e) { e->lhs()->Accept(this); PrintExprVisitor::Print(e); }
+  void Visit(BinaryExpr *e) { e->lhs()->Accept(this); PrintExprVisitor::Print(e); e->rhs()->Accept(this); }
+  void Visit(UnaryExpr *e);
   static void Print(Expr *e);
 private:
   PrintRegexVisitor() {}

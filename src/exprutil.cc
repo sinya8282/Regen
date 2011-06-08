@@ -57,6 +57,21 @@ void PrintRegexVisitor::Print(Expr* e)
   puts("");
 }
 
+void PrintRegexVisitor::Visit(UnaryExpr *e)
+{
+  switch (e->lhs()->type()) {
+    case Expr::kConcat: case Expr::kUnion:
+      printf("(");
+      e->lhs()->Accept(this);
+      printf(")");
+      break;
+    default:
+      e->lhs()->Accept(this);
+      break;
+  }
+  PrintExprVisitor::Print(e);
+}
+
 void PrintParseTreeVisitor::print_state(Expr *e)
 {
   printf("  q%"PRIuS" [label=\"", e->expr_id());
