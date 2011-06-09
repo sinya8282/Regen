@@ -79,21 +79,16 @@ Expr::Type Regex::lex()
   return token_type_;
 }
 
-std::size_t Regex::MakeCharClassTable(std::bitset<256> &table) {
+CharClass* Regex::BuildCharClass() {
   std::size_t i;
-  std::size_t count = 0;
-  bool comp, range;
+  CharClass *cc = new CharClass();
+  std::bitset<256>& table = cc->table();
+  bool range;
   char lastc;
 
   if (*parse_ptr_ == '^') {
     parse_ptr_++;
-    for (i = ' '; i <= '~'; i ++) {
-      // ascii charactor code only
-      table.set(i);
-    }
-    comp = false;
-  } else {
-    comp = true;
+    cc->set_negative(true);
   }
 
   if (*parse_ptr_ == ']' || *parse_ptr_ == '-') {
@@ -113,11 +108,11 @@ std::size_t Regex::MakeCharClassTable(std::bitset<256> &table) {
       }
     }
 
-    table.set(*parse_ptr_, comp);
+    table.set(*parse_ptr_, true);
 
     if (range) {
       for (i = (unsigned char)(*parse_ptr_) - 1; i > (unsigned char)lastc; i--) {
-        table.set(i, comp);
+        table.set(i, true);
       }
       range = false;
     }
@@ -126,24 +121,17 @@ std::size_t Regex::MakeCharClassTable(std::bitset<256> &table) {
   if (*parse_ptr_ == '\0') exitmsg(" [ ] imbalance");
 
   if (range) {
-    table.set('-', comp);
+    table.set('-', true);
     range = false;
   }
 
   parse_ptr_++;
 
-  for (i = 0; i < 256; i++) {
-    if (table[i]) {
-      lastc = (char)i;
-      count++;
-    }
-  }
-
-  if (count == 1) {
+  if (cc->count() == 1) {
     parse_lit_ = lastc;
   }
 
-  return count;
+  return cc;
 }
 
 void Regex::Parse()
@@ -250,9 +238,7 @@ Regex::e3()
       s = new Dot();
       goto setid;
     case Expr::kCharClass: {
-      CharClass *cc = new CharClass();
-      std::bitset<256> &table = cc->table();
-      cc->set_count(MakeCharClassTable(table));
+      CharClass *cc = BuildCharClass();
       if (cc->count() == 1) {
         // '[a]' just be matched 'a'.
         s = new Literal(parse_lit_);
@@ -365,6 +351,7 @@ void Regex::CreateDFA()
     default_next.insert(first_states.begin(), first_states.end());
     
     DFA::Transition &dfa_transition = dfa_.get_new_transition();
+    std::set<int> dst_state;
     //if (is_accept) goto settransition; // only support Most-Left-Shortest matching
     
     for (int i = 0; i < 256; i++) {
@@ -376,9 +363,10 @@ void Regex::CreateDFA()
         queue.push(next);
       }
       dfa_transition[i] = dfa_map[next];
+      dst_state.insert(dfa_map[next]);
     }
     //settransition:
-    dfa_.set_state_info(is_accept, dfa_map[default_next]);
+    dfa_.set_state_info(is_accept, dfa_map[default_next], dst_state);
   }
 }
 

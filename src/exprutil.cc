@@ -24,8 +24,13 @@ void PrintExprVisitor::Visit(CharClass* e)
 {
   std::size_t continuance = 256;
   int c;
-  
+  bool negative = e->negative();
+
   printf("[");
+  if (negative) {
+    printf("^");
+    e->set_negative(false);
+  }
 
   for (c = 0; c < 256; c++) {
     if (e->Involve(c)) {
@@ -42,6 +47,8 @@ void PrintExprVisitor::Visit(CharClass* e)
   }
 
   printf("]");
+
+  if (negative) e->set_negative(true);
 }
 
 void PrintExprVisitor::Print(Expr* e)

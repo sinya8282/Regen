@@ -34,7 +34,7 @@ private:
   Expr* e3();
   void Parse();
   void CreateDFA();
-  std::size_t MakeCharClassTable(std::bitset<256> &table);
+  CharClass* BuildCharClass();
 
   const std::string regex_;
   Expr *expr_root_;

@@ -123,15 +123,18 @@ private:
 class CharClass: public StateExpr {
 public:
   CharClass(): table_(std::bitset<256>()) { }
+  CharClass(std::bitset<256> &table): table_(table) {}
   ~CharClass() {}
   std::bitset<256>& table() { return table_; }
-  void set_count(std::size_t count) { count_ = count; }
-  std::size_t count() const { return count_; }
-  bool Involve(const unsigned char literal) const { return table_[literal]; }
+  std::size_t count() const { return negative_ ? 256 - count_ : count_; }
+  void set_negative(bool negative) { negative_ = negative; }
+  bool negative() const { return negative_; }
+  bool Involve(const unsigned char literal) const { return negative_ ? !table_[literal] : table_[literal]; }
   Expr::Type type() { return Expr::kCharClass; }
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   std::bitset<256> table_;
+  bool negative_;
   std::size_t count_;
   DISALLOW_COPY_AND_ASSIGN(CharClass);
 };
