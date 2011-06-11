@@ -16,13 +16,12 @@ void PrintExprVisitor::Visit(Literal* e)
         printf("%c", e->literal());
     }
   } else {
-    printf("0x%2x", e->literal());
+    printf("\\x%2x", e->literal());
   }
 }
 
 void PrintExprVisitor::Visit(CharClass* e)
 {
-  std::size_t continuance = 256;
   int c;
   bool negative = e->negative();
 
@@ -34,15 +33,22 @@ void PrintExprVisitor::Visit(CharClass* e)
 
   for (c = 0; c < 256; c++) {
     if (e->Involve(c)) {
-      if (continuance == 256) {
-        continuance = c;
+      if (c < 255 && e->Involve(c+1)) {
+        int begin = c;
+        while (++c < 255) {
+          if (!e->Involve(c+1)) break;
+        }
+        if (' ' <= begin && begin <= '~') {
+          printf("%c-", (char)begin);
+        } else {
+          printf("\\x%02x-", begin);
+        }
       }
-    } else if (continuance != 256) {
-      printf("%c", (char)continuance);
-      if ((std::size_t)c-1 != continuance) {
-        printf("-%c", (c-1));
+      if (' ' <= c && c <= '~') {
+        printf("%c", c);
+      } else {
+        printf("\\x%02x", c);
       }
-      continuance = 256;
     }
   }
 
