@@ -64,6 +64,27 @@ void PrintRegexVisitor::Print(Expr* e)
   puts("");
 }
 
+void PrintRegexVisitor::Visit(BinaryExpr *e)
+{
+  if (e->lhs()->type() == Expr::kUnion) {
+    printf("(");
+    e->lhs()->Accept(this);
+    printf(")");
+  } else {
+    e->lhs()->Accept(this);
+  }
+
+  PrintExprVisitor::Print(e);
+
+  if (e->rhs()->type() == Expr::kUnion) {
+    printf("(");
+    e->rhs()->Accept(this);
+    printf(")");
+  } else {
+    e->rhs()->Accept(this);
+  }
+}
+
 void PrintRegexVisitor::Visit(UnaryExpr *e)
 {
   switch (e->lhs()->type()) {
