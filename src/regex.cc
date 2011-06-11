@@ -54,7 +54,7 @@ Expr::Type Regex::lex()
             *(parse_ptr_+2) == ')') {
           parse_ptr_ += 3;
           if (recursive_stack_.size() >= recursive_depth_) {
-            return lex();
+            token_type_ = Expr::kEpsilon;
           } else {
             recursive_stack_.push(parse_ptr_);
             parse_ptr_ = regex_.c_str();
@@ -188,14 +188,15 @@ Regex::e1()
   e = e2();
 
   while (token_type_ == Expr::kLiteral ||
-     token_type_ == Expr::kCharClass ||
-     token_type_ == Expr::kDot ||
-     token_type_ == Expr::kLpar ||
-     token_type_ == Expr::kEndLine ||
-     token_type_ == Expr::kBegLine) {
-  f = e2();
-  e = new Concat(e, f);
-  e->set_expr_id(++expr_id_);
+         token_type_ == Expr::kCharClass ||
+         token_type_ == Expr::kDot ||
+         token_type_ == Expr::kLpar ||
+         token_type_ == Expr::kEndLine ||
+         token_type_ == Expr::kBegLine ||
+         token_type_ == Expr::kEpsilon) {
+    f = e2();
+    e = new Concat(e, f);
+    e->set_expr_id(++expr_id_);
   }
 
   return e;
@@ -206,7 +207,7 @@ Regex::e2()
 {
   Expr *e;
   e = e3();
-
+  
   while (token_type_ == Expr::kStar ||
      token_type_ == Expr::kPlus ||
      token_type_ == Expr::kQmark) {
@@ -247,6 +248,11 @@ Regex::e3()
         s = cc;
       }
       goto setid;
+    }
+    case Expr::kEpsilon: {
+      e = new None();
+      e = new Qmark(e);
+      goto noid;
     }
     case Expr::kLpar:
       lex();
@@ -332,6 +338,7 @@ void Regex::CreateDFA()
           is_accept = true;
           break;
         }
+        case Expr::kNone: break;
         default: exitmsg("notype");
       }
       ++iter;
@@ -368,6 +375,54 @@ void Regex::CreateDFA()
     //settransition:
     dfa_.set_state_info(is_accept, dfa_map[default_next], dst_state);
   }
+}
+
+// Converte DFA to Regular Expression using GNFA.
+Expr* Regex::GenerateRegexFromDFA()
+{
+  int GSTART  = dfa_.size();
+  int GACCEPT = GSTART+1;
+  typedef std::map<int, Expr*> GNFATrans;
+  std::vector<GNFATrans> regex_transition(dfa_.size()+1);
+
+  for (int i = 0; i < dfa_.size(); i++) {
+    const DFA::Transition &transition = dfa_.GetTransition(i);
+    for (int c = 0; c < 256; c++) {
+      if (transition[c] != DFA::REJECT) {
+        Expr *e;
+        if (c < 255 && transition[c] == transition[c+1]) {
+          int begin = c, end;
+          while (++c < 255) {
+            if (transition[c] != transition[c+1]) break;
+          }
+          end = c;
+          if (begin == 0 && end == 255) {
+            e = new Dot();
+          } else {
+            std::bitset<256> table;
+            for (int j = begin; j < end; j++) {
+              table.set(j, true);
+            }
+            e = new CharClass(table);
+          }
+        } else {
+          e = new Literal(c);
+        }
+        if (regex_transition[i].find(transition[c]) == regex_transition[i].end()) {
+          regex_transition[i][transition[c]] = e;
+        } else {
+          e = new Union(regex_transition[i][transition[c]], e);
+          regex_transition[i][transition[c]] = e;
+        }
+      }
+    }
+  }
+
+  for (int i = 0; i < dfa_.size(); i++) {
+    
+  }
+  
+  return NULL;
 }
 
 bool Regex::FullMatch(const std::string &string)  const {

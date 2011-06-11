@@ -15,6 +15,7 @@ public:
   void PrintRegex() const;
   void PrintExtendedRegex() const;
   void PrintParseTree() const;
+  Expr* GenerateRegexFromDFA();
   void DumpExprTree() const;
   bool FullMatch(const std::string &string) const;
   bool FullMatch(const unsigned char *begin, const unsigned char *end) const;

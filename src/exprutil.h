@@ -13,6 +13,7 @@ public:
   void Visit(Dot* e) { printf("."); }
   void Visit(BegLine* e) { printf("^"); }
   void Visit(EndLine* e) { printf("$"); }
+  void Visit(None * e) { printf("[:None:]"); }
   void Visit(Concat* e) {}
   void Visit(Union* e) { printf("|"); }
   void Visit(Qmark* e) { printf("?"); }
