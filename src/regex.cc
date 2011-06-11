@@ -54,7 +54,7 @@ Expr::Type Regex::lex()
             *(parse_ptr_+2) == ')') {
           parse_ptr_ += 3;
           if (recursive_stack_.size() >= recursive_depth_) {
-            token_type_ = Expr::kEpsilon;
+            token_type_ = Expr::kNone;
           } else {
             recursive_stack_.push(parse_ptr_);
             parse_ptr_ = regex_.c_str();
@@ -141,7 +141,9 @@ void Regex::Parse()
   
   lex();
 
-  e = e0();
+  do {
+    e = e0();
+  } while (e->type() == Expr::kNone);
 
   if (token_type_ != Expr::kEOP) exitmsg("expected end of pattern.");
 
@@ -172,11 +174,19 @@ Expr *Regex::e0()
   Expr *e, *f;
   e = e1();
   
+  while (e->type() == Expr::kNone &&
+         token_type_ == Expr::kUnion) {
+    lex();
+    e = e1();
+  }
+  
   while (token_type_ == Expr::kUnion) {
-  lex();
+    lex();
     f = e1();
-    e = new Union(e, f);
-    e->set_expr_id(++expr_id_);
+    if (f->type() != Expr::kNone) {
+      e = new Union(e, f);
+      e->set_expr_id(++expr_id_);
+    }
   }
   return e;
 }
@@ -187,16 +197,29 @@ Regex::e1()
   Expr *e, *f;
   e = e2();
 
+  while (e->type() == Expr::kNone &&
+         (token_type_ == Expr::kLiteral ||
+          token_type_ == Expr::kCharClass ||
+          token_type_ == Expr::kDot ||
+          token_type_ == Expr::kEndLine ||
+          token_type_ == Expr::kBegLine ||
+          token_type_ == Expr::kNone ||
+          token_type_ == Expr::kLpar)) {
+    e = e2();
+  }
+
   while (token_type_ == Expr::kLiteral ||
          token_type_ == Expr::kCharClass ||
          token_type_ == Expr::kDot ||
-         token_type_ == Expr::kLpar ||
          token_type_ == Expr::kEndLine ||
          token_type_ == Expr::kBegLine ||
-         token_type_ == Expr::kEpsilon) {
+         token_type_ == Expr::kNone ||
+         token_type_ == Expr::kLpar) {
     f = e2();
-    e = new Concat(e, f);
-    e->set_expr_id(++expr_id_);
+    if (f->type() != Expr::kNone) {
+      e = new Concat(e, f);
+      e->set_expr_id(++expr_id_);
+    }
   }
 
   return e;
@@ -211,8 +234,10 @@ Regex::e2()
   while (token_type_ == Expr::kStar ||
      token_type_ == Expr::kPlus ||
      token_type_ == Expr::kQmark) {
-    e = UnaryExpr::DispatchNew(token_type_, e);
-    e->set_expr_id(++expr_id_);
+    if (e->type() != Expr::kNone) {
+      e = UnaryExpr::DispatchNew(token_type_, e);
+      e->set_expr_id(++expr_id_);
+    }
     lex();
   }
 
@@ -249,14 +274,13 @@ Regex::e3()
       }
       goto setid;
     }
-    case Expr::kEpsilon: {
+    case Expr::kNone:
       e = new None();
-      e = new Qmark(e);
       goto noid;
-    }
     case Expr::kLpar:
       lex();
       e = e0();
+      if (e->type())
       if (token_type_ != Expr::kRpar) exitmsg("expected a ')'");
       goto noid;
     default:
