@@ -48,7 +48,7 @@ Expr::Type Regex::lex()
       case '?': token_type_ = Expr::kQmark;     break;
       case '+': token_type_ = Expr::kPlus;      break;
       case '*': token_type_ = Expr::kStar;      break;
-      case '(': {
+        case '(': {
         if (*parse_ptr_     == '?' &&
             *(parse_ptr_+1) == 'R' &&
             *(parse_ptr_+2) == ')') {
@@ -368,8 +368,9 @@ void Regex::CreateDFA()
       ++iter;
     }
 
+    /*
     std::vector<NFA>::iterator trans = transition.begin();
-    while (trans != transition.end() && false) {
+    while (trans != transition.end()) {
       std::set<StateExpr*>::iterator next_ = trans->begin();
       while (next_ != trans->end()) {
         if ((*next_)->type() == Expr::kEOP) goto loopend;
@@ -379,11 +380,14 @@ void Regex::CreateDFA()
    loopend:
       ++trans;
     }
+
     default_next.insert(first_states.begin(), first_states.end());
+    */
     
     DFA::Transition &dfa_transition = dfa_.get_new_transition();
     std::set<int> dst_state;
-    //if (is_accept) goto settransition; // only support Most-Left-Shortest matching
+    // only support Most-Left-Shortest matching
+    //if (is_accept) goto settransition;
     
     for (int i = 0; i < 256; i++) {
       const NFA &next = transition[i];
@@ -404,27 +408,31 @@ void Regex::CreateDFA()
 // Converte DFA to Regular Expression using GNFA.
 Expr* Regex::GenerateRegexFromDFA()
 {
-  int GSTART  = dfa_.size();
+  int GREJECT = dfa_.size();
+  int GSTART  = dfa_.size()+1;
   int GACCEPT = GSTART+1;
   typedef std::map<int, Expr*> GNFATrans;
-  std::vector<GNFATrans> regex_transition(dfa_.size()+1);
+  std::vector<GNFATrans> gnfa_transition(dfa_.size()+2);
 
   for (int i = 0; i < dfa_.size(); i++) {
     const DFA::Transition &transition = dfa_.GetTransition(i);
+    GNFATrans &gtransition = gnfa_transition[i];
     for (int c = 0; c < 256; c++) {
-      if (transition[c] != DFA::REJECT) {
+      //if ((next = transition[c]) != DFA::REJECT) {
+      if (1) {
+        int next = transition[c];
         Expr *e;
-        if (c < 255 && transition[c] == transition[c+1]) {
-          int begin = c, end;
+        if (c < 255 && next == transition[c+1]) {
+          int begin = c;
           while (++c < 255) {
             if (transition[c] != transition[c+1]) break;
           }
-          end = c;
+          int end = c;
           if (begin == 0 && end == 255) {
             e = new Dot();
           } else {
             std::bitset<256> table;
-            for (int j = begin; j < end; j++) {
+            for (int j = begin; j <= end; j++) {
               table.set(j, true);
             }
             e = new CharClass(table);
@@ -432,21 +440,78 @@ Expr* Regex::GenerateRegexFromDFA()
         } else {
           e = new Literal(c);
         }
-        if (regex_transition[i].find(transition[c]) == regex_transition[i].end()) {
-          regex_transition[i][transition[c]] = e;
-        } else {
-          e = new Union(regex_transition[i][transition[c]], e);
-          regex_transition[i][transition[c]] = e;
+        if (next == DFA::REJECT) next = GREJECT;
+        if (gtransition.find(next) != gtransition.end()) {
+          e = new Union(gtransition[next], e);
         }
+        gtransition[next] = e;
       }
     }
   }
 
   for (int i = 0; i < dfa_.size(); i++) {
-    
+    if (!dfa_.IsAcceptState(i)) {
+      gnfa_transition[i][GACCEPT] = NULL;
+    }
+  }
+  gnfa_transition[GSTART][0] = NULL;
+  gnfa_transition[GREJECT][GACCEPT] = NULL;
+  gnfa_transition[GREJECT][GREJECT] = new Dot();
+  
+  for (int i = 0; i < GSTART; i++) {
+    Expr* loop = NULL;
+    GNFATrans &gtransition = gnfa_transition[i];
+    if (gtransition.find(i) != gtransition.end()) {
+      loop = new Star(gtransition[i]);
+      gtransition.erase(i);
+    }
+    for (int j = i+1; j <= GSTART; j++) {
+      if (gnfa_transition[j].find(i) != gnfa_transition[j].end()) {
+        Expr* regex1 = gnfa_transition[j][i];
+        gnfa_transition[j].erase(i);
+        GNFATrans::iterator iter = gtransition.begin();
+        while (iter != gtransition.end()) {
+          Expr* regex2 = (*iter).second;
+          if (loop != NULL) {
+            if (regex2 != NULL) {
+              regex2 = new Concat(loop, regex2);
+            } else {
+              regex2 = loop;
+            }
+          }
+          if (regex1 != NULL) {
+            if (regex2 != NULL) {
+              regex2 = new Concat(regex1, regex2);
+            } else {
+              regex2 = regex1;
+            }
+          }
+          if (gnfa_transition[j].find((*iter).first) != gnfa_transition[j].end()) {
+            if (gnfa_transition[j][(*iter).first] != NULL) {
+              if (regex2 != NULL) {
+                gnfa_transition[j][(*iter).first] =
+                    new Union(gnfa_transition[j][(*iter).first], regex2);
+              } else {
+                gnfa_transition[j][(*iter).first] =
+                    new Qmark(gnfa_transition[j][(*iter).first]);
+              }
+            } else {
+              if (regex2 != NULL) {
+                gnfa_transition[j][(*iter).first] = new Qmark(regex2);
+              } else {
+                gnfa_transition[j][(*iter).first] = regex2;
+              }
+            }
+          } else {
+            gnfa_transition[j][(*iter).first] = regex2;
+          }
+          ++iter;
+        }
+      }
+    }
   }
   
-  return NULL;
+  return gnfa_transition[GSTART][GACCEPT];
 }
 
 bool Regex::FullMatch(const std::string &string)  const {
@@ -459,8 +524,10 @@ bool Regex::FullMatch(const unsigned char *begin, const unsigned char * end)  co
   return dfa_.FullMatch(begin, end);
 }
 
-void Regex::PrintRegex() const {
-  PrintRegexVisitor::Print(expr_root_);
+void Regex::PrintRegex() {
+  //PrintRegexVisitor::Print(expr_root_);
+  Expr* e = GenerateRegexFromDFA();
+  PrintRegexVisitor::Print(e);
 }
 
 void Regex::PrintParseTree() const {

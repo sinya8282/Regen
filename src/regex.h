@@ -12,7 +12,7 @@ class Regex {
 public:
   Regex(const std::string &regex, std::size_t recursive_depth);
   ~Regex() { delete expr_root_; };
-  void PrintRegex() const;
+  void PrintRegex();
   void PrintExtendedRegex() const;
   void PrintParseTree() const;
   Expr* GenerateRegexFromDFA();

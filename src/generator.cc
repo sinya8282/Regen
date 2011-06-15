@@ -15,7 +15,7 @@ char* normalize(int c, char *buf)
     buf[index++] = c;
     buf[index] = '\0';
   } else {
-    sprintf(buf, "0x%02x", c);
+    sprintf(buf, "\\x%02x", c);
   }
   return buf;
 }
@@ -52,8 +52,7 @@ void DotGenerate(const Regex &regex)
       }
     }
     
-    if (dfa.GetDefaultNext(state) != DFA::REJECT
-        && !dfa.IsAcceptState(state)) {
+    if (dfa.GetDefaultNext(state) != DFA::REJECT) {
       printf("  q%"PRIuS" -> q%d [color=red]\n",
              state, dfa.GetDefaultNext(state));
     }

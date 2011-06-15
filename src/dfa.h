@@ -26,13 +26,15 @@ public:
   std::size_t min_length() const { return min_length_; }
   std::size_t must_max_length() const { return must_max_length_; }
   const std::string& must_max_word() const { return must_max_word_; }
+  std::set<int> &src_state(std::size_t i) { return src_states_[i]; }
+  std::set<int> &dst_state(std::size_t i) { return dst_states_[i]; }
 
   void set_max_length(std::size_t len) { max_length_ = len; }
   void set_min_length(std::size_t len) { min_length_ = len; }
   void set_must_max_length(std::size_t len) { must_max_length_ = len; }
   void set_must_max_word(const std::string& string) { must_max_word_ = string; }
   Transition& get_new_transition();
-  void set_state_info(bool accept, int default_state);
+  void set_state_info(bool accept, int default_state, std::set<int> &dst_state);
 
   bool FullMatch(const std::string &str) const { return FullMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
   bool FullMatch(const unsigned char *str, const unsigned char *end) const;
@@ -44,6 +46,8 @@ private:
   std::vector<Transition> transition_;
   std::deque<int> defaults_;
   std::deque<bool> accepts_;
+  std::deque<std::set<int> > src_states_;
+  std::deque<std::set<int> > dst_states_;
   std::size_t max_length_;
   std::size_t min_length_;
   std::size_t must_max_length_;

@@ -16,7 +16,7 @@ void PrintExprVisitor::Visit(Literal* e)
         printf("%c", e->literal());
     }
   } else {
-    printf("\\x%2x", e->literal());
+    printf("\\x%02x", e->literal());
   }
 }
 

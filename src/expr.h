@@ -12,7 +12,8 @@ class CharClass;
 class Dot;
 class BegLine;
 class EndLine;
-class None; 
+class None;
+class Epsilon;
 class EOP;
 class BinaryExpr;
 class Concat;
@@ -32,6 +33,7 @@ public:
   virtual void Visit(BegLine *e) { Visit((StateExpr*)e); }
   virtual void Visit(EndLine *e) { Visit((StateExpr*)e); }
   virtual void Visit(None *e) { Visit((StateExpr*)e); }
+  virtual void Visit(Epsilon *e) { Visit((StateExpr*)e); }
   virtual void Visit(EOP *e) { Visit((StateExpr*)e); }
   virtual void Visit(BinaryExpr *e) { Visit((Expr*)e); }
   virtual void Visit(Concat *e) { Visit((BinaryExpr*)e); }
@@ -62,7 +64,7 @@ public:
     kLiteral, kCharClass, kDot, kBegLine,
     kEndLine, kConcat, kUnion, kQmark,
     kStar, kPlus, kRpar, kLpar, kEpsilon,
-    kNone, kEOP
+    kNone, kNegative, kEOP
   };
   
   Expr(): parent_(NULL) {}
@@ -120,8 +122,8 @@ private:
 
 class CharClass: public StateExpr {
 public:
-  CharClass(): table_(std::bitset<256>()) { }
-  CharClass(std::bitset<256> table): table_(table) {}
+  CharClass(): table_(std::bitset<256>()), negative_(false) { }
+  CharClass(std::bitset<256> table): table_(table), negative_(false) {}
   ~CharClass() {}
   std::bitset<256>& table() { return table_; }
   std::size_t count() const { return negative_ ? 256 - count_ : count_; }
@@ -185,6 +187,16 @@ public:
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   DISALLOW_COPY_AND_ASSIGN(None);
+};
+
+class Epsilon: public StateExpr {
+public:
+  Epsilon() { min_length_ = max_length_ = 0; }
+  ~Epsilon() {}
+  Expr::Type type() { return Expr::kEpsilon; }
+  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
+private:
+  DISALLOW_COPY_AND_ASSIGN(Epsilon);
 };
 
 class BinaryExpr : public Expr {
