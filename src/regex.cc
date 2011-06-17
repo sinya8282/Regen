@@ -80,6 +80,8 @@ Expr::Type Regex::lex()
             lower_repetition_ *= 10;
             lower_repetition_ += *ptr++ - '0';
           } while ('0' <= *ptr && *ptr <= '9');
+        } else if (*ptr == ',') {
+          lower_repetition_ = 0;
         } else {
           goto invalid;
         }
@@ -224,6 +226,15 @@ void Regex::Parse()
   expr_root_ = e;
   expr_root_->FillTransition();
 }
+
+/* Regen parsing rules
+ * RE ::= e0 EOP
+ * e0 ::= e1 ('|' e1)*                    # union
+ * e1 ::= e2 ('&' e2)*                    # intersection
+ * e2 ::= e3+                             # concatenation
+ * e3 ::= e4 ([?+*]|{N,N}|{,}|{,N}|{N,})* # repetition
+ * e4 ::= ATOM | '(' e0 ')' | '!' e0      # ATOM, grouped expresion, negative expresion
+*/
 
 Expr *Regex::e0()
 {
