@@ -33,8 +33,8 @@ void PrintExprVisitor::Visit(CharClass* e)
 
   for (c = 0; c < 256; c++) {
     if (e->Involve(c)) {
-      if (c < 255 && e->Involve(c+1)) {
-        int begin = c;
+      if (c < 254 && e->Involve(c+1) && e->Involve(c+2)) {
+        int begin = c++;
         while (++c < 255) {
           if (!e->Involve(c+1)) break;
         }

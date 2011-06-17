@@ -16,31 +16,47 @@ void Expr::Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst) {
   }
 }
 
+CharClass::CharClass(StateExpr *e1, StateExpr *e2):
+    negative_(false)
+{
+  Expr *e = e1;
+top:
+  switch (e->type()) {
+    case Expr::kLiteral:
+      table_.set(((Literal*)e)->literal());
+      break;
+    case Expr::kCharClass:
+      for (std::size_t i = 0; i < 256; i++) {
+        if (((CharClass*)e)->Involve(i)) {
+          table_.set(i);
+        }
+      }
+      break;
+    case Expr::kDot:
+      table_.set();
+      return;
+    case Expr::kBegLine: case Expr::kEndLine:
+      table_.set('\n');
+      break;
+    default: exitmsg("Invalid Expr Type: %d", e->type());
+  }
+  if (e == e1) {
+    e = e2;
+    goto top;
+  }
+
+  if (count() >= 128 && !negative()) {
+    flip();
+    set_negative(true);
+  }
+}
+
 StateExpr::StateExpr():
     state_id_(0)
 {
   min_length_ = max_length_ = 1;
   transition_.first.insert(this);
   transition_.last.insert(this);
-}
-
-UnaryExpr* UnaryExpr::DispatchNew(Expr::Type type, Expr* lhs)
-{
-  UnaryExpr *ret;
-  switch (type) {
-    case Expr::kQmark:
-      ret = new regen::Qmark(lhs);
-      break;
-    case Expr::kStar:
-      ret = new regen::Star(lhs);
-      break;
-    case Expr::kPlus:
-      ret = new regen::Plus(lhs);
-      break;
-    default:
-      exitmsg("invalid Expr type: %d", type);
-  }
-  return ret;
 }
 
 Concat::Concat(Expr *lhs, Expr *rhs):

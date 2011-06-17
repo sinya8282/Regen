@@ -20,4 +20,4 @@ generator.o: generator.cc generator.h
 	$(CC) $(CFLAGS) -c generator.cc -o generator.o
 
 clean:
-	rm -f *.o
+	rm -f *.o 

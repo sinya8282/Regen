@@ -20,26 +20,25 @@ void nfadump(const std::set<regen::StateExpr*> &nfa, bool verbose = false)
 
 namespace regen {
 
-Regex::Regex(const std::string &regex, std::size_t recursive_depth = 2):
+Regex::Regex(const std::string &regex, std::size_t recursive_limit = 2):
     regex_(regex),
-    recursive_depth_(recursive_depth),
+    recursive_limit_(recursive_limit),
     involved_char_(std::bitset<256>()),
-    parse_ptr_(regex.c_str()),
-    dfa_(DFA())
+    parse_ptr_(regex.c_str())
 {
   Parse();
-  CreateDFA();
+  MakeDFA(expr_root_, dfa_);
 }
 
 Expr::Type Regex::lex()
 {
   if (*parse_ptr_ == '\0') {
-    if (recursive_stack_.empty()) {
+    if (parse_stack_.empty()) {
       token_type_ = Expr::kEOP;
     } else {
-      parse_ptr_ = recursive_stack_.top();
-      recursive_stack_.pop();
-      token_type_ = Expr::kRpar;      
+      parse_ptr_ = parse_stack_.top();
+      parse_stack_.pop();
+      token_type_ = lex();
     }
   } else switch (parse_lit_ = *parse_ptr_++) {
       case '.': token_type_ = Expr::kDot;       break;
@@ -48,15 +47,23 @@ Expr::Type Regex::lex()
       case '?': token_type_ = Expr::kQmark;     break;
       case '+': token_type_ = Expr::kPlus;      break;
       case '*': token_type_ = Expr::kStar;      break;
+      case '!': token_type_ = Expr::kNegative;  break;
+      case '&': token_type_ = Expr::kIntersection;  break;
+      case ')': token_type_ = Expr::kRpar;      break;
+      case '^': token_type_ = Expr::kBegLine;   break;
+      case '$': token_type_ = Expr::kEndLine;   break;
         case '(': {
         if (*parse_ptr_     == '?' &&
             *(parse_ptr_+1) == 'R' &&
             *(parse_ptr_+2) == ')') {
-          parse_ptr_ += 3;
-          if (recursive_stack_.size() >= recursive_depth_) {
+          // recursive expression
+          parse_ptr_ += 2;
+          if (recursive_depth_ >= recursive_limit_) {
+            parse_ptr_++;
             token_type_ = Expr::kNone;
           } else {
-            recursive_stack_.push(parse_ptr_);
+            parse_stack_.push(parse_ptr_);
+            recursive_depth_++;
             parse_ptr_ = regex_.c_str();
             token_type_ = Expr::kLpar;
           }
@@ -65,9 +72,58 @@ Expr::Type Regex::lex()
         }
         break;
       }
-      case ')': token_type_ = Expr::kRpar;      break;
-      case '^': token_type_ = Expr::kBegLine;   break;
-      case '$': token_type_ = Expr::kEndLine;   break;
+      case '{': {
+        const char *ptr = parse_ptr_;
+        lower_repetition_ = 0;
+        if ('0' <= *ptr && *ptr <= '9') {
+          do {
+            lower_repetition_ *= 10;
+            lower_repetition_ += *ptr++ - '0';
+          } while ('0' <= *ptr && *ptr <= '9');
+        } else {
+          goto invalid;
+        }
+        if (*ptr == ',') {
+          upper_repetition_ = 0;
+          ptr++;
+          if ('0' <= *ptr && *ptr <= '9') {
+            do {
+              upper_repetition_ *= 10;
+              upper_repetition_ += *ptr++ - '0';
+            } while ('0' <= *ptr && *ptr <= '9');
+            if (*ptr != '}') {
+              goto invalid;
+            }
+          } else if (*ptr == '}') {
+            upper_repetition_ = -1;
+          } else {
+            goto invalid;
+          }
+        } else if (*ptr == '}') {
+          upper_repetition_ = lower_repetition_;
+        } else {
+          goto invalid;
+        }
+        parse_ptr_ = ++ptr;
+        if (lower_repetition_ == 0 && upper_repetition_ == -1) {
+          token_type_ = Expr::kStar;
+        } else if (lower_repetition_ == 1 && upper_repetition_ == -1) {
+          token_type_ = Expr::kPlus;
+        } else if (lower_repetition_ == 0 && upper_repetition_ == 1) {
+          token_type_ = Expr::kQmark;
+        } else if (lower_repetition_ == 1 && upper_repetition_ == 1) {
+          token_type_ = lex();
+        } else if (upper_repetition_ != -1 && upper_repetition_ < lower_repetition_) {
+          exitmsg("Invalid repetition quantifier {%d,%d}",
+                  lower_repetition_, upper_repetition_);
+        } else {
+          token_type_ = Expr::kRepetition;
+        }
+        break;
+     invalid:
+        token_type_ = Expr::kLiteral;
+        break;        
+      }
       case '\\':
         token_type_ = Expr::kLiteral;
         if (*parse_ptr_ == '\0') exitmsg("bad '\\'");
@@ -108,11 +164,11 @@ CharClass* Regex::BuildCharClass() {
       }
     }
 
-    table.set(*parse_ptr_, true);
+    table.set(*parse_ptr_);
 
     if (range) {
       for (i = (unsigned char)(*parse_ptr_) - 1; i > (unsigned char)lastc; i--) {
-        table.set(i, true);
+        table.set(i);
       }
       range = false;
     }
@@ -121,7 +177,7 @@ CharClass* Regex::BuildCharClass() {
   if (*parse_ptr_ == '\0') exitmsg(" [ ] imbalance");
 
   if (range) {
-    table.set('-', true);
+    table.set('-');
     range = false;
   }
 
@@ -129,6 +185,9 @@ CharClass* Regex::BuildCharClass() {
 
   if (cc->count() == 1) {
     parse_lit_ = lastc;
+  } else if (cc->count() >= 128 && !cc->negative()) {
+    cc->set_negative(true);
+    cc->flip();
   }
 
   return cc;
@@ -159,9 +218,6 @@ void Regex::Parse()
   // e->set_expr_id(++expr_id_);
   
   eop = new EOP();
-  eop->set_expr_id(0);
-  eop->set_state_id(0);
-  states_.push_front(eop);
   e = new Concat(e, eop);
   e->set_expr_id(++expr_id_);
 
@@ -184,8 +240,20 @@ Expr *Regex::e0()
     lex();
     f = e1();
     if (f->type() != Expr::kNone) {
-      e = new Union(e, f);
-      e->set_expr_id(++expr_id_);
+      if (e->stype() == Expr::kStateExpr &&
+          f->stype() == Expr::kStateExpr) {
+        CharClass* cc = new CharClass((StateExpr*)e, (StateExpr*)f);
+        delete e;
+        delete f;
+        if (cc->count() == 256) {
+          e = new Dot();
+          delete cc;
+        } else {
+          e = cc;
+        }
+      } else {
+        e = new Union(e, f);
+      }
     }
   }
   return e;
@@ -194,9 +262,61 @@ Expr *Regex::e0()
 Expr *
 Regex::e1()
 {
-  Expr *e, *f;
+  Expr *e;
+  std::vector<Expr*> exprs;
+
   e = e2();
 
+  while (e->type() == Expr::kNone &&
+         token_type_ == Expr::kIntersection) {
+    lex();
+    e = e2();
+  }
+
+  exprs.push_back(e);
+
+  while (token_type_ == Expr::kIntersection) {
+    lex();
+    e = e2();
+    if (e->type() != Expr::kNone) {
+      exprs.push_back(e);
+    }
+  }
+
+  if (exprs.size() == 1) {
+    e = exprs[0];
+  } else {
+    std::vector<Expr*>::iterator iter = exprs.begin();
+    e = new Concat(*iter, new EOP());
+    *iter = e;
+    ++iter;
+    while (iter != exprs.end()) {
+      *iter = new Concat(*iter, new EOP());
+      e = new Union(e, *iter);
+      ++iter;
+    }
+    
+    DFA dfa;
+    e->FillTransition();
+    MakeDFA(e, dfa, exprs.size());
+    e = CreateRegexFromDFA(dfa);
+
+    iter = exprs.begin();
+    while (iter != exprs.end()) {
+      delete *iter;
+      ++iter;
+    }
+  }
+  
+  return e;
+}
+
+Expr *
+Regex::e2()
+{
+  Expr *e, *f;
+  e = e3();
+  
   while (e->type() == Expr::kNone &&
          (token_type_ == Expr::kLiteral ||
           token_type_ == Expr::kCharClass ||
@@ -204,8 +324,9 @@ Regex::e1()
           token_type_ == Expr::kEndLine ||
           token_type_ == Expr::kBegLine ||
           token_type_ == Expr::kNone ||
-          token_type_ == Expr::kLpar)) {
-    e = e2();
+          token_type_ == Expr::kLpar ||
+          token_type_ == Expr::kNegative)) {
+    e = e3();
   }
 
   while (token_type_ == Expr::kLiteral ||
@@ -214,31 +335,12 @@ Regex::e1()
          token_type_ == Expr::kEndLine ||
          token_type_ == Expr::kBegLine ||
          token_type_ == Expr::kNone ||
-         token_type_ == Expr::kLpar) {
-    f = e2();
+         token_type_ == Expr::kLpar ||
+         token_type_ == Expr::kNegative) {
+    f = e3();
     if (f->type() != Expr::kNone) {
       e = new Concat(e, f);
-      e->set_expr_id(++expr_id_);
     }
-  }
-
-  return e;
-}
-
-Expr *
-Regex::e2()
-{
-  Expr *e;
-  e = e3();
-  
-  while (token_type_ == Expr::kStar ||
-     token_type_ == Expr::kPlus ||
-     token_type_ == Expr::kQmark) {
-    if (e->type() != Expr::kNone) {
-      e = UnaryExpr::DispatchNew(token_type_, e);
-      e->set_expr_id(++expr_id_);
-    }
-    lex();
   }
 
   return e;
@@ -248,57 +350,143 @@ Expr *
 Regex::e3()
 {
   Expr *e;
-  StateExpr *s;
+  e = e4();
+  bool infinity = false, nullable = false;
+
+looptop:
+  switch (token_type_) {
+    case Expr::kStar:
+      infinity = true;
+      nullable = true;
+      goto loop;
+    case Expr::kPlus:
+      infinity = true;
+      goto loop;
+    case Expr::kQmark:
+      nullable = true;
+      goto loop;
+    default: goto loopend;
+  }
+loop:
+  lex();
+  goto looptop;
+loopend:
+
+  if (e->type() != Expr::kNone &&
+      (infinity || nullable)) {
+    if (infinity && nullable) {
+      e = new Star(e);
+    } else if (infinity) {
+      e = new Plus(e);
+    } else { //nullable
+      e = new Qmark(e);
+    }
+  }
+  
+  if (token_type_ == Expr::kRepetition) {
+    if (e->type() == Expr::kNone) goto loop;
+    if (lower_repetition_ == 0 && upper_repetition_ == 0) {
+      delete e;
+      e = new None();
+    } else if (upper_repetition_ == -1) {
+      Expr* f = e;
+      for (int i = 0; i < lower_repetition_ - 2; i++) {
+        e = new Concat(e, f->Clone());
+      }
+      e = new Concat(e, new Plus(f->Clone()));
+    } else if (upper_repetition_ == lower_repetition_) {
+      Expr* f = e;
+      for (int i = 0; i < lower_repetition_ - 1; i++) {
+        e = new Concat(e, f->Clone());
+      }
+    } else {
+      Expr *f = e;
+      for (int i = 0; i < lower_repetition_ - 1; i++) {
+        e = new Concat(e, f->Clone());
+      }
+      if (lower_repetition_ == 0) {
+        e = new Qmark(e);
+        lower_repetition_ = 1;
+      }
+      for (int i = 0; i < (upper_repetition_ - lower_repetition_); i++) {
+        e = new Concat(e, new Qmark(f->Clone()));
+      }
+    }
+    infinity = false, nullable = false;
+    goto loop;
+  }
+
+  return e;
+}
+
+Expr *
+Regex::e4()
+{
+  Expr *e;
 
   switch(token_type_) {
     case Expr::kLiteral:
-      s = new Literal(parse_lit_);
-      goto setid;
+      e = new Literal(parse_lit_);
+      break;
     case Expr::kBegLine:
-      s = new BegLine();
-      goto setid;
+      e = new BegLine();
+      break;
     case Expr::kEndLine:
-      s = new EndLine();
-      goto setid;
+      e = new EndLine();
+      break;
     case Expr::kDot:
-      s = new Dot();
-      goto setid;
+      e = new Dot();
+      break;
     case Expr::kCharClass: {
       CharClass *cc = BuildCharClass();
       if (cc->count() == 1) {
-        // '[a]' just be matched 'a'.
-        s = new Literal(parse_lit_);
+        e = new Literal(parse_lit_);
+        delete cc;
+      } else if (cc->count() == 256) {
+        e = new Dot();
         delete cc;
       } else {
-        s = cc;
+        e = cc;
       }
-      goto setid;
+      break;
     }
     case Expr::kNone:
       e = new None();
-      goto noid;
+      break;
     case Expr::kLpar:
       lex();
       e = e0();
-      if (e->type())
       if (token_type_ != Expr::kRpar) exitmsg("expected a ')'");
-      goto noid;
+      break;
+    case Expr::kNegative: {
+      bool negative = false;
+      do {
+        negative = !negative;
+        lex();
+      } while (token_type_ == Expr::kNegative);
+      e = e4();
+      if (negative) {
+        DFA dfa;
+        e = new Concat(e, new EOP());
+        e->FillTransition();
+        Expr *e_ = e;
+        MakeDFA(e, dfa);
+        dfa.Negative();
+        e = CreateRegexFromDFA(dfa);
+        delete e_;
+      }
+      return e;
+    }
     default:
       exitmsg("expected a Literal or '('!");
   }
 
-setid:
-  s->set_expr_id(++expr_id_);
-  s->set_state_id(++state_id_);
-  states_.push_back(s);
-  e = s;
-noid:
   lex();
 
   return e;
 }
 
-void Regex::CreateDFA()
+void Regex::MakeDFA(Expr* expr_root, DFA &dfa, std::size_t neop)
 {
   std::size_t dfa_id = 0;
 
@@ -307,7 +495,7 @@ void Regex::CreateDFA()
   std::map<NFA, int> dfa_map;
   std::queue<NFA> queue;
   NFA default_next;
-  NFA first_states = expr_root_->transition().first;
+  NFA first_states = expr_root->transition().first;
 
   dfa_map[default_next] = DFA::REJECT;
   dfa_map[first_states] = dfa_id++;
@@ -320,6 +508,7 @@ void Regex::CreateDFA()
     NFA::iterator iter = nfa_states.begin();
     bool is_accept = false;
     default_next.clear();
+    std::set<EOP*> eops;
 
     while (iter != nfa_states.end()) {
       NFA &next = (*iter)->transition().follow;
@@ -359,7 +548,10 @@ void Regex::CreateDFA()
           break;
         }
         case Expr::kEOP: {
-          is_accept = true;
+          eops.insert((EOP*)(*iter));
+          if (eops.size() == neop) {
+            is_accept = true;
+          }
           break;
         }
         case Expr::kNone: break;
@@ -384,7 +576,7 @@ void Regex::CreateDFA()
     default_next.insert(first_states.begin(), first_states.end());
     */
     
-    DFA::Transition &dfa_transition = dfa_.get_new_transition();
+    DFA::Transition &dfa_transition = dfa.get_new_transition();
     std::set<int> dst_state;
     // only support Most-Left-Shortest matching
     //if (is_accept) goto settransition;
@@ -401,26 +593,25 @@ void Regex::CreateDFA()
       dst_state.insert(dfa_map[next]);
     }
     //settransition:
-    dfa_.set_state_info(is_accept, dfa_map[default_next], dst_state);
+    dfa.set_state_info(is_accept, dfa_map[default_next], dst_state);
   }
 }
 
 // Converte DFA to Regular Expression using GNFA.
-Expr* Regex::GenerateRegexFromDFA()
+Expr* Regex::CreateRegexFromDFA(DFA &dfa)
 {
-  int GREJECT = dfa_.size();
-  int GSTART  = dfa_.size()+1;
+  int GSTART  = dfa.size();
   int GACCEPT = GSTART+1;
-  typedef std::map<int, Expr*> GNFATrans;
-  std::vector<GNFATrans> gnfa_transition(dfa_.size()+2);
 
-  for (int i = 0; i < dfa_.size(); i++) {
-    const DFA::Transition &transition = dfa_.GetTransition(i);
+  typedef std::map<int, Expr*> GNFATrans;
+  std::vector<GNFATrans> gnfa_transition(GACCEPT);
+
+  for (std::size_t i = 0; i < dfa.size(); i++) {
+    const DFA::Transition &transition = dfa.GetTransition(i);
     GNFATrans &gtransition = gnfa_transition[i];
     for (int c = 0; c < 256; c++) {
-      //if ((next = transition[c]) != DFA::REJECT) {
-      if (1) {
-        int next = transition[c];
+      int next = transition[c];
+      if (next != DFA::REJECT) {
         Expr *e;
         if (c < 255 && next == transition[c+1]) {
           int begin = c;
@@ -432,31 +623,48 @@ Expr* Regex::GenerateRegexFromDFA()
             e = new Dot();
           } else {
             std::bitset<256> table;
+            bool negative = false;
             for (int j = begin; j <= end; j++) {
-              table.set(j, true);
+              table.set(j);
             }
-            e = new CharClass(table);
+            if (table.count() >= 128) {
+              negative = true;
+              table.flip();
+            }
+            e = new CharClass(table, negative);
           }
         } else {
           e = new Literal(c);
         }
-        if (next == DFA::REJECT) next = GREJECT;
         if (gtransition.find(next) != gtransition.end()) {
-          e = new Union(gtransition[next], e);
+          Expr* f = gtransition[next];
+          if (e->stype() == Expr::kStateExpr &&
+              f->stype() == Expr::kStateExpr) {
+            CharClass* cc = new CharClass((StateExpr*)e, (StateExpr*)f);
+            delete e;
+            delete f;
+            if (cc->count() == 256) {
+              e = new Dot();
+              delete cc;
+            } else {
+              e = cc;
+            }
+          } else {
+            e = new Union(e, f);
+          }
         }
         gtransition[next] = e;
       }
     }
   }
 
-  for (int i = 0; i < dfa_.size(); i++) {
-    if (!dfa_.IsAcceptState(i)) {
+  for (std::size_t i = 0; i < dfa.size(); i++) {
+    if (dfa.IsAcceptState(i)) {
       gnfa_transition[i][GACCEPT] = NULL;
     }
   }
+
   gnfa_transition[GSTART][0] = NULL;
-  gnfa_transition[GREJECT][GACCEPT] = NULL;
-  gnfa_transition[GREJECT][GREJECT] = new Dot();
   
   for (int i = 0; i < GSTART; i++) {
     Expr* loop = NULL;
@@ -486,11 +694,29 @@ Expr* Regex::GenerateRegexFromDFA()
               regex2 = regex1;
             }
           }
+          if (regex2 != NULL) {
+            regex2 = regex2->Clone();
+          }
           if (gnfa_transition[j].find((*iter).first) != gnfa_transition[j].end()) {
             if (gnfa_transition[j][(*iter).first] != NULL) {
               if (regex2 != NULL) {
-                gnfa_transition[j][(*iter).first] =
-                    new Union(gnfa_transition[j][(*iter).first], regex2);
+                Expr* e = gnfa_transition[j][(*iter).first];
+                Expr* f = regex2;
+                if (e->stype() == Expr::kStateExpr &&
+                    f->stype() == Expr::kStateExpr) {
+                  CharClass* cc = new CharClass((StateExpr*)e, (StateExpr*)f);
+                  delete e;
+                  delete f;
+                  if (cc->count() == 256) {
+                    e = new Dot();
+                    delete cc;
+                  } else {
+                    e = cc;
+                  }
+                } else {
+                  e = new Union(e, f);
+                }
+                gnfa_transition[j][(*iter).first] = e;
               } else {
                 gnfa_transition[j][(*iter).first] =
                     new Qmark(gnfa_transition[j][(*iter).first]);
@@ -509,9 +735,24 @@ Expr* Regex::GenerateRegexFromDFA()
         }
       }
     }
+    GNFATrans::iterator iter = gtransition.begin();
+    iter = gtransition.begin();
+    while (iter != gtransition.end()) {
+      if ((*iter).second != NULL) {
+        delete (*iter).second;
+      }
+      ++iter;
+    }
+    if (loop != NULL) {
+      delete loop;
+    }
   }
-  
-  return gnfa_transition[GSTART][GACCEPT];
+
+  if(gnfa_transition[GSTART][GACCEPT] == NULL) {
+    return new None();
+  } else {
+    return gnfa_transition[GSTART][GACCEPT];
+  }
 }
 
 bool Regex::FullMatch(const std::string &string)  const {
@@ -525,9 +766,7 @@ bool Regex::FullMatch(const unsigned char *begin, const unsigned char * end)  co
 }
 
 void Regex::PrintRegex() {
-  //PrintRegexVisitor::Print(expr_root_);
-  Expr* e = GenerateRegexFromDFA();
-  PrintRegexVisitor::Print(e);
+  PrintRegexVisitor::Print(expr_root_);
 }
 
 void Regex::PrintParseTree() const {
@@ -539,3 +778,4 @@ void Regex::DumpExprTree() const {
 }
 
 } // namespace regen
+ 

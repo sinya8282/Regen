@@ -62,9 +62,13 @@ class Expr {
 public:
   enum Type {
     kLiteral, kCharClass, kDot, kBegLine,
-    kEndLine, kConcat, kUnion, kQmark,
-    kStar, kPlus, kRpar, kLpar, kEpsilon,
-    kNone, kNegative, kEOP
+    kEndLine, kEOP,
+    kConcat, kUnion,  kIntersection,
+    kQmark, kStar, kPlus, kRepetition,
+    kRpar, kLpar, kEpsilon, kNone, kNegative
+  };
+  enum SuperType {
+    kStateExpr, kBinaryExpr, kUnaryExpr
   };
   
   Expr(): parent_(NULL) {}
@@ -81,7 +85,9 @@ public:
   void set_parent(Expr *parent) { parent_ = parent; }
 
   virtual Expr::Type type() = 0;
+  virtual Expr::SuperType stype() = 0;
   virtual void FillTransition() = 0;
+  virtual Expr* Clone() = 0;
   
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 protected:
@@ -98,11 +104,12 @@ private:
 class StateExpr: public Expr {
 public:
   StateExpr();
-  virtual ~StateExpr() {}
+  ~StateExpr() {}
   void FillTransition() {}
   std::size_t state_id() { return state_id_; }
   void set_state_id(std::size_t id) { state_id_ = id; }
-  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  Expr::SuperType stype() { return Expr::kStateExpr; }
+  void Accept(ExprVisitor* visit) { visit->Visit(this); };
 private:
   std::size_t state_id_;
   DISALLOW_COPY_AND_ASSIGN(StateExpr);
@@ -114,7 +121,8 @@ public:
   ~Literal() {}
   char literal() { return literal_; }
   Expr::Type type() { return Expr::kLiteral; }
-  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  Expr *Clone() { return new Literal(literal_); };
 private:
   const char literal_;
   DISALLOW_COPY_AND_ASSIGN(Literal);
@@ -122,20 +130,23 @@ private:
 
 class CharClass: public StateExpr {
 public:
-  CharClass(): table_(std::bitset<256>()), negative_(false) { }
-  CharClass(std::bitset<256> table): table_(table), negative_(false) {}
+  CharClass(): table_(std::bitset<256>()), negative_(false) {}
+  CharClass(std::bitset<256> &table): table_(table), negative_(false) {}
+  CharClass(std::bitset<256> &table, bool negative): table_(table), negative_(negative) {}
+  CharClass(StateExpr *e1, StateExpr *e2);
   ~CharClass() {}
   std::bitset<256>& table() { return table_; }
-  std::size_t count() const { return negative_ ? 256 - count_ : count_; }
+  std::size_t count() const { return negative_ ? 256 - table_.count() : table_.count(); }
   void set_negative(bool negative) { negative_ = negative; }
+  void flip() { table_.flip(); }
   bool negative() const { return negative_; }
   bool Involve(const unsigned char literal) const { return negative_ ? !table_[literal] : table_[literal]; }
   Expr::Type type() { return Expr::kCharClass; }
-  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  Expr *Clone() { return new CharClass(table_, negative_); };
 private:
   std::bitset<256> table_;
   bool negative_;
-  std::size_t count_;
   DISALLOW_COPY_AND_ASSIGN(CharClass);
 };
 
@@ -144,7 +155,8 @@ public:
   Dot() {}
   ~Dot() {}
   Expr::Type type() { return Expr::kDot; }
-  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  Expr *Clone() { return new Dot(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Dot);
 };
@@ -154,7 +166,8 @@ public:
   BegLine() {}
   ~BegLine() {}
   Expr::Type type() { return Expr::kBegLine; }
-  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  Expr* Clone() { return new BegLine(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(BegLine);
 };
@@ -164,7 +177,8 @@ public:
   EndLine() {}
   ~EndLine() {}
   Expr::Type type() { return Expr::kEndLine; }
-  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  Expr* Clone() { return new EndLine(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(EndLine);
 };
@@ -174,7 +188,8 @@ public:
   EOP() { min_length_ = max_length_ = 0; }
   ~EOP() {}
   Expr::Type type() { return Expr::kEOP; }  
-  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  Expr* Clone() { return new EOP(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(EOP);
 };
@@ -184,7 +199,8 @@ public:
   None() { min_length_ = max_length_ = 0; }
   ~None() {}
   Expr::Type type() { return Expr::kNone; }
-  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  Expr* Clone() { return new None(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(None);
 };
@@ -194,7 +210,8 @@ public:
   Epsilon() { min_length_ = max_length_ = 0; }
   ~Epsilon() {}
   Expr::Type type() { return Expr::kEpsilon; }
-  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  Expr* Clone() { return new Epsilon(); };    
 private:
   DISALLOW_COPY_AND_ASSIGN(Epsilon);
 };
@@ -202,12 +219,13 @@ private:
 class BinaryExpr : public Expr {
 public:
   BinaryExpr(Expr* lhs, Expr *rhs): lhs_(lhs), rhs_(rhs) {}
-  virtual ~BinaryExpr() { delete lhs_; delete rhs_; }
+  ~BinaryExpr() { delete lhs_; delete rhs_; }
   Expr* lhs() { return lhs_; }
   void  set_lhs(Expr *lhs) { lhs_ = lhs; }
   Expr* rhs() { return rhs_; }
   void  set_rhs(Expr *rhs) { rhs_ = rhs; }
-  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  Expr::SuperType stype() { return Expr::kBinaryExpr; }
+  void Accept(ExprVisitor* visit) { visit->Visit(this); };
 protected:
   Expr *lhs_;
   Expr *rhs_;
@@ -221,7 +239,8 @@ public:
   ~Concat() {}
   void FillTransition();
   Expr::Type type() { return Expr::kConcat; }  
-  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  Expr* Clone() { return new Concat(lhs_->Clone(), rhs_->Clone()); };  
 private:
   DISALLOW_COPY_AND_ASSIGN(Concat);
 };
@@ -232,7 +251,8 @@ public:
   ~Union() {}
   void FillTransition();
   Expr::Type type() { return Expr::kUnion; }
-  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  Expr* Clone() { return new Union(lhs_->Clone(), rhs_->Clone()); };  
 private:
   DISALLOW_COPY_AND_ASSIGN(Union);
 };
@@ -240,11 +260,11 @@ private:
 class UnaryExpr: public Expr {
 public:
   UnaryExpr(Expr* lhs): lhs_(lhs) {}
-  virtual ~UnaryExpr() { delete lhs_; }
+  ~UnaryExpr() { delete lhs_; }
   Expr* lhs() { return lhs_; }
   void  set_lhs(Expr *lhs) { lhs_ = lhs; }
-  static UnaryExpr* DispatchNew(Expr::Type type, Expr* lhs);
-  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  Expr::SuperType stype() { return Expr::kUnaryExpr; }
+  void Accept(ExprVisitor* visit) { visit->Visit(this); };
 protected:
   Expr *lhs_;
 private:
@@ -257,7 +277,8 @@ public:
   ~Qmark() {}
   void FillTransition();
   Expr::Type type() { return Expr::kQmark; }
-  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  Expr* Clone() { return new Qmark(lhs_->Clone()); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Qmark);
 };
@@ -268,7 +289,8 @@ public:
   ~Star() {}
   void FillTransition();
   Expr::Type type() { return Expr::kStar; }
-  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  Expr* Clone() { return new Star(lhs_->Clone()); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Star);
 };
@@ -279,7 +301,8 @@ public:
   ~Plus() {}
   void FillTransition();
   Expr::Type type() { return Expr::kPlus; }
-  virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  Expr* Clone() { return new Plus(lhs_->Clone()); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Plus);
 };

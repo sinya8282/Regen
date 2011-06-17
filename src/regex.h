@@ -15,7 +15,7 @@ public:
   void PrintRegex();
   void PrintExtendedRegex() const;
   void PrintParseTree() const;
-  Expr* GenerateRegexFromDFA();
+  Expr* CreateRegexFromDFA(DFA &dfa);
   void DumpExprTree() const;
   bool FullMatch(const std::string &string) const;
   bool FullMatch(const unsigned char *begin, const unsigned char *end) const;
@@ -33,16 +33,18 @@ private:
   Expr* e1();
   Expr* e2();
   Expr* e3();
+  Expr* e4();
   void Parse();
-  void CreateDFA();
+  Expr* CombineExpr();
+  void MakeDFA(Expr* e, DFA &dfa, std::size_t neop = 1);
   CharClass* BuildCharClass();
 
   const std::string regex_;
   Expr *expr_root_;
-  std::stack<const char *> recursive_stack_;
+  std::stack<const char *> parse_stack_;
   std::size_t recursive_depth_;
+  std::size_t recursive_limit_;
 
-  std::deque<StateExpr*> states_;
   Must must_;
   std::size_t must_max_length_;
   const std::string must_max_word_;
@@ -52,6 +54,7 @@ private:
   Expr::Type token_type_;
   const char *parse_ptr_;
   char parse_lit_;
+  int lower_repetition_, upper_repetition_;
   std::size_t expr_id_;
   std::size_t state_id_;
 
