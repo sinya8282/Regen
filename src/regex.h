@@ -35,9 +35,9 @@ private:
   Expr* e3();
   Expr* e4();
   void Parse();
-  Expr* CombineExpr();
   void MakeDFA(Expr* e, DFA &dfa, std::size_t neop = 1);
   CharClass* BuildCharClass();
+  StateExpr* CombineStateExpr(StateExpr* e1, StateExpr* e2);
 
   const std::string regex_;
   Expr *expr_root_;

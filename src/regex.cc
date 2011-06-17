@@ -137,7 +137,35 @@ Expr::Type Regex::lex()
   return token_type_;
 }
 
-CharClass* Regex::BuildCharClass() {
+StateExpr*
+Regex::CombineStateExpr(StateExpr *e1, StateExpr *e2)
+{
+  StateExpr *s;
+  CharClass *cc = new CharClass(e1, e2);
+  if (cc->count() == 256) {
+    delete cc;
+    s = new Dot();
+  } else if (cc->count() == 1) {
+    delete cc;
+    char c;
+    switch (e1->type()) {
+      case Expr::kLiteral:
+        c = ((Literal*)e1)->literal();
+        break;
+      case Expr::kBegLine: case Expr::kEndLine:
+        c = '\n';
+        break;
+      default: exitmsg("Invalid Expr Type: %d", e1->type());
+    }
+    s = new Literal(c);
+  } else {
+    s = cc;
+  }
+  return s;
+}
+
+CharClass*
+Regex::BuildCharClass() {
   std::size_t i;
   CharClass *cc = new CharClass();
   std::bitset<256>& table = cc->table();
@@ -253,15 +281,7 @@ Expr *Regex::e0()
     if (f->type() != Expr::kNone) {
       if (e->stype() == Expr::kStateExpr &&
           f->stype() == Expr::kStateExpr) {
-        CharClass* cc = new CharClass((StateExpr*)e, (StateExpr*)f);
-        delete e;
-        delete f;
-        if (cc->count() == 256) {
-          e = new Dot();
-          delete cc;
-        } else {
-          e = cc;
-        }
+        e = CombineStateExpr((StateExpr*)e, (StateExpr*)f);
       } else {
         e = new Union(e, f);
       }
@@ -651,15 +671,7 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa)
           Expr* f = gtransition[next];
           if (e->stype() == Expr::kStateExpr &&
               f->stype() == Expr::kStateExpr) {
-            CharClass* cc = new CharClass((StateExpr*)e, (StateExpr*)f);
-            delete e;
-            delete f;
-            if (cc->count() == 256) {
-              e = new Dot();
-              delete cc;
-            } else {
-              e = cc;
-            }
+            e = CombineStateExpr((StateExpr*)e, (StateExpr*)f);
           } else {
             e = new Union(e, f);
           }
@@ -715,15 +727,7 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa)
                 Expr* f = regex2;
                 if (e->stype() == Expr::kStateExpr &&
                     f->stype() == Expr::kStateExpr) {
-                  CharClass* cc = new CharClass((StateExpr*)e, (StateExpr*)f);
-                  delete e;
-                  delete f;
-                  if (cc->count() == 256) {
-                    e = new Dot();
-                    delete cc;
-                  } else {
-                    e = cc;
-                  }
+                  e = CombineStateExpr((StateExpr*)e, (StateExpr*)f);
                 } else {
                   e = new Union(e, f);
                 }
