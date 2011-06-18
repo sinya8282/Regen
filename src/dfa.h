@@ -25,7 +25,7 @@ public:
   std::size_t max_length() const { return max_length_; }
   std::size_t min_length() const { return min_length_; }
   std::size_t must_max_length() const { return must_max_length_; }
-  const std::string& must_max_word() const { return must_max_word_; }
+  const std::deque<bool>& accepts() const { return accepts_; }
   std::set<int> &src_state(std::size_t i) { return src_states_[i]; }
   std::set<int> &dst_state(std::size_t i) { return dst_states_[i]; }
 
@@ -37,13 +37,13 @@ public:
   void set_state_info(bool accept, int default_state, std::set<int> &dst_state);
 
   void Negative();
-  bool FullMatch(const std::string &str) const { return FullMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
-  bool FullMatch(const unsigned char *str, const unsigned char *end) const;
+  virtual bool FullMatch(const std::string &str) const { return FullMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
+  virtual bool FullMatch(const unsigned char *str, const unsigned char *end) const;
   const Transition &GetTransition(std::size_t state) const { return transition_[state]; }
   int GetDefaultNext(std::size_t state) const { return defaults_[state]; }
   bool IsAcceptState(std::size_t state) const { return accepts_[state]; }
 
-private:
+protected:
   std::vector<Transition> transition_;
   std::deque<int> defaults_;
   std::deque<bool> accepts_;

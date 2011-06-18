@@ -54,10 +54,8 @@ void DFA::Negative()
 
 bool DFA::FullMatch(const unsigned char *str, const unsigned char *end) const
 {
-  int state = 0, next;
-  while (str != end && (next = transition_[state][*str++]) != DFA::REJECT) {
-    state = next;
-  }
+  int state = 0;
+  while (str != end && (state = transition_[state][*str++]) != DFA::REJECT);
 
   return accepts_[state];
 }
