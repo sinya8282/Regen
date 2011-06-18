@@ -2,6 +2,28 @@
 
 namespace regen {
 
+const char*
+Expr::TypeString(Expr::Type type)
+{
+  static const char* const type_strings[] = {
+    "Literal", "CharClass", "Dot", "BegLine",
+    "EndLine", "EOP", "Concat", "Union", "Intersection",
+    "Qmark", "Star", "Plus", "Repetition", "Rpar", "Lpar",
+    "Epsilon", "None", "Negative"
+  };
+
+  return type_strings[type];
+}
+const char*
+Expr::SuperTypeString(Expr::SuperType stype)
+{
+  static const char* const stype_strings[] = {
+    "StateExpr", "BinaryExpr", "UnaryExpr"
+  };
+
+  return stype_strings[stype];
+}
+
 void Expr::Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst) {
   std::set<StateExpr*>::iterator iter = src.begin();
   while (iter != src.end()) {

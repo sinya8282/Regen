@@ -61,16 +61,16 @@ struct Transition {
 class Expr {
 public:
   enum Type {
-    kLiteral, kCharClass, kDot, kBegLine,
+    kLiteral=0, kCharClass, kDot, kBegLine,
     kEndLine, kEOP,
     kConcat, kUnion,  kIntersection,
     kQmark, kStar, kPlus, kRepetition,
     kRpar, kLpar, kEpsilon, kNone, kNegative
   };
   enum SuperType {
-    kStateExpr, kBinaryExpr, kUnaryExpr
+    kStateExpr=0, kBinaryExpr, kUnaryExpr
   };
-  
+
   Expr(): parent_(NULL) {}
   virtual ~Expr() {}
 
@@ -83,6 +83,8 @@ public:
   Transition& transition() { return transition_; }
   Expr* parent() { return parent_; }
   void set_parent(Expr *parent) { parent_ = parent; }
+  static const char* TypeString(Expr::Type type);
+  static const char* SuperTypeString(Expr::SuperType stype);
 
   virtual Expr::Type type() = 0;
   virtual Expr::SuperType stype() = 0;

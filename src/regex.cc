@@ -20,7 +20,7 @@ void nfadump(const std::set<regen::StateExpr*> &nfa, bool verbose = false)
 
 namespace regen {
 
-Regex::Regex(const std::string &regex, std::size_t recursive_limit = 2):
+Regex::Regex(const std::string &regex, std::size_t recursive_limit):
     regex_(regex),
     recursive_limit_(recursive_limit),
     involved_char_(std::bitset<256>()),
@@ -52,8 +52,11 @@ Expr::Type Regex::lex()
       case ')': token_type_ = Expr::kRpar;      break;
       case '^': token_type_ = Expr::kBegLine;   break;
       case '$': token_type_ = Expr::kEndLine;   break;
-        case '(': {
-        if (*parse_ptr_     == '?' &&
+      case '(': {
+        if (*parse_ptr_ == ')') {
+          parse_ptr_++;
+          token_type_ = Expr::kNone;
+        } else if (*parse_ptr_     == '?' &&
             *(parse_ptr_+1) == 'R' &&
             *(parse_ptr_+2) == ')') {
           // recursive expression
@@ -508,8 +511,12 @@ Regex::e4()
       }
       return e;
     }
+    case Expr::kRpar:
+      exitmsg("expected a '('!");
+    case Expr::kEOP:
+      exitmsg("expected none-nullable expression.");
     default:
-      exitmsg("expected a Literal or '('!");
+      exitmsg("can't handle Expr: %s", Expr::TypeString(token_type_));
   }
 
   lex();
@@ -532,7 +539,7 @@ void Regex::MakeDFA(Expr* expr_root, DFA &dfa, std::size_t neop)
   dfa_map[first_states] = dfa_id++;
   queue.push(first_states);
 
-  while(!queue.empty()) {
+  while (!queue.empty()) {
     NFA nfa_states = queue.front();
     queue.pop();
     std::vector<NFA> transition(256);
@@ -613,7 +620,7 @@ void Regex::MakeDFA(Expr* expr_root, DFA &dfa, std::size_t neop)
     //if (is_accept) goto settransition;
     
     for (int i = 0; i < 256; i++) {
-      const NFA &next = transition[i];
+      NFA &next = transition[i];
       if (next.empty()) continue;
 
       if (dfa_map.find(next) == dfa_map.end()) {

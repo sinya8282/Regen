@@ -54,7 +54,7 @@ struct mmap_t{
     int f = open(path, OPEN_MODE);
     struct stat statbuf;
     fstat(f, &statbuf);
-    ptr = mmap(0, statbuf.st_size, PROT, flags, f, 0);
+    ptr = (unsigned char *)mmap(0, statbuf.st_size, PROT, flags, f, 0);
     size=statbuf.st_size;
     close(f);
   }
@@ -67,7 +67,7 @@ struct mmap_t{
   { return ptr != (void *)-1; }
 
   size_t size;
-  void *ptr;
+  unsigned char *ptr;
 };
 
 } // namespace Util
