@@ -22,7 +22,7 @@ void DFA::set_state_info(bool accept, int default_next, std::set<int> &dst_state
   }
 }
 
-void DFA::Negative()
+void DFA::Complement()
 {
   int reject = DFA::REJECT;
   std::size_t final = transition_.size();

@@ -37,7 +37,7 @@ public:
   const Transition &GetTransition(std::size_t state) const { return transition_[state]; }
   int GetDefaultNext(std::size_t state) const { return defaults_[state]; }
   bool IsAcceptState(std::size_t state) const { return accepts_[state]; }
-  void Negative();
+  void Complement();
 
   bool Compile();
   bool FullMatch(const std::string &str) const { return FullMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }

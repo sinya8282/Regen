@@ -9,7 +9,7 @@ Expr::TypeString(Expr::Type type)
     "Literal", "CharClass", "Dot", "BegLine",
     "EndLine", "EOP", "Concat", "Union", "Intersection",
     "Qmark", "Star", "Plus", "Repetition", "Rpar", "Lpar",
-    "Epsilon", "None", "Negative"
+    "Epsilon", "None", "Complement"
   };
 
   return type_strings[type];

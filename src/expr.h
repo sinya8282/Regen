@@ -65,7 +65,7 @@ public:
     kEndLine, kEOP,
     kConcat, kUnion,  kIntersection,
     kQmark, kStar, kPlus, kRepetition,
-    kRpar, kLpar, kEpsilon, kNone, kNegative
+    kRpar, kLpar, kEpsilon, kNone, kComplement
   };
   enum SuperType {
     kStateExpr=0, kBinaryExpr, kUnaryExpr

@@ -47,7 +47,7 @@ Expr::Type Regex::lex()
       case '?': token_type_ = Expr::kQmark;     break;
       case '+': token_type_ = Expr::kPlus;      break;
       case '*': token_type_ = Expr::kStar;      break;
-      case '!': token_type_ = Expr::kNegative;  break;
+      case '!': token_type_ = Expr::kComplement;  break;
       case '&': token_type_ = Expr::kIntersection;  break;
       case ')': token_type_ = Expr::kRpar;      break;
       case '^': token_type_ = Expr::kBegLine;   break;
@@ -264,7 +264,7 @@ void Regex::Parse()
  * e1 ::= e2 ('&' e2)*                    # intersection
  * e2 ::= e3+                             # concatenation
  * e3 ::= e4 ([?+*]|{N,N}|{,}|{,N}|{N,})* # repetition
- * e4 ::= ATOM | '(' e0 ')' | '!' e0      # ATOM, grouped expresion, negative expresion
+ * e4 ::= ATOM | '(' e0 ')' | '!' e0      # ATOM, grouped expresion, complement expresion
 */
 
 Expr *Regex::e0()
@@ -359,7 +359,7 @@ Regex::e2()
           token_type_ == Expr::kBegLine ||
           token_type_ == Expr::kNone ||
           token_type_ == Expr::kLpar ||
-          token_type_ == Expr::kNegative)) {
+          token_type_ == Expr::kComplement)) {
     e = e3();
   }
 
@@ -370,7 +370,7 @@ Regex::e2()
          token_type_ == Expr::kBegLine ||
          token_type_ == Expr::kNone ||
          token_type_ == Expr::kLpar ||
-         token_type_ == Expr::kNegative) {
+         token_type_ == Expr::kComplement) {
     f = e3();
     if (f->type() != Expr::kNone) {
       e = new Concat(e, f);
@@ -492,20 +492,20 @@ Regex::e4()
       e = e0();
       if (token_type_ != Expr::kRpar) exitmsg("expected a ')'");
       break;
-    case Expr::kNegative: {
-      bool negative = false;
+    case Expr::kComplement: {
+      bool complement = false;
       do {
-        negative = !negative;
+        complement = !complement;
         lex();
-      } while (token_type_ == Expr::kNegative);
+      } while (token_type_ == Expr::kComplement);
       e = e4();
-      if (negative) {
+      if (complement) {
         DFA dfa;
         e = new Concat(e, new EOP());
         e->FillTransition();
         Expr *e_ = e;
         MakeDFA(e, dfa);
-        dfa.Negative();
+        dfa.Complement();
         e = CreateRegexFromDFA(dfa);
         delete e_;
       }
