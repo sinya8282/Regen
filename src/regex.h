@@ -17,6 +17,7 @@ public:
   void PrintParseTree() const;
   Expr* CreateRegexFromDFA(DFA &dfa);
   void DumpExprTree() const;
+  bool Compile() { return dfa_.Compile(); }
   bool FullMatch(const std::string &string) const;
   bool FullMatch(const unsigned char *begin, const unsigned char *end) const;
   const std::string& regex() const { return regex_; }
