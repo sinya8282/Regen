@@ -1,5 +1,4 @@
 #include "generator.h"
-#include <xbyak/xbyak.h>
 
 namespace regen {
 
@@ -86,99 +85,6 @@ void CGenerate(const Regex& regex)
     }
     puts("}");
   }  
-}
-
-class XbyakGenerator: public Xbyak::CodeGenerator {
- public:
-  XbyakGenerator(const DFA &dfa, std::size_t state_code_size);
- private:
-  const DFA dfa_;
-};
-
-XbyakGenerator::XbyakGenerator(const DFA &dfa, std::size_t state_code_size = 32):
-    /* dfa.size()*32 for code. <- code segment
-     * padding for 4kb allign 
-     * dfa.size()*256*sizeof(void *) for transition table. <- data segment */
-    CodeGenerator(  (dfa.size()+3)*state_code_size
-                  + ((dfa.size()+3)*state_code_size % 4096)
-                  + dfa.size()*256*sizeof(void *))
-{
-  std::vector<const uint8_t*> states_addr(dfa.size());
-
-  const uint8_t* code_addr_top = getCurr();
-  const uint8_t** transition_table_ptr = (const uint8_t **)(code_addr_top + (dfa.size()+3)*state_code_size + (((dfa.size()+3)*state_code_size) % 4096));
-
-#ifdef XBYAK32
-#error "64 only"
-#elif defined(XBYAK64_WIN)
-  const Xbyak::Reg64 arg1(rcx);
-  const Xbyak::Reg64 arg2(rdx);
-  const Xbyak::Reg64 tbl (r8);
-  const Xbyak::Reg64 tmp1(r10);
-  const Xbyak::Reg64 tmp2(r11);  
-#else
-  const Xbyak::Reg64 arg1(rdi);
-  const Xbyak::Reg64 arg2(rsi);
-  const Xbyak::Reg64 tbl (rdx);
-  const Xbyak::Reg64 tmp1(r10);
-  const Xbyak::Reg64 tmp2(r11);
-#endif
-
-  // setup enviroment on register
-  mov(tbl,  (uint64_t)transition_table_ptr);
-  jmp("s0");
-
-  L("accept");
-  mov(rax, 1); // return true
-  ret();
-
-  L("reject");
-  const uint8_t *reject_state_addr = getCurr();
-  xor(rax, rax); // return false
-  ret();
-
-  align(32);
-  
-  // state code generation, and indexing every states address.
-  L("s0");
-  for (std::size_t i = 0; i < dfa.size(); i++) {
-    states_addr[i] = getCurr();
-    cmp(arg1, arg2);
-    if (dfa.IsAcceptState(i)) {
-      je("accept", T_NEAR);
-    } else {
-      je("reject", T_NEAR);
-    }
-    movzx(tmp1, byte[arg1]);
-    inc(arg1);
-    jmp(ptr[tbl+i*256*8+tmp1*8]);
-    mov(tmp2, i); // embedding state number (for debug).
-
-    align(32);
-  }
-  
-  // backpatching (every states address)
-  for (std::size_t i = 0; i < dfa.size(); i++) {
-    const DFA::Transition &trans = dfa.GetTransition(i);
-    for (int c = 0; c < 256; c++) {
-      int next = trans[c];
-      transition_table_ptr[i*256+c] =
-          (next  == -1 ? reject_state_addr : states_addr[next]);
-    }
-  }
-}
-
-void XbyakGenerate(const Regex &regex)
-{
-  const DFA &dfa = regex.dfa();
-  XbyakGenerator xgen(dfa);
-  bool (*dfa_)(const char *, const char *) = (bool (*)(const char *, const char *))xgen.getCode();
-
-  Util::mmap_t mm("hoge");
-  bool result = dfa_((char *)mm.ptr, (char *)mm.ptr+mm.size);
-  printf("%d\n", result);
-
-  return;
 }
 
 } // namespace Generator

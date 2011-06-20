@@ -22,8 +22,8 @@ public:
     const int &operator[](std::size_t index) const { return t[index]; }
   };
 
-  DFA() {}
-  ~DFA() { if (xgen_ != NULL) delete xgen_; }
+  DFA(): compiled_(false) {}
+  ~DFA() { if (compiled_) delete xgen_; }
   
   bool empty() const { return transition_.empty(); }
   std::size_t size() const { return transition_.size(); }
@@ -39,8 +39,8 @@ public:
   bool IsAcceptState(std::size_t state) const { return accepts_[state]; }
   void Negative();
 
-  virtual bool Compile();
-  virtual bool FullMatch(const std::string &str) const { return FullMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
+  bool Compile();
+  bool FullMatch(const std::string &str) const { return FullMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
   virtual bool FullMatch(const unsigned char *str, const unsigned char *end) const;
 
 protected:
@@ -49,7 +49,8 @@ protected:
   std::deque<bool> accepts_;
   std::deque<std::set<int> > src_states_;
   std::deque<std::set<int> > dst_states_;
-  bool (*CompiledFullMatch)(const unsigned char *, const unsigned char *);
+  int (*CompiledFullMatch)(const unsigned char *, const unsigned char *);
+  bool compiled_;
   #if 1
   Xbyak::CodeGenerator *xgen_;
   #endif

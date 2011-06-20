@@ -91,35 +91,31 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 32):
   mov(tbl,  (uint64_t)transition_table_ptr);
   jmp("s0");
 
-  L("accept");
-  mov(rax, 1); // return true
-  ret();
-
   L("reject");
   const uint8_t *reject_state_addr = getCurr();
-  xor(rax, rax); // return false
+  mov(rax, -1); // return false
   ret();
 
   align(32);
   
   // state code generation, and indexing every states address.
   L("s0");
+  char labelbuf[100];
   for (std::size_t i = 0; i < dfa.size(); i++) {
+    sprintf(labelbuf, "accept%"PRIuS, i);
     states_addr[i] = getCurr();
     cmp(arg1, arg2);
-    if (dfa.IsAcceptState(i)) {
-      je("accept", T_NEAR);
-    } else {
-      je("reject", T_NEAR);
-    }
+    je(labelbuf);
     movzx(tmp1, byte[arg1]);
     inc(arg1);
     jmp(ptr[tbl+i*256*8+tmp1*8]);
-    mov(tmp2, i); // embedding state number (for debug).
+    L(labelbuf);
+    mov(rax, i);
+    ret();
 
     align(32);
   }
-  
+
   // backpatching (every states address)
   for (std::size_t i = 0; i < dfa.size(); i++) {
     const DFA::Transition &trans = dfa.GetTransition(i);
@@ -134,23 +130,27 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 32):
 bool DFA::Compile()
 {
   xgen_ = new XbyakCompiler(*this);
-  CompiledFullMatch = (bool (*)(const unsigned char *, const unsigned char *))xgen_->getCode();
+  CompiledFullMatch = (int (*)(const unsigned char *, const unsigned char *))xgen_->getCode();
+  compiled_ = true;
   return true;
 }
 #else
 bool DFA::Compile()
 {
+  compiled_ = true;
   return true;
 }
 #endif
 
 bool DFA::FullMatch(const unsigned char *str, const unsigned char *end) const
 {
-  if (CompiledFullMatch != NULL) {
-    return CompiledFullMatch(str, end);
+  int state = 0;
+
+  if (compiled_) {
+    state = CompiledFullMatch(str, end);
+    return state != DFA::REJECT ? accepts_[state] : false;
   }
 
-  int state = 0;
   while (str != end && (state = transition_[state][*str++]) != DFA::REJECT);
 
   return accepts_[state];

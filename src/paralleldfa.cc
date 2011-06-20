@@ -73,105 +73,14 @@ ParallelDFA::ParallelDFA(const DFA &dfa, std::size_t thread_num):
   }
 }
 
-#if 1
-class XbyakCompiler: public Xbyak::CodeGenerator {
- public:
-  XbyakCompiler(const ParallelDFA &pdfa, std::size_t state_code_size);
-};
-
-XbyakCompiler::XbyakCompiler(const ParallelDFA &pdfa, std::size_t state_code_size = 32):
-    /* pdfa.size()*32 for code. <- code segment
-     * padding for 4kb allign 
-     * pdfa.size()*256*sizeof(void *) for transition table. <- data segment */
-    CodeGenerator(  (pdfa.size()+3)*state_code_size
-                  + ((pdfa.size()+3)*state_code_size % 4096)
-                  + pdfa.size()*256*sizeof(void *))
-{
-  std::vector<const uint8_t*> states_addr(pdfa.size());
-
-  const uint8_t* code_addr_top = getCurr();
-  const uint8_t** transition_table_ptr = (const uint8_t **)(code_addr_top + (pdfa.size()+3)*state_code_size + (((pdfa.size()+3)*state_code_size) % 4096));
-
-#ifdef XBYAK32
-#error "64 only"
-#elif defined(XBYAK64_WIN)
-  const Xbyak::Reg64 arg1(rcx);
-  const Xbyak::Reg64 arg2(rdx);
-  const Xbyak::Reg64 tbl (r8);
-  const Xbyak::Reg64 tmp1(r10);
-  const Xbyak::Reg64 tmp2(r11);  
-#else
-  const Xbyak::Reg64 arg1(rdi);
-  const Xbyak::Reg64 arg2(rsi);
-  const Xbyak::Reg64 tbl (rdx);
-  const Xbyak::Reg64 tmp1(r10);
-  const Xbyak::Reg64 tmp2(r11);
-#endif
-
-  // setup enviroment on register
-  mov(tbl,  (uint64_t)transition_table_ptr);
-  jmp("s0");
-
-  L("accept");
-  ret();
-
-  L("reject");
-  const uint8_t *reject_state_addr = getCurr();
-  mov(rax, -1); // return reject state number
-  ret();
-
-  align(32);
-  
-  // state code generation, and indexing every states address.
-  L("s0");
-  char labelbuf[100];
-  for (std::size_t i = 0; i < pdfa.size(); i++) {
-    sprintf(labelbuf, "accept%d", i);
-    states_addr[i] = getCurr();
-    cmp(arg1, arg2);
-    je(labelbuf);
-    movzx(tmp1, byte[arg1]);
-    inc(arg1);
-    jmp(ptr[tbl+i*256*8+tmp1*8]);
-    L(labelbuf);
-    mov(rax, i); // embedding state number (for debug).
-    je("accept");
-
-    align(32);
-  }
-  
-  // backpatching (every states address)
-  for (std::size_t i = 0; i < pdfa.size(); i++) {
-    const DFA::Transition &trans = pdfa.GetTransition(i);
-    for (int c = 0; c < 256; c++) {
-      int next = trans[c];
-      transition_table_ptr[i*256+c] =
-          (next  == -1 ? reject_state_addr : states_addr[next]);
-    }
-  }
-}
-
-bool ParallelDFA::Compile()
-{
-  xgen_ = new XbyakCompiler(*this);
-  CompiledFullMatchTask = (int (*)(const unsigned char *, const unsigned char *))xgen_->getCode();
-  return true;
-}
-#else
-bool ParallelDFA::Compile()
-{
-  return true;
-}
-#endif
-
 void
 ParallelDFA::FullMatchTask(TaskArg targ) const
 {
   const unsigned char *str = targ.str;
   const unsigned char *end = targ.end;
 
-  if (CompiledFullMatchTask != NULL) {
-    parallel_states_[targ.task_id] = CompiledFullMatchTask(str, end);
+  if (compiled_) {
+    parallel_states_[targ.task_id] = CompiledFullMatch(str, end);
     return;
   }
   
