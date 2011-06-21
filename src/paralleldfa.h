@@ -17,7 +17,6 @@ public:
   };
 private:
   void FullMatchTask(TaskArg targ) const;
-  int *transition__;
   mutable std::vector<int> parallel_states_;
   std::size_t dfa_size_;
   std::size_t thread_num_;

@@ -64,13 +64,6 @@ ParallelDFA::ParallelDFA(const DFA &dfa, std::size_t thread_num):
     }
     set_state_info(is_accept ,DFA::REJECT, dst_state);
   }
-
-  transition__ = (int*)malloc(sizeof(int)*256*transition_.size());
-  for (std::size_t s = 0; s < transition_.size(); s++) {
-    for (std::size_t c = 0; c < 256; c++) {
-      transition__[s*256+c] = transition_[s][c];
-    }
-  }
 }
 
 void
@@ -86,7 +79,7 @@ ParallelDFA::FullMatchTask(TaskArg targ) const
   
   int state = 0;
 
-  while (str != end && (state = transition_[state][(*str++)]) != DFA::REJECT);
+  while (str != end && (state = transition_[state][*str++]) != DFA::REJECT);
 
   parallel_states_[targ.task_id] = state;
   return;
