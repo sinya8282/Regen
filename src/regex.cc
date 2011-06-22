@@ -173,7 +173,7 @@ Regex::BuildCharClass() {
   CharClass *cc = new CharClass();
   std::bitset<256>& table = cc->table();
   bool range;
-  char lastc;
+  char lastc = '\0';
 
   if (*parse_ptr_ == '^') {
     parse_ptr_++;

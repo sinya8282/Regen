@@ -1,28 +1,28 @@
 CFLAGS=-O0 -Wall -g3 -fno-operator-names
 CC=g++
 
-regen: regen.cc regex.o expr.o exprutil.o dfa.o generator.o test
+regen: regen.cc regex.o expr.o exprutil.o dfa.o generator.o test Makefile
 	$(CC) $(CFLAGS) regen.cc regex.o expr.o exprutil.o dfa.o generator.o -o regen
 
-test: test.cc regex.o expr.o exprutil.o dfa.o generator.o paralleldfa.o
+test: test.cc regex.o expr.o exprutil.o dfa.o generator.o paralleldfa.o Makefile
 	$(CC) $(CFLAGS) -L/usr/local/lib -lboost_thread-mt test.cc regex.o expr.o exprutil.o dfa.o generator.o paralleldfa.o -o test
 
-regex.o: regex.cc regex.h
+regex.o: regex.cc regex.h Makefile
 	$(CC) $(CFLAGS) -c regex.cc -o regex.o
 
-expr.o: expr.cc expr.h
+expr.o: expr.cc expr.h Makefile
 	$(CC) $(CFLAGS) -c expr.cc -o expr.o
 
-exprutil.o: exprutil.cc exprutil.h
+exprutil.o: exprutil.cc exprutil.h Makefile
 	$(CC) $(CFLAGS) -c exprutil.cc -o exprutil.o
 
-dfa.o: dfa.cc dfa.h
+dfa.o: dfa.cc dfa.h Makefile
 	$(CC) $(CFLAGS) -c dfa.cc -o dfa.o
 
-generator.o: generator.cc generator.h
+generator.o: generator.cc generator.h Makefile
 	$(CC) $(CFLAGS) -c generator.cc -o generator.o
 
-paralleldfa.o: paralleldfa.cc paralleldfa.h
+paralleldfa.o: paralleldfa.cc paralleldfa.h Makefile
 	$(CC) $(CFLAGS) -c paralleldfa.cc paralleldfa.h
 
 clean:
