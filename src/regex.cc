@@ -616,12 +616,16 @@ void Regex::MakeDFA(Expr* expr_root, DFA &dfa, std::size_t neop)
     
     DFA::Transition &dfa_transition = dfa.get_new_transition();
     std::set<int> dst_state;
+    bool has_reject = false;
     // only support Most-Left-Shortest matching
     //if (is_accept) goto settransition;
     
     for (int i = 0; i < 256; i++) {
       NFA &next = transition[i];
-      if (next.empty()) continue;
+      if (next.empty()) {
+        has_reject = true;
+        continue;
+      }
 
       if (dfa_map.find(next) == dfa_map.end()) {
         dfa_map[next] = dfa_id++;
@@ -631,6 +635,7 @@ void Regex::MakeDFA(Expr* expr_root, DFA &dfa, std::size_t neop)
       dst_state.insert(dfa_map[next]);
     }
     //settransition:
+    if (has_reject) dst_state.insert(DFA::REJECT);
     dfa.set_state_info(is_accept, dfa_map[default_next], dst_state);
   }
 }

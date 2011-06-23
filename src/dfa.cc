@@ -14,10 +14,14 @@ void DFA::set_state_info(bool accept, int default_next, std::set<int> &dst_state
   dst_states_.push_back(dst_state);
   std::set<int>::iterator iter = dst_state.begin();
   while (iter != dst_state.end()) {
+    if (*iter == DFA::REJECT) {
+      ++iter;
+      continue;
+    }
     if (src_states_.size() <= static_cast<std::size_t>(*iter)) {
       src_states_.resize(*iter+1);
     }
-    src_states_[*iter].insert(src_states_[*iter].begin(), dst_states_.size()-1);
+    src_states_[*iter].insert(dst_states_.size()-1);
     ++iter;
   }
 }
@@ -25,7 +29,7 @@ void DFA::set_state_info(bool accept, int default_next, std::set<int> &dst_state
 void DFA::Complement()
 {
   int reject = DFA::REJECT;
-  std::size_t final = transition_.size();
+  std::size_t final = size();
   for  (std::size_t state = 0; state < final; state++) {
     accepts_[state] = !accepts_[state];
     bool to_reject = false;
@@ -97,22 +101,51 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 32):
   ret();
 
   align(32);
-  
+
   // state code generation, and indexing every states address.
-  L("s0");
-  char labelbuf[100];
+  char labelbuf[1024];
   for (std::size_t i = 0; i < dfa.size(); i++) {
-    sprintf(labelbuf, "accept%"PRIuS, i);
-    states_addr[i] = getCurr();
-    cmp(arg1, arg2);
-    je(labelbuf);
-    movzx(tmp1, byte[arg1]);
-    inc(arg1);
-    jmp(ptr[tbl+i*256*8+tmp1*8]);
+    sprintf(labelbuf, "s%d", i);
     L(labelbuf);
+    states_addr[i] = getCurr();
+    const DFA::AlterTrans &at = dfa.GetAlterTrans(i);
+    cmp(arg1, arg2);
+    je("@f");
+    if (dfa.precompiled() && at.next1 != DFA::None) {
+      // can transition without table lookup ?
+      if (at.next1 == DFA::REJECT) {
+        strcpy(labelbuf, "reject");
+      } else {
+        sprintf(labelbuf, "s%d", at.next1); 
+      }
+      if (at.next2 == DFA::None) {
+        inc(arg1);
+        jmp(labelbuf);
+      } else {
+        movzx(tmp1, byte[arg1]);
+        inc(arg1);
+        if (at.key.first == at.key.second) {
+          cmp(tmp1, at.key.first);
+        } else {
+          // TODO: at.key.second - tmp1 > at.key.second - at.key.first
+          cmp(tmp1, at.key.first);
+        }
+        je(labelbuf);
+        if (at.next2 == DFA::REJECT) {
+          strcpy(labelbuf, "reject");
+        } else {
+          sprintf(labelbuf, "s%d", at.next2);
+        }
+        jmp(labelbuf);
+      }
+    } else {
+      movzx(tmp1, byte[arg1]);
+      inc(arg1);
+      jmp(ptr[tbl+i*256*8+tmp1*8]);
+    }
+    L("@@");
     mov(rax, i);
     ret();
-
     align(32);
   }
 
@@ -127,17 +160,57 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 32):
   }
 }
 
+bool DFA::PreCompile()
+{
+  alter_trans_.resize(size());
+  for (std::size_t state = 0; state < size(); state++) {
+    const Transition &trans = transition_[state];
+    int next1 = trans[0], next2 = DFA::None;
+    unsigned int begin = 0, end = 256;
+    int c;
+    for (c = 1; next1 == trans[c] && c < 256; c++);
+    if (c < 256) {
+      next2 = next1;
+      next1 = trans[c];
+      begin = c;
+      for (c += 1; next1 == trans[c] && c < 256; c++);
+    }
+    if (c < 256) {
+      end = c - 1;
+      for (c; next2 == trans[c] && c < 256; c++);
+    }
+    if (c < 256) {
+      next1 = next2 = DFA::None;
+    }
+
+    AlterTrans &at = alter_trans_[state];
+    at.next1 = next1;
+    at.next2 = next2;
+    at.key.first = begin;
+    at.key.second = end;
+  }
+
+  precompiled_ = true;
+  return true;
+}
+
 bool DFA::Compile()
 {
+  PreCompile();
   xgen_ = new XbyakCompiler(*this);
   CompiledFullMatch = (int (*)(const unsigned char *, const unsigned char *))xgen_->getCode();
   compiled_ = true;
   return true;
 }
 #else
+bool DFA::PreCompile()
+{
+  precompiled_ = false;
+  return true;
+}
 bool DFA::Compile()
 {
-  compiled_ = true;
+  compiled_ = false;
   return true;
 }
 #endif

@@ -37,13 +37,13 @@ int main(int argc, char *argv[]) {
 
   const regen::DFA &dfa = r.dfa();
   regen::ParallelDFA pdfa = regen::ParallelDFA(dfa, thread_num);
-  if (compile) pdfa.Compile();
+  if (compile) r.Compile();
   //regen::ParallelDFA pdfa = regen::ParallelDFA(dfa, thread_num);
 
   std::string text;
   regen::Util::mmap_t mm(argv[optind]);
 
-  bool r1 = pdfa.FullMatch(mm.ptr, mm.ptr+mm.size);
+  bool r1 = r.FullMatch(mm.ptr, mm.ptr+mm.size);
   printf("PDFA: %d\n", r1);
   
   return 0;

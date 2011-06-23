@@ -50,10 +50,14 @@ ParallelDFA::ParallelDFA(const DFA &dfa, std::size_t thread_num):
 
     DFA::Transition &dfa_transition = get_new_transition();
     std::set<int> dst_state;
+    bool has_reject = false;
     
     for (std::size_t c = 0; c < 256; c++) {
       ParallelTransition &next = transition[c];
-      if (next.empty()) continue;
+      if (next.empty()) {
+        has_reject = true;
+        continue;
+      }
 
       if (pdfa_map.find(next) == pdfa_map.end()) {
         pdfa_map[next] = pdfa_id++;
@@ -62,6 +66,7 @@ ParallelDFA::ParallelDFA(const DFA &dfa, std::size_t thread_num):
       dfa_transition[c] = pdfa_map[next];
       dst_state.insert(pdfa_map[next]);
     }
+    if (has_reject) dst_state.insert(DFA::REJECT);
     set_state_info(is_accept ,DFA::REJECT, dst_state);
   }
 }
