@@ -22,7 +22,7 @@ dfa.o: dfa.cc dfa.h Makefile
 generator.o: generator.cc generator.h Makefile
 	$(CC) $(CFLAGS) -c generator.cc -o generator.o
 
-paralleldfa.o: paralleldfa.cc paralleldfa.h Makefile
+paralleldfa.o: paralleldfa.cc paralleldfa.h dfa.o Makefile
 	$(CC) $(CFLAGS) -c paralleldfa.cc paralleldfa.h
 
 clean:
