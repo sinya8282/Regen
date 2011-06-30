@@ -26,7 +26,15 @@ void DFA::set_state_info(bool accept, int default_next, std::set<int> &dst_state
   }
 }
 
-void DFA::Complement()
+void
+DFA::Minimize()
+{
+  // TODO
+  return;
+}
+
+void
+DFA::Complement()
 {
   int reject = DFA::REJECT;
   std::size_t final = size();
@@ -66,14 +74,14 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 32):
     /* dfa.size()*32 for code. <- code segment
      * padding for 4kb allign 
      * dfa.size()*256*sizeof(void *) for transition table. <- data segment */
-    CodeGenerator(  (dfa.size()+3)*state_code_size
-                  + ((dfa.size()+3)*state_code_size % 4096)
+    CodeGenerator(  ((dfa.size()*2)+1)*state_code_size
+                  + (((dfa.size()*2)+1)*state_code_size % 4096)
                   + dfa.size()*256*sizeof(void *))
 {
   std::vector<const uint8_t*> states_addr(dfa.size());
 
   const uint8_t* code_addr_top = getCurr();
-  const uint8_t** transition_table_ptr = (const uint8_t **)(code_addr_top + (dfa.size()+3)*state_code_size + (((dfa.size()+3)*state_code_size) % 4096));
+  const uint8_t** transition_table_ptr = (const uint8_t **)(code_addr_top + ((dfa.size()*2)+1)*state_code_size + (((dfa.size()+3)*state_code_size) % 4096));
 
 #ifdef XBYAK32
 #error "64 only"
@@ -105,14 +113,14 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 32):
   // state code generation, and indexing every states address.
   char labelbuf[1024];
   for (std::size_t i = 0; i < dfa.size(); i++) {
-    sprintf(labelbuf, "s%d", i);
+    sprintf(labelbuf, "s%"PRIdS, i);
     L(labelbuf);
     states_addr[i] = getCurr();
     const DFA::AlterTrans &at = dfa.GetAlterTrans(i);
     cmp(arg1, arg2);
     je("@f");
+    // can transition without table lookup ?
     if (dfa.precompiled() && at.next1 != DFA::None) {
-      // can transition without table lookup ?
       if (at.next1 == DFA::REJECT) {
         strcpy(labelbuf, "reject");
       } else {
@@ -120,23 +128,24 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 32):
       }
       if (at.next2 == DFA::None) {
         inc(arg1);
-        jmp(labelbuf);
+        jmp(labelbuf, T_NEAR);
       } else {
         movzx(tmp1, byte[arg1]);
         inc(arg1);
         if (at.key.first == at.key.second) {
           cmp(tmp1, at.key.first);
+          je(labelbuf, T_NEAR);
         } else {
-          // TODO: at.key.second - tmp1 > at.key.second - at.key.first
-          cmp(tmp1, at.key.first);
+          sub(tmp1, at.key.first);
+          cmp(tmp1, at.key.second-at.key.first+1);
+          jc(labelbuf, T_NEAR);
         }
-        je(labelbuf);
         if (at.next2 == DFA::REJECT) {
           strcpy(labelbuf, "reject");
         } else {
           sprintf(labelbuf, "s%d", at.next2);
         }
-        jmp(labelbuf);
+        jmp(labelbuf, T_NEAR);
       }
     } else {
       movzx(tmp1, byte[arg1]);
@@ -173,16 +182,15 @@ bool DFA::PreCompile()
       next2 = next1;
       next1 = trans[c];
       begin = c;
-      for (c += 1; next1 == trans[c] && c < 256; c++);
+      for (++c; next1 == trans[c] && c < 256; c++);
     }
     if (c < 256) {
-      end = c - 1;
-      for (c; next2 == trans[c] && c < 256; c++);
+      end = --c;
+      for (++c; next2 == trans[c] && c < 256; c++);
     }
     if (c < 256) {
       next1 = next2 = DFA::None;
     }
-
     AlterTrans &at = alter_trans_[state];
     at.next1 = next1;
     at.next2 = next2;

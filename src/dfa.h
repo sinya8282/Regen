@@ -29,6 +29,7 @@ public:
     int next2;
   };
 
+  DFA(): compiled_(false), precompiled_(false) {}
   #if 1
   ~DFA() { if (compiled_) delete xgen_; }
   #endif
@@ -48,6 +49,7 @@ public:
   int GetDefaultNext(std::size_t state) const { return defaults_[state]; }
   bool IsAcceptState(std::size_t state) const { return accepts_[state]; }
   void Complement();
+  void Minimize();
 
   bool Compile();
   bool PreCompile();
@@ -67,6 +69,9 @@ protected:
   Xbyak::CodeGenerator *xgen_;
   #endif
   std::vector<AlterTrans> alter_trans_;
+  std::vector<std::size_t> inline_level_;
+private:
+  //int inlining(std::set<std::size_t> expand_list, );
 };
 
 } // namespace regen

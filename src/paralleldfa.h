@@ -9,6 +9,7 @@ class ParallelDFA: public DFA {
 public:
   ParallelDFA(const DFA &dfa, std::size_t thread_num = 2);
   typedef std::map<int, int> ParallelTransition;
+  void Minimize();
   bool FullMatch(const unsigned char *str, const unsigned char *end) const;
   struct TaskArg {
     const unsigned char *str;
