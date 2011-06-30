@@ -70,8 +70,6 @@ protected:
   #endif
   std::vector<AlterTrans> alter_trans_;
   std::vector<std::size_t> inline_level_;
-private:
-  //int inlining(std::set<std::size_t> expand_list, );
 };
 
 } // namespace regen

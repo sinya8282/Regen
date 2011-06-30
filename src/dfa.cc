@@ -198,6 +198,27 @@ bool DFA::PreCompile()
     at.key.second = end;
   }
 
+  inline_level_.resize(size());
+  src_states_[0].insert(DFA::None);
+  std::vector<bool> inlined(size());
+  for (std::size_t state = 0; state < size(); state++) {
+    // select inlining region.
+    if (inlined[state]) continue;
+    int current = state, next;
+    for(;;) {
+      if (dst_states_[current].size() > 2) break;
+      if (dst_states_[current].size() == 2 &&
+          dst_states_[current].count(DFA::REJECT) == 0) break;
+      next = *(dst_states_[current].lower_bound(0));
+      if (src_states_[next].size() != 1) break;
+      if (inlined[next]) break;
+      inlined[next] = true;
+      current = next;
+      inline_level_[state]++;
+    }
+  }
+  src_states_[0].erase(DFA::None);
+
   precompiled_ = true;
   return true;
 }
