@@ -26,25 +26,25 @@ int main(int argc, char *argv[]) {
   }
   
   if (regex.empty()) {
-    if (optind >= argc) {
-      exitmsg("USAGE: regen [options] regexp\n");
+    if (optind+1 >= argc) {
+      exitmsg("USAGE: regen [-c] [-t thread_num] regexp file\n");
     } else {
       regex = std::string(argv[optind++]);
     }
   }
 
+  regen::Util::mmap_t mm(argv[optind]);
   regen::Regex r = regen::Regex(regex);
 
-  const regen::DFA &dfa = r.dfa();
-  regen::ParallelDFA pdfa = regen::ParallelDFA(dfa, thread_num);
-  if (compile) r.Compile();
-  //regen::ParallelDFA pdfa = regen::ParallelDFA(dfa, thread_num);
+  if (thread_num <= 1) {
+    if (compile) r.Compile();
+    puts(r.FullMatch(mm.ptr, mm.ptr+mm.size) ? "match." : "not match.");
+  } else {
+    const regen::DFA &dfa = r.dfa();
+    regen::ParallelDFA pdfa = regen::ParallelDFA(dfa, thread_num);
+    if (compile) pdfa.Compile();
+    puts(pdfa.FullMatch(mm.ptr, mm.ptr+mm.size) ? "match." : "not match.");
+  }
 
-  std::string text;
-  regen::Util::mmap_t mm(argv[optind]);
-
-  bool r1 = r.FullMatch(mm.ptr, mm.ptr+mm.size);
-  printf("PDFA: %d\n", r1);
-  
   return 0;
 }

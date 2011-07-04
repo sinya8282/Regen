@@ -64,7 +64,7 @@ DFA::Complement()
   }
 }
 
-#if 1
+#if __ENABLE_XBYAK__
 class XbyakCompiler: public Xbyak::CodeGenerator {
  public:
   XbyakCompiler(const DFA &dfa, std::size_t state_code_size);

@@ -1,7 +1,7 @@
 #ifndef REGEN_DFA_H_
 #define  REGEN_DFA_H_
 #include "util.h"
-#if 1
+#if __ENABLE_XBYAK__
 #include <xbyak/xbyak.h>
 #endif
 
@@ -30,7 +30,7 @@ public:
   };
 
   DFA(): compiled_(false), precompiled_(false) {}
-  #if 1
+  #if __ENABLE_XBYAK__
   ~DFA() { if (compiled_) delete xgen_; }
   #endif
   
@@ -65,7 +65,7 @@ protected:
   int (*CompiledFullMatch)(const unsigned char *, const unsigned char *);
   bool compiled_;
   bool precompiled_;
-  #if 1
+  #if __ENABLE_XBYAK__
   Xbyak::CodeGenerator *xgen_;
   #endif
   std::vector<AlterTrans> alter_trans_;
