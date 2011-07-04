@@ -38,6 +38,7 @@ Expr::Type Regex::lex()
     } else {
       parse_ptr_ = parse_stack_.top();
       parse_stack_.pop();
+      recursive_depth_--;
       token_type_ = lex();
     }
   } else switch (parse_lit_ = *parse_ptr_++) {
