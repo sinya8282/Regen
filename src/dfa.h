@@ -39,6 +39,7 @@ public:
   std::size_t size() const { return transition_.size(); }
   std::size_t start_state() const { return 0; }
   const std::deque<bool>& accepts() const { return accepts_; }
+  std::size_t inline_level(std::size_t i) const { return inline_level_[i]; }
   const std::set<int> &src_states(std::size_t i) const { return src_states_[i]; }
   const std::set<int> &dst_states(std::size_t i) const { return dst_states_[i]; }
 
@@ -55,6 +56,7 @@ public:
   bool PreCompile();
   bool FullMatch(const std::string &str) const { return FullMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
   virtual bool FullMatch(const unsigned char *str, const unsigned char *end) const;
+  void int2label(int state, char* labelbuf) const;
 
 protected:
   std::vector<Transition> transition_;

@@ -26,6 +26,16 @@ void DFA::set_state_info(bool accept, int default_next, std::set<int> &dst_state
   }
 }
 
+void DFA::int2label(int state, char* labelbuf) const
+{
+  if (state == DFA::REJECT) {
+    strcpy(labelbuf, "reject");
+  } else {
+    assert(0 <= state && state <= (int)size());
+    sprintf(labelbuf, "s%d", state);
+  }
+}
+
 void
 DFA::Minimize()
 {
@@ -70,9 +80,11 @@ class XbyakCompiler: public Xbyak::CodeGenerator {
   XbyakCompiler(const DFA &dfa, std::size_t state_code_size);
 };
 
-XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 32):
-    /* dfa.size()*32 for code. <- code segment
-     * padding for 4kb allign 
+XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 64):
+    /* dfa.size()*state_code_size for code. <- code segment
+     *                      ~~
+     * padding for 4kb allign between code and data
+     *                      ~~
      * dfa.size()*256*sizeof(void *) for transition table. <- data segment */
     CodeGenerator(  ((dfa.size()*2)+1)*state_code_size
                   + (((dfa.size()*2)+1)*state_code_size % 4096)
@@ -111,50 +123,114 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 32):
   align(32);
 
   // state code generation, and indexing every states address.
-  char labelbuf[1024];
+  char labelbuf[100];
   for (std::size_t i = 0; i < dfa.size(); i++) {
-    sprintf(labelbuf, "s%"PRIdS, i);
+    dfa.int2label(i, labelbuf);
     L(labelbuf);
     states_addr[i] = getCurr();
-    const DFA::AlterTrans &at = dfa.GetAlterTrans(i);
-    cmp(arg1, arg2);
-    je("@f");
     // can transition without table lookup ?
+    
+    const DFA::AlterTrans &at = dfa.GetAlterTrans(i);
     if (dfa.precompiled() && at.next1 != DFA::None) {
-      if (at.next1 == DFA::REJECT) {
-        strcpy(labelbuf, "reject");
+      std::size_t state = i;
+      std::size_t inline_level = dfa.inline_level(i);
+      bool inlining = inline_level != 0;
+      std::size_t transition_depth = -1;
+      inLocalLabel();
+      if (inlining) {
+        mov(tmp1, arg1);
+        add(tmp1, inline_level);
+        cmp(tmp1, arg2);
+        jge(".ret", T_NEAR);
       } else {
-        sprintf(labelbuf, "s%d", at.next1); 
+        cmp(arg1, arg2);
+        je(".ret", T_NEAR);        
+      }
+   emit_transition:
+      const DFA::AlterTrans &at = dfa.GetAlterTrans(state);
+      bool jn_flag = false;
+      transition_depth++;
+      assert(at.next1 != DFA::None);
+      dfa.int2label(at.next1, labelbuf);
+      if (at.next1 != DFA::REJECT) {
+        jn_flag = true;  
       }
       if (at.next2 == DFA::None) {
-        inc(arg1);
-        jmp(labelbuf, T_NEAR);
+        if (!inlining) {
+          inc(arg1);
+          jmp(labelbuf, T_NEAR);
+        } else if (transition_depth == inline_level) {
+          add(arg1, transition_depth);
+          jmp(labelbuf, T_NEAR);
+        } else {
+          state = at.next1;
+          goto emit_transition;
+        }
       } else {
-        movzx(tmp1, byte[arg1]);
-        inc(arg1);
+        if (!inlining) {
+          movzx(tmp1, byte[arg1]);
+          inc(arg1);
+        } else if (transition_depth == inline_level) {
+          movzx(tmp1, byte[arg1+transition_depth]);
+          add(arg1, transition_depth+1);
+        } else {
+          movzx(tmp1, byte[arg1+transition_depth]);
+        }
         if (at.key.first == at.key.second) {
           cmp(tmp1, at.key.first);
-          je(labelbuf, T_NEAR);
+          if (transition_depth == inline_level || !jn_flag) {
+            je(labelbuf, T_NEAR);
+          } else {
+            jne("reject", T_NEAR);
+          }
         } else {
           sub(tmp1, at.key.first);
           cmp(tmp1, at.key.second-at.key.first+1);
-          jc(labelbuf, T_NEAR);
+          if (transition_depth == inline_level || !jn_flag) {
+            jc(labelbuf, T_NEAR);
+          } else {
+            jnc("reject", T_NEAR);
+          }
         }
-        if (at.next2 == DFA::REJECT) {
-          strcpy(labelbuf, "reject");
+        dfa.int2label(at.next2, labelbuf);
+        if (transition_depth == inline_level) {
+          jmp(labelbuf, T_NEAR);
         } else {
-          sprintf(labelbuf, "s%d", at.next2);
+          if (jn_flag) {
+            state = at.next1;
+            goto emit_transition;
+          } else {
+            state = at.next2;
+            goto emit_transition;
+          }
         }
-        jmp(labelbuf, T_NEAR);
       }
+      if (inlining) {
+        L(".ret");
+        cmp(arg1, arg2);
+        je("@f", T_NEAR);
+        movzx(tmp1, byte[arg1]);
+        inc(arg1);
+        jmp(ptr[tbl+i*256*8+tmp1*8]);
+        L("@@");
+        mov(rax, i);
+        ret();
+      } else {
+        L(".ret");
+        mov(rax, i);
+        ret();
+      }
+      outLocalLabel();
     } else {
+      cmp(arg1, arg2);
+      je("@f");
       movzx(tmp1, byte[arg1]);
       inc(arg1);
       jmp(ptr[tbl+i*256*8+tmp1*8]);
+      L("@@");
+      mov(rax, i);
+      ret();
     }
-    L("@@");
-    mov(rax, i);
-    ret();
     align(32);
   }
 
@@ -202,23 +278,34 @@ bool DFA::PreCompile()
   src_states_[0].insert(DFA::None);
   std::vector<bool> inlined(size());
   for (std::size_t state = 0; state < size(); state++) {
-    // select inlining region.
+    // pick inlining region (make degenerate graph).
     if (inlined[state]) continue;
     int current = state, next;
     for(;;) {
-      if (dst_states_[current].size() > 2) break;
+      if (dst_states_[current].size() > 2 ||
+          dst_states_[current].size() == 0) break;
       if (dst_states_[current].size() == 2 &&
           dst_states_[current].count(DFA::REJECT) == 0) break;
+      if (dst_states_[current].size() == 1 &&
+          dst_states_[current].count(DFA::REJECT) == 1) break;
       next = *(dst_states_[current].lower_bound(0));
-      if (src_states_[next].size() != 1) break;
+      if (alter_trans_[next].next1 == DFA::None) break;
+      if (src_states_[next].size() != 1 ||
+          accepts_[next]) break;
       if (inlined[next]) break;
       inlined[next] = true;
       current = next;
+
       inline_level_[state]++;
     }
   }
   src_states_[0].erase(DFA::None);
 
+
+  for (std::size_t state = 0; state < size(); state++) {
+    printf("state %"PRIdS": inline level = %"PRIdS"\n", state, inline_level_[state]);
+  }
+  
   precompiled_ = true;
   return true;
 }
@@ -234,6 +321,7 @@ bool DFA::Compile()
 #else
 bool DFA::PreCompile()
 {
+  inline_level_.resize(size());
   precompiled_ = false;
   return true;
 }
@@ -254,8 +342,7 @@ bool DFA::FullMatch(const unsigned char *str, const unsigned char *end) const
   }
 
   while (str != end && (state = transition_[state][*str++]) != DFA::REJECT);
-
-  return accepts_[state];
+  return state != DFA::REJECT ? accepts_[state] : false;
 }
 
 } // namespace regen

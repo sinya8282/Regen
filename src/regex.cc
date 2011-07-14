@@ -9,6 +9,7 @@ void nfadump(const std::set<regen::StateExpr*> &nfa, bool verbose = false)
     printf("%"PRIuS"", (*iter)->state_id());
     if (verbose) {
       printf("(");
+
       regen::PrintExprVisitor::Print(*iter);
       printf(")");
     }

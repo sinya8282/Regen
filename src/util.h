@@ -2,6 +2,7 @@
 #define REGEN_UTIL_H_
 
 #include <stdio.h>
+#include <cassert>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdint.h>

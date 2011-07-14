@@ -128,6 +128,7 @@ ParallelDFA::FullMatch(const unsigned char *str, const unsigned char *end) const
   }
 
   for (std::size_t i = 0; i < thread_num_; i++) {
+    threads[i]->join();
     delete threads[i];
   }
   
