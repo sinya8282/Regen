@@ -138,8 +138,7 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 64):
       std::size_t transition_depth = -1;
       inLocalLabel();
       if (inlining) {
-        mov(tmp1, arg1);
-        add(tmp1, inline_level);
+        lea(tmp1, ptr[arg1+inline_level]);
         cmp(tmp1, arg2);
         jge(".ret", T_NEAR);
       } else {
@@ -301,11 +300,6 @@ bool DFA::PreCompile()
   }
   src_states_[0].erase(DFA::None);
 
-
-  for (std::size_t state = 0; state < size(); state++) {
-    printf("state %"PRIdS": inline level = %"PRIdS"\n", state, inline_level_[state]);
-  }
-  
   precompiled_ = true;
   return true;
 }
