@@ -20,6 +20,7 @@ public:
   bool Compile() { return dfa_.Compile(); }
   bool FullMatch(const std::string &string) const;
   bool FullMatch(const unsigned char *begin, const unsigned char *end) const;
+  bool FullMatchNFA(const unsigned char *begin, const unsigned char *end) const;
   const std::string& regex() const { return regex_; }
   const Must& must() const { return must_; }
   std::size_t max_lenlgth() const { return expr_root_->max_length(); }
@@ -45,6 +46,7 @@ private:
   std::stack<const char *> parse_stack_;
   std::size_t recursive_depth_;
   std::size_t recursive_limit_;
+  std::vector<StateExpr*> state_exprs_;
 
   Must must_;
   std::size_t must_max_length_;

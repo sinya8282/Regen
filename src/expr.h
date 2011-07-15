@@ -112,6 +112,7 @@ public:
   void set_state_id(std::size_t id) { state_id_ = id; }
   Expr::SuperType stype() { return Expr::kStateExpr; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  virtual bool Match(const unsigned char c) = 0;
 private:
   std::size_t state_id_;
   DISALLOW_COPY_AND_ASSIGN(StateExpr);
@@ -124,6 +125,7 @@ public:
   char literal() { return literal_; }
   Expr::Type type() { return Expr::kLiteral; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  bool Match(const unsigned char c) { return c == literal_; };
   Expr *Clone() { return new Literal(literal_); };
 private:
   const char literal_;
@@ -145,6 +147,7 @@ public:
   bool Involve(const unsigned char literal) const { return negative_ ? !table_[literal] : table_[literal]; }
   Expr::Type type() { return Expr::kCharClass; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  bool Match(const unsigned char c) { return Involve(c); };
   Expr *Clone() { return new CharClass(table_, negative_); };
 private:
   std::bitset<256> table_;
@@ -158,6 +161,7 @@ public:
   ~Dot() {}
   Expr::Type type() { return Expr::kDot; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  bool Match(const unsigned char c) { return true; };
   Expr *Clone() { return new Dot(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Dot);
@@ -169,6 +173,7 @@ public:
   ~BegLine() {}
   Expr::Type type() { return Expr::kBegLine; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  bool Match(const unsigned char c) { return c == '\n'; };
   Expr* Clone() { return new BegLine(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(BegLine);
@@ -180,6 +185,7 @@ public:
   ~EndLine() {}
   Expr::Type type() { return Expr::kEndLine; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  bool Match(const unsigned char c) { return c == '\n'; };
   Expr* Clone() { return new EndLine(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(EndLine);
@@ -191,6 +197,7 @@ public:
   ~EOP() {}
   Expr::Type type() { return Expr::kEOP; }  
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  bool Match(const unsigned char c) { return false; };
   Expr* Clone() { return new EOP(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(EOP);
@@ -202,6 +209,7 @@ public:
   ~None() {}
   Expr::Type type() { return Expr::kNone; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  bool Match(const unsigned char c) { return false; };
   Expr* Clone() { return new None(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(None);
@@ -213,6 +221,7 @@ public:
   ~Epsilon() {}
   Expr::Type type() { return Expr::kEpsilon; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  bool Match(const unsigned char c) { return true; };
   Expr* Clone() { return new Epsilon(); };    
 private:
   DISALLOW_COPY_AND_ASSIGN(Epsilon);

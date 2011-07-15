@@ -2,6 +2,17 @@
 
 namespace regen {
 
+void NumberingStateExprVisitor::Numbering(Expr* e, std::vector<StateExpr*> *state_exprs)
+{
+  static NumberingStateExprVisitor self;
+  self.state_exprs_ = state_exprs;
+  self.state_id_ = 0;
+  e->Accept(&self);
+  self.state_id_ = 0;
+  self.state_exprs_ = NULL;
+  return;
+}
+
 void PrintExprVisitor::Visit(Literal* e)
 {
   if (' ' <= e->literal() &&

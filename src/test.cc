@@ -7,8 +7,9 @@ int main(int argc, char *argv[]) {
   int opt;
   int thread_num = 2;
   bool compile = false;
+  bool nfa = false;
 
-  while ((opt = getopt(argc, argv, "cf:t:")) != -1) {
+  while ((opt = getopt(argc, argv, "ncf:t:")) != -1) {
     switch(opt) {
       case 'c':
         compile = true;
@@ -16,6 +17,10 @@ int main(int argc, char *argv[]) {
       case 'f': {
         std::ifstream ifs(optarg);
         ifs >> regex;
+        break;
+      }
+      case 'n': {
+        nfa = true;
         break;
       }
       case 't': {
@@ -36,7 +41,10 @@ int main(int argc, char *argv[]) {
   regen::Util::mmap_t mm(argv[optind]);
   regen::Regex r = regen::Regex(regex);
 
-  if (thread_num <= 1) {
+  if (nfa) {
+    puts(r.FullMatchNFA(mm.ptr, mm.ptr+mm.size) ? "match." : "not match.");
+  }
+  else if (thread_num <= 1) {
     if (compile) r.Compile();
     puts(r.FullMatch(mm.ptr, mm.ptr+mm.size) ? "match." : "not match.");
   } else {
