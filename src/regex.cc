@@ -791,8 +791,9 @@ bool Regex::FullMatchNFA(const unsigned char *begin, const unsigned char *end) c
   typedef std::vector<StateExpr*> NFA;
   std::size_t nfa_size = state_exprs_.size();
 
-  NFA *states = new NFA(nfa_size), *tmp,
-      *next_states = new NFA(nfa_size);
+  NFA *states = new NFA(), *tmp,
+      *next_states = new NFA();
+  std::vector<bool> next_states_(nfa_size);
 
   StateExpr *s;
   NFA::iterator iter;
@@ -800,43 +801,46 @@ bool Regex::FullMatchNFA(const unsigned char *begin, const unsigned char *end) c
 
   iter_ = expr_root_->transition().first.begin();
   while (iter_ != expr_root_->transition().first.end()) {
-    (*states)[(*iter_)->state_id()] = *iter_;
+    states->push_back(*iter_);
     ++iter_;
   }
 
   while (begin != end) {
-    bool empty = true;
-    
-    for (std::size_t i = 0; i < nfa_size; i++) {
-      if ((s = (*states)[i]) != NULL) {
+    iter = states->begin();
+    while (iter != states->end()) {
+      if ((s = *iter) != NULL) {
         if (s->Match(*begin)) {
           iter_ = s->transition().follow.begin();
           while (iter_ != s->transition().follow.end()) {
-            (*next_states)[(*iter_)->state_id()] = *iter_;
+            next_states->push_back(*iter_);
             ++iter_;
-            empty = false;
           }
         }
       }
-      ++iter_;
+      ++iter;
     }
 
-    if (empty) break;
     tmp = states; states = next_states; next_states = tmp;
-    next_states->assign(nfa_size, NULL);
+    if (next_states->empty()) break;
+    next_states->clear();
     begin++;
   }
 
   bool match = false;
-  for (std::size_t i = 0; i < nfa_size; i++) {
-    if ((*states)[i] != NULL) {
-      if ((*states)[i]->type() == Expr::kEOP) {
+  iter = states->begin();
+  while (iter != states->end()) {
+    if (*iter != NULL) {
+      if ((*iter)->type() == Expr::kEOP) {
         match = true;
         break;
       }
     }
+    ++iter;
   }
 
+  delete states;
+  delete next_states;
+  
   return match;
 }
 
