@@ -117,7 +117,10 @@ ParallelDFA::FullMatch(const unsigned char *str, const unsigned char *end) const
   bool match = false;
   for (std::size_t i = 0; i < thread_num_; i++) {
     threads[i]->join();
-    if ((pstate = parallel_states_[i]) == DFA::REJECT) break;
+    if ((pstate = parallel_states_[i]) == DFA::REJECT) {
+      dstate = DFA::REJECT;
+      break;
+    }
     ParallelTransition::const_iterator iter = parallel_transitions_[pstate].find(dstate);
     if (iter == parallel_transitions_[pstate].end()) break;
     dstate = (*iter).second;
