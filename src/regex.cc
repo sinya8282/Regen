@@ -29,7 +29,7 @@ Regex::Regex(const std::string &regex, std::size_t recursive_limit):
 {
   Parse();
   NumberingStateExprVisitor::Numbering(expr_root_, &state_exprs_);
-  MakeDFA(expr_root_, dfa_);
+  //MakeDFA(expr_root_, dfa_);
 }
 
 Expr::Type Regex::lex()
@@ -458,7 +458,7 @@ loopend:
 
 Expr *
 Regex::e4()
-{
+{ 
   Expr *e;
 
   switch(token_type_) {
@@ -601,22 +601,6 @@ void Regex::MakeDFA(Expr* expr_root, DFA &dfa, std::size_t neop)
       ++iter;
     }
 
-    /*
-    std::vector<NFA>::iterator trans = transition.begin();
-    while (trans != transition.end()) {
-      std::set<StateExpr*>::iterator next_ = trans->begin();
-      while (next_ != trans->end()) {
-        if ((*next_)->type() == Expr::kEOP) goto loopend;
-        ++next_;
-      }
-      trans->insert(first_states.begin(), first_states.end());
-   loopend:
-      ++trans;
-    }
-
-    default_next.insert(first_states.begin(), first_states.end());
-    */
-    
     DFA::Transition &dfa_transition = dfa.get_new_transition();
     std::set<int> dst_state;
     bool has_reject = false;
@@ -785,62 +769,44 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa)
   }
 }
 
-/* Thompson NFA */
+/* Thompson-NFA based matching */
 bool Regex::FullMatchNFA(const unsigned char *begin, const unsigned char *end) const
 {
   typedef std::vector<StateExpr*> NFA;
   std::size_t nfa_size = state_exprs_.size();
-
-  NFA *states = new NFA(), *tmp,
-      *next_states = new NFA();
-  std::vector<bool> next_states_(nfa_size);
-
-  StateExpr *s;
+  std::vector<bool> next_states_flag(nfa_size);
+  NFA states, next_states;
   NFA::iterator iter;
-  std::set<StateExpr*>::iterator iter_;
+  std::set<StateExpr*>::iterator next_iter;
 
-  iter_ = expr_root_->transition().first.begin();
-  while (iter_ != expr_root_->transition().first.end()) {
-    states->push_back(*iter_);
-    ++iter_;
-  }
-
-  while (begin != end) {
-    iter = states->begin();
-    while (iter != states->end()) {
-      if ((s = *iter) != NULL) {
-        if (s->Match(*begin)) {
-          iter_ = s->transition().follow.begin();
-          while (iter_ != s->transition().follow.end()) {
-            next_states->push_back(*iter_);
-            ++iter_;
+  states.insert(states.begin(), expr_root_->transition().first.begin(), expr_root_->transition().first.end());
+  
+  for (const unsigned char *p = begin; p != end; p++) {
+    for (iter = states.begin(); iter != states.end(); ++iter) {
+      StateExpr *s = *iter;
+      if (s->Match(*p)) {
+        for (next_iter = s->transition().follow.begin(); next_iter != s->transition().follow.end(); ++next_iter) {
+          if (!next_states_flag[(*next_iter)->state_id()]) {
+            next_states_flag[(*next_iter)->state_id()] = true;
+            next_states.push_back(*next_iter);
           }
         }
       }
-      ++iter;
     }
-
-    tmp = states; states = next_states; next_states = tmp;
-    if (next_states->empty()) break;
-    next_states->clear();
-    begin++;
+    if (next_states.empty()) break;
+    std::fill(next_states_flag.begin(), next_states_flag.end(), false);
+    states.swap(next_states);
+    next_states.clear();
   }
 
   bool match = false;
-  iter = states->begin();
-  while (iter != states->end()) {
-    if (*iter != NULL) {
-      if ((*iter)->type() == Expr::kEOP) {
-        match = true;
-        break;
-      }
+  for (iter = states.begin(); iter != states.end(); ++iter) {
+    if ((*iter)->type() == Expr::kEOP) {
+      match = true;
+      break;
     }
-    ++iter;
   }
 
-  delete states;
-  delete next_states;
-  
   return match;
 }
 
