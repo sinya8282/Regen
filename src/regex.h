@@ -10,6 +10,9 @@ namespace regen {
 
 class Regex {
 public:
+  enum Optimize {
+    O0, O1, O2, O3
+  };
   Regex(const std::string &regex, std::size_t recursive_depth_ = 2);
   ~Regex() { delete expr_root_; };
   void PrintRegex();
@@ -17,7 +20,7 @@ public:
   void PrintParseTree() const;
   Expr* CreateRegexFromDFA(DFA &dfa);
   void DumpExprTree() const;
-  bool Compile() { return dfa_.Compile(); }
+  bool Compile(Optimize olevel = O3);
   bool FullMatch(const std::string &string) const;
   bool FullMatch(const unsigned char *begin, const unsigned char *end) const;
   bool FullMatchNFA(const unsigned char *begin, const unsigned char *end) const;
@@ -37,7 +40,7 @@ private:
   Expr* e3();
   Expr* e4();
   void Parse();
-  void MakeDFA(Expr* e, DFA &dfa, std::size_t neop = 1);
+  bool MakeDFA(Expr* e, DFA &dfa, int limit = -1, std::size_t neop = 1);
   CharClass* BuildCharClass();
   StateExpr* CombineStateExpr(StateExpr* e1, StateExpr* e2);
 
@@ -61,6 +64,8 @@ private:
   std::size_t expr_id_;
   std::size_t state_id_;
 
+  bool has_dfa_;
+  bool dfa_failure_;
   DFA dfa_;
 };
 

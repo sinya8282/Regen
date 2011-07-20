@@ -29,7 +29,6 @@ Regex::Regex(const std::string &regex, std::size_t recursive_limit):
 {
   Parse();
   NumberingStateExprVisitor::Numbering(expr_root_, &state_exprs_);
-  //MakeDFA(expr_root_, dfa_);
 }
 
 Expr::Type Regex::lex()
@@ -335,7 +334,7 @@ Regex::e1()
     
     DFA dfa;
     e->FillTransition();
-    MakeDFA(e, dfa, exprs.size());
+    MakeDFA(e, dfa, -1, exprs.size());
     e = CreateRegexFromDFA(dfa);
 
     iter = exprs.begin();
@@ -527,7 +526,7 @@ Regex::e4()
   return e;
 }
 
-void Regex::MakeDFA(Expr* expr_root, DFA &dfa, std::size_t neop)
+bool Regex::MakeDFA(Expr* expr_root, DFA &dfa, int limit, std::size_t neop)
 {
   std::size_t dfa_id = 0;
 
@@ -616,6 +615,10 @@ void Regex::MakeDFA(Expr* expr_root, DFA &dfa, std::size_t neop)
 
       if (dfa_map.find(next) == dfa_map.end()) {
         dfa_map[next] = dfa_id++;
+        if (limit != -1 && (int)dfa_id > limit) {
+          dfa_failure_ = true;
+          return false;
+        }
         queue.push(next);
       }
       dfa_transition[i] = dfa_map[next];
@@ -625,6 +628,8 @@ void Regex::MakeDFA(Expr* expr_root, DFA &dfa, std::size_t neop)
     if (has_reject) dst_state.insert(DFA::REJECT);
     dfa.set_state_info(is_accept, dfa_map[default_next], dst_state);
   }
+
+  return true;
 }
 
 // Converte DFA to Regular Expression using GNFA.
@@ -769,6 +774,40 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa)
   }
 }
 
+bool Regex::Compile(Optimize olevel) {
+  if (olevel == O0) return true;
+  if (!dfa_failure_ && !has_dfa_) {
+    /* try create DFA.  */
+    int limit = state_exprs_.size();
+    limit = limit * limit * limit;
+    has_dfa_ = MakeDFA(expr_root_, dfa_, limit);
+  }
+  if (dfa_failure_) {
+    /* can not create DFA. (too many states) */
+    return false;
+  }
+  if (olevel == O1) {
+    return has_dfa_;
+  } else if (olevel == O2) {
+    return dfa_.Compile();
+  } else { //olevel == O3
+    return dfa_.Compile();
+  }
+}
+
+bool Regex::FullMatch(const std::string &string)  const {
+  const unsigned char* begin = (const unsigned char *)string.c_str();
+  return FullMatch(begin, begin+string.length());
+}
+
+bool Regex::FullMatch(const unsigned char *begin, const unsigned char * end) const {
+  if (has_dfa_) {
+    return dfa_.FullMatch(begin, end);
+  } else {
+    return FullMatchNFA(begin, end);
+  }
+}
+
 /* Thompson-NFA based matching */
 bool Regex::FullMatchNFA(const unsigned char *begin, const unsigned char *end) const
 {
@@ -810,16 +849,6 @@ bool Regex::FullMatchNFA(const unsigned char *begin, const unsigned char *end) c
   return match;
 }
 
-bool Regex::FullMatch(const std::string &string)  const {
-  const unsigned char* begin = (const unsigned char *)string.c_str();
-  return FullMatch(begin, begin+string.length());
-}
-
-
-bool Regex::FullMatch(const unsigned char *begin, const unsigned char * end)  const {
-  return dfa_.FullMatch(begin, end);
-}
-
 void Regex::PrintRegex() {
   PrintRegexVisitor::Print(expr_root_);
 }
@@ -833,4 +862,3 @@ void Regex::DumpExprTree() const {
 }
 
 } // namespace regen
- 

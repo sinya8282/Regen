@@ -5,7 +5,7 @@
 int main(int argc, char *argv[]) {
   std::string regex;
   int opt;
-  int thread_num = 2;
+  int thread_num = 1;
   bool compile = false;
   bool nfa = false;
 
@@ -42,15 +42,21 @@ int main(int argc, char *argv[]) {
   regen::Regex r = regen::Regex(regex);
 
   if (nfa) {
-    puts(r.FullMatchNFA(mm.ptr, mm.ptr+mm.size) ? "match." : "not match.");
+    puts(r.FullMatch(mm.ptr, mm.ptr+mm.size) ? "match." : "not match.");
   }
   else if (thread_num <= 1) {
-    if (compile) r.Compile();
+    if (compile) {
+     compile = r.Compile(regen::Regex::O3);
+     if (!compile) puts("compile failure.");
+    }
     puts(r.FullMatch(mm.ptr, mm.ptr+mm.size) ? "match." : "not match.");
   } else {
     const regen::DFA &dfa = r.dfa();
     regen::ParallelDFA pdfa = regen::ParallelDFA(dfa, thread_num);
-    if (compile) pdfa.Compile();
+    if (compile) {
+     compile = pdfa.Compile();
+     if (!compile) puts("compile failure.");
+    }
     puts(pdfa.FullMatch(mm.ptr, mm.ptr+mm.size) ? "match." : "not match.");
   }
 
