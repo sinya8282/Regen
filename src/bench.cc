@@ -1,6 +1,5 @@
 #include "regex.h"
 #include "time.h"
-#include <re2/re2.h>
 
 struct testcase {
   testcase(std::string regex_, std::string text_, std::string pretty_, bool result_): regex(regex_), text(text_), pretty(pretty_), result(result_) {}
@@ -42,7 +41,8 @@ int main(int argc, char *argv[]) {
     }
     text += "_";
   }
-  bench.push_back(testcase("((0123456789)_?)*", text, "((0123456789){10}_){100}", true)); //RE2 #=> 3: 100 clocks for compile:matching.
+  bench.push_back(testcase("((0123456789)_?)*", text, "((0123456789){10}_){100}", true));
+  //RE2 #=> (3, 87) clocks for (compile, matching).
 
   text = "a";
   for (std::size_t i = 0; i < 10; i++) {
@@ -50,9 +50,11 @@ int main(int argc, char *argv[]) {
   }
 
   bench.push_back(testcase("(a?){512}a{512}", text, "a{1024}", true));
+  //RE2 #=> (1, 37525) clocks for (compile, matching).
 
   text += "bbbbbbbbbb";
   bench.push_back(testcase(".*b.{8}b", text, "a{1024}b{10}", true));
+  //RE2 #=> (3, 84) clocks for (compile, matching).
 
   /* fix..
   std::string regex = "http://((([a-zA-Z0-9]|[a-zA-Z0-9][-a-zA-Z0-9]*[a-zA-Z0-9])\\.)*([a-zA-Z]|[a-zA-Z][-a-zA-Z0-9]*[a-zA-Z0-9])\\.?|[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)(:[0-9]*)?(/([-_.!~*'()a-zA-Z0-9:@&=+$,]|%[0-9A-Fa-f][0-9A-Fa-f])*(;([-_.!~*'()a-zA-Z0-9:@&=+$,]|%[0-9A-Fa-f][0-9A-Fa-f])*)*(/([-_.!~*'()a-zA-Z0-9:@&=+$,]|%[0-9A-Fa-f][0-9A-Fa-f])*(;([-_.!~*'()a-zA-Z0-9:@&=+$,]|%[0-9A-Fa-f][0-9A-Fa-f])*)*)*(\\?([-_.!~*'()a-zA-Z0-9;/?:@&=+$,]|%[0-9A-Fa-f][0-9A-Fa-f])*)?)?";
