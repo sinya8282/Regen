@@ -2,7 +2,7 @@ REGENFLAGS=-D__ENABLE_XBYAK__=1 #to set 0, do compile without xbyak (JIT library
 CFLAGS=-O3 -Wall -g3 -fno-operator-names $(REGENFLAGS)
 CC=g++
 
-regen: regen.cc regex.o expr.o exprutil.o dfa.o generator.o test.o bench.o Makefile
+regen: regen.cc regex.o expr.o exprutil.o dfa.o generator.o Makefile
 	$(CC) $(CFLAGS) regen.cc regex.o expr.o exprutil.o dfa.o generator.o -o regen
 
 test.o: test.cc regex.o 
