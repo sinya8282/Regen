@@ -10,7 +10,7 @@ struct testcase {
 int main(int argc, char *argv[]) {
   int opt;
   int thread_num = 1;
-  regen::Regex::Optimize olevel = regen::Regex::Onone;
+  regen::Regex::Optimize olevel = regen::Regex::O3;
 
   while ((opt = getopt(argc, argv, "nf:t:O:")) != -1) {
     switch(opt) {
