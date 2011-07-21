@@ -306,7 +306,6 @@ bool DFA::PreCompile()
 
 bool DFA::Compile()
 {
-  PreCompile();
   xgen_ = new XbyakCompiler(*this);
   CompiledFullMatch = (int (*)(const unsigned char *, const unsigned char *))xgen_->getCode();
   compiled_ = true;

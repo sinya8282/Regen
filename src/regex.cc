@@ -25,7 +25,10 @@ Regex::Regex(const std::string &regex, std::size_t recursive_limit):
     regex_(regex),
     recursive_limit_(recursive_limit),
     involved_char_(std::bitset<256>()),
-    parse_ptr_(regex.c_str())
+    parse_ptr_(regex.c_str()),
+    olevel_(Onone),
+    has_dfa_(false),
+    dfa_failure_(false)
 {
   Parse();
   NumberingStateExprVisitor::Numbering(expr_root_, &state_exprs_);
@@ -774,8 +777,19 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa)
   }
 }
 
+/*
+ *         - slower -
+ * Onone: NFA based matching
+ *    O0: DFA based matching
+ *      ~ Xbyak required ~
+ *    O1: JIT-ed DFA based matching
+ *    O2: optimized-JIT-ed DFA based mathing
+ *    O3: optimized-JIT-ed minimum-DFA based matching
+ *         - faster -
+ */
+
 bool Regex::Compile(Optimize olevel) {
-  if (olevel == O0) return true;
+  if (olevel == Onone || olevel_ >= olevel) return true;
   if (!dfa_failure_ && !has_dfa_) {
     /* try create DFA.  */
     int limit = state_exprs_.size();
@@ -786,13 +800,19 @@ bool Regex::Compile(Optimize olevel) {
     /* can not create DFA. (too many states) */
     return false;
   }
-  if (olevel == O1) {
-    return has_dfa_;
-  } else if (olevel == O2) {
-    return dfa_.Compile();
-  } else { //olevel == O3
-    return dfa_.Compile();
+  olevel_ = olevel;
+  switch (olevel) {
+    case O3:
+      //if(!dfa_.Minimize()) olevel_ = O2;
+    case O2:
+      if(!dfa_.PreCompile()) olevel_ = O1;
+    case O1:
+      if(!dfa_.Compile()) olevel_ = O0;
+    case O0:
+    default:
+      break;
   }
+  return olevel_ == olevel;
 }
 
 bool Regex::FullMatch(const std::string &string)  const {
@@ -832,9 +852,9 @@ bool Regex::FullMatchNFA(const unsigned char *begin, const unsigned char *end) c
         }
       }
     }
-    if (next_states.empty()) break;
     std::fill(next_states_flag.begin(), next_states_flag.end(), false);
     states.swap(next_states);
+    if (states.empty()) break;
     next_states.clear();
   }
 

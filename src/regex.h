@@ -7,11 +7,15 @@
 #include "dfa.h"
 
 namespace regen {
-
+  
 class Regex {
 public:
   enum Optimize {
-    O0, O1, O2, O3
+    Onone = -1,
+    O0 = 0,
+    O1 = 1,
+    O2 = 2,
+    O3 = 3
   };
   Regex(const std::string &regex, std::size_t recursive_depth_ = 2);
   ~Regex() { delete expr_root_; };
@@ -64,6 +68,7 @@ private:
   std::size_t expr_id_;
   std::size_t state_id_;
 
+  Optimize olevel_;
   bool has_dfa_;
   bool dfa_failure_;
   DFA dfa_;
