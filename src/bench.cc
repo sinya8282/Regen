@@ -1,5 +1,4 @@
 #include "regex.h"
-#include "time.h"
 
 struct testcase {
   testcase(std::string regex_, std::string text_, std::string pretty_, bool result_): regex(regex_), text(text_), pretty(pretty_), result(result_) {}
@@ -14,6 +13,17 @@ struct benchresult {
   int matching_time;
   bool result;
 };
+
+static inline uint64_t rdtsc()
+{
+  #ifdef _MSC_VER
+  return __rdtsc();
+  #else
+  unsigned int eax, edx;
+  __asm__ volatile("rdtsc" : "=a"(eax), "=d"(edx));
+  return ((uint64_t)edx << 32) | eax;
+  #endif
+}
 
 int main(int argc, char *argv[]) {
   int opt;
@@ -42,7 +52,6 @@ int main(int argc, char *argv[]) {
     text += "_";
   }
   bench.push_back(testcase("((0123456789)_?)*", text, "((0123456789){10}_){100}", true));
-  //RE2 #=> (3, 87) clocks for (compile, matching).
 
   text = "a";
   for (std::size_t i = 0; i < 10; i++) {
@@ -50,11 +59,9 @@ int main(int argc, char *argv[]) {
   }
 
   bench.push_back(testcase("(a?){512}a{512}", text, "a{1024}", true));
-  //RE2 #=> (1, 37525) clocks for (compile, matching).
 
   text += "bbbbbbbbbb";
   bench.push_back(testcase(".*b.{8}b", text, "a{1024}b{10}", true));
-  //RE2 #=> (3, 84) clocks for (compile, matching).
 
   /* fix..
   std::string regex = "http://((([a-zA-Z0-9]|[a-zA-Z0-9][-a-zA-Z0-9]*[a-zA-Z0-9])\\.)*([a-zA-Z]|[a-zA-Z][-a-zA-Z0-9]*[a-zA-Z0-9])\\.?|[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)(:[0-9]*)?(/([-_.!~*'()a-zA-Z0-9:@&=+$,]|%[0-9A-Fa-f][0-9A-Fa-f])*(;([-_.!~*'()a-zA-Z0-9:@&=+$,]|%[0-9A-Fa-f][0-9A-Fa-f])*)*(/([-_.!~*'()a-zA-Z0-9:@&=+$,]|%[0-9A-Fa-f][0-9A-Fa-f])*(;([-_.!~*'()a-zA-Z0-9:@&=+$,]|%[0-9A-Fa-f][0-9A-Fa-f])*)*)*(\\?([-_.!~*'()a-zA-Z0-9;/?:@&=+$,]|%[0-9A-Fa-f][0-9A-Fa-f])*)?)?";
@@ -62,17 +69,17 @@ int main(int argc, char *argv[]) {
   bench.push_back(testcase(regex, text, text, true));
   */
   
-  clock_t start, end;
+  uint64_t start, end;
   std::vector<benchresult> result(bench.size());
   for (std::size_t i = 0; i < bench.size(); i++) {
     regen::Regex r(bench[i].regex);
-    start = clock();
+    start = rdtsc();
     r.Compile(olevel);
-    end   = clock();
+    end   = rdtsc();
     result[i].compile_time = end - start;
-    start = clock();
+    start = rdtsc();
     result[i].result = r.FullMatch(bench[i].text) == bench[i].result;
-    end   = clock();
+    end   = rdtsc();
     result[i].matching_time = end - start;
   }
 
