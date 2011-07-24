@@ -1,3 +1,4 @@
+#ifdef __ENABLE_PARALLEL__
 #ifndef REGEN_PARALLEL_DFA_H_
 #define  REGEN_PARALLEL_DFA_H_
 #include "util.h"
@@ -8,6 +9,8 @@ namespace regen {
 class ParallelDFA: public DFA {
 public:
   ParallelDFA(const DFA &dfa, std::size_t thread_num = 2);
+  std::size_t thread_num() const { return thread_num_; }
+  void thread_num(std::size_t thread_num) { thread_num_ = thread_num; }
   typedef std::map<int, int> ParallelTransition;
   void Minimize();
   bool FullMatch(const unsigned char *str, const unsigned char *end) const;
@@ -27,3 +30,4 @@ private:
 
 } // namespace regen
 #endif // REGEN_PARALLEL_DFA_H_
+#endif // __ENABLE_PARALLEL__

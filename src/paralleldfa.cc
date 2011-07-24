@@ -1,3 +1,4 @@
+#ifdef __ENABLE_PARALLEL__
 #include "paralleldfa.h"
 #include <boost/thread.hpp>
 #include <boost/bind.hpp>
@@ -138,6 +139,6 @@ ParallelDFA::FullMatch(const unsigned char *str, const unsigned char *end) const
   return match;
 }
 
-
-
 } // namespace regen
+
+#endif //__ENABLE_PARALLEL__
