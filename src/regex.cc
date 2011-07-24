@@ -815,20 +815,6 @@ bool Regex::Compile(Optimize olevel) {
   return olevel_ == olevel;
 }
 
-#ifdef __ENABLE_PARALLEL__
-bool Regex::Parallelization(std::size_t thread_num) {
-  Compile(O0);
-  if (dfa_failure_) return false;
-  dfa_ = ParallelDFA(dfa_, thread_num);
-  olevel_ = O0;
-  return true;
-}
-#else
-bool Regex::Parallelization(std::size_t thread_num) {
-  return false;
-}
-#endif
-
 bool Regex::FullMatch(const std::string &string)  const {
   const unsigned char* begin = (const unsigned char *)string.c_str();
   return FullMatch(begin, begin+string.length());

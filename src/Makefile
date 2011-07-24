@@ -9,7 +9,7 @@ REGENFLAGS+=-D__ENABLE_PARALLEL__ -lboost_thread-mt
 endif
 
 CC=g++
-CFLAGS=-O3 -Wall -g3 -fno-operator-names $(REGENFLAGS)
+CFLAGS=-O0 -Wall -g3 -fno-operator-names $(REGENFLAGS)
 
 OBJS=regex.o expr.o exprutil.o dfa.o paralleldfa.o generator.o 
 
@@ -25,13 +25,13 @@ bench: bench.o
 	@./bench.o
 
 test.o: test.cc $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) test.cc -o test.o
+	$(CC) $(CFLAGS) test.cc $(OBJS) -o test.o
 
 bench.o: bench.cc $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) bench.cc -o bench.o
+	$(CC) $(CFLAGS) bench.cc $(OBJS) -o bench.o
 
 .cc.o:
 	$(CC) $(CFLAGS) -c $<
 
 clean:
-	rm -f $(OBJS) test.o bench.o paralleldfa.h.gch
+	rm -f $(OBJS) test.o bench.o paralleldfa.h.gch regen test bench

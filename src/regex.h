@@ -28,7 +28,6 @@ public:
   Expr* CreateRegexFromDFA(DFA &dfa);
   void DumpExprTree() const;
   bool Compile(Optimize olevel = O3);
-  bool Parallelization(std::size_t thread_num = 2);
   bool FullMatch(const std::string &string) const;
   bool FullMatch(const unsigned char *begin, const unsigned char *end) const;
   bool FullMatchNFA(const unsigned char *begin, const unsigned char *end) const;

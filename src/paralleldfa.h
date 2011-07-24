@@ -13,6 +13,10 @@ public:
   void thread_num(std::size_t thread_num) { thread_num_ = thread_num; }
   typedef std::map<int, int> ParallelTransition;
   void Minimize();
+  bool FullMatch(const std::string &str) const {
+    const unsigned char *begin = (unsigned char*)str.c_str(), *end = begin+str.length();
+    return FullMatch(begin, end);
+  }
   bool FullMatch(const unsigned char *str, const unsigned char *end) const;
   struct TaskArg {
     const unsigned char *str;
