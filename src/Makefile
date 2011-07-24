@@ -1,33 +1,37 @@
-REGENFLAGS=-D__ENABLE_XBYAK__=1 #to set 0, do compile without xbyak (JIT library).
-CFLAGS=-O3 -Wall -g3 -fno-operator-names $(REGENFLAGS)
+ENABLE_XBYAK=yes
+ENABLE_PARALLEL=yes
+
+ifeq ($(ENABLE_XBYAK),yes)
+REGENFLAGS=-D__ENABLE_XBYAK__
+endif
+ifeq ($(ENABLE_PARALLEL),yes)
+REGENFLAGS+=-D__ENABLE_PARALLEL__ -lboost_thread-mt
+endif
+
 CC=g++
+CFLAGS=-O3 -Wall -g3 -fno-operator-names $(REGENFLAGS)
 
-regen: regen.cc regex.o expr.o exprutil.o dfa.o generator.o Makefile
-	$(CC) $(CFLAGS) regen.cc regex.o expr.o exprutil.o dfa.o generator.o -o regen
+OBJS=regex.o expr.o exprutil.o dfa.o paralleldfa.o generator.o 
 
-test.o: test.cc regex.o 
-	$(CC) $(CFLAGS) test.cc regex.o expr.o exprutil.o dfa.o generator.o -o test
+all: regen test.o bench.o
 
-bench.o: bench.cc regex.o
-	$(CC) $(CFLAGS) bench.cc regex.o expr.o exprutil.o dfa.o generator.o -o bench
+regen: regen.cc $(OBJS)
+	$(CC) $(CFLAGS) regen.cc $(OBJS) -o regen
 
-regex.o: regex.cc regex.h Makefile
-	$(CC) $(CFLAGS) -c regex.cc -o regex.o
+test: test.o
+	@./test.o
 
-expr.o: expr.cc expr.h Makefile
-	$(CC) $(CFLAGS) -c expr.cc -o expr.o
+bench: bench.o
+	@./bench.o
 
-exprutil.o: exprutil.cc exprutil.h Makefile
-	$(CC) $(CFLAGS) -c exprutil.cc -o exprutil.o
+test.o: test.cc $(OBJS)
+	$(CC) $(CFLAGS) $(OBJS) test.cc -o test.o
 
-dfa.o: dfa.cc dfa.h Makefile
-	$(CC) $(CFLAGS) -c dfa.cc -o dfa.o
+bench.o: bench.cc $(OBJS)
+	$(CC) $(CFLAGS) $(OBJS) bench.cc -o bench.o
 
-generator.o: generator.cc generator.h Makefile
-	$(CC) $(CFLAGS) -c generator.cc -o generator.o
-
-paralleldfa.o: paralleldfa.cc paralleldfa.h dfa.o Makefile
-	$(CC) $(CFLAGS) -c paralleldfa.cc paralleldfa.h
+.cc.o:
+	$(CC) $(CFLAGS) -c $<
 
 clean:
-	rm -f *.o 
+	rm -f $(OBJS) test.o bench.o paralleldfa.h.gch
