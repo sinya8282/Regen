@@ -51,7 +51,6 @@ public:
   bool IsAcceptState(std::size_t state) const { return accepts_[state]; }
   void Complement();
   void Minimize();
-
   bool Compile();
   bool PreCompile();
   virtual bool FullMatch(const std::string &str) const { return FullMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }

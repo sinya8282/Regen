@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
     matching_time += rdtsc();
   }
 
-  printf("compile time = %u, matching time = %u, %s\n",
+  printf("compile time = %llu, matching time = %llu, %s\n",
          compile_time, matching_time, match ? "match" : "not match." );
   
   return 0;

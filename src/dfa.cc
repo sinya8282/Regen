@@ -277,7 +277,7 @@ bool DFA::PreCompile()
   src_states_[0].insert(DFA::None);
   std::vector<bool> inlined(size());
   for (std::size_t state = 0; state < size(); state++) {
-    // pick inlining region (make degenerate graph).
+    // Pick inlining region (make degenerate graph).
     if (inlined[state]) continue;
     int current = state, next;
     for(;;) {

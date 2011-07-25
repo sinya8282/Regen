@@ -9,8 +9,8 @@ struct testcase {
 };
 
 struct benchresult {
-  int compile_time;
-  int matching_time;
+  uint64_t compile_time;
+  uint64_t matching_time;
   bool result;
 };
 
@@ -27,17 +27,12 @@ static inline uint64_t rdtsc()
 
 int main(int argc, char *argv[]) {
   int opt;
-  int thread_num = 1;
   regen::Regex::Optimize olevel = regen::Regex::Onone;
 
   while ((opt = getopt(argc, argv, "nf:t:O:")) != -1) {
     switch(opt) {
       case 'O': {
         olevel = regen::Regex::Optimize(atoi(optarg));
-        break;
-      }
-      case 't': {
-        thread_num = atoi(optarg);
         break;
       }
     }
@@ -87,7 +82,7 @@ int main(int argc, char *argv[]) {
   for (std::size_t i = 0; i < bench.size(); i++) {
     printf("BENCH %"PRIuS" : regex = /%s/ text = \"%s\"\n" , i, bench[i].regex.c_str(), bench[i].pretty.c_str());
     if (!result[i].result) puts("FAIL\n");
-    printf("%s : compile time = %d, matching time = %d\n", ostr[olevel+1], result[i].compile_time, result[i].matching_time);
+    printf("%s : compile time = %llu, matching time = %llu\n", ostr[olevel+1], result[i].compile_time, result[i].matching_time);
   }
   return 0;
 }
