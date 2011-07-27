@@ -24,10 +24,12 @@ int main(int argc, char *argv[]) {
   }
 
   regen::Regex r = regen::Regex(regex);
-  r.Compile(regen::Regex::O0);
-  regen::ParallelDFA pdfa(r.dfa());
+  regen::ParallelDFA pdfaN(r.expr_root(), r.state_exprs());
+  r.Compile(regen::Regex::O0);  
+  regen::ParallelDFA pdfaD(r.dfa());
 
-  printf(" DFA state num: %d\n PDFA state num: %d\n", r.dfa().size(), pdfa.size());
+  printf(" DFA state num: %"PRIuS"\n PDFA(from NFA) state num: %"PRIuS"\n PDFA(from DFA) state num: %"PRIuS"\n",
+         r.dfa().size(), pdfaN.size(), pdfaD.size());
 
   return 0;
 }
