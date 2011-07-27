@@ -60,8 +60,7 @@ int main(int argc, char *argv[]) {
     matching_time += rdtsc();
   } else {
     compile_time -= rdtsc();
-    r.Compile(regen::Regex::O0);
-    regen::ParallelDFA pdfa(r.dfa(), thread_num);
+    regen::ParallelDFA pdfa(r.expr_root(), r.state_exprs(), thread_num);
     if (olevel != regen::Regex::Onone) pdfa.Compile();
     compile_time += rdtsc();
     matching_time -= rdtsc();

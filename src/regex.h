@@ -38,6 +38,9 @@ public:
   std::size_t must_max_length() const { return must_max_length_; }
   const std::string& must_max_word() const { return must_max_word_; }
   const DFA& dfa() const { return dfa_; }
+  Optimize olevel() const { return olevel_; }
+  Expr* expr_root() const { return expr_root_; }
+  const std::vector<StateExpr*> &state_exprs() const { return state_exprs_; }  
 
 private:
   Expr::Type lex();

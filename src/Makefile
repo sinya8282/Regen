@@ -17,6 +17,8 @@ OBJS=regex.o expr.o exprutil.o dfa.o paralleldfa.o generator.o
 regen: regen.cc $(OBJS)
 	$(CC) $(CFLAGS) $(LIBTHREAD) regen.cc $(OBJS) -o regen
 
+all: regen test.o bench.o
+
 test: test.o
 	@./test.o
 

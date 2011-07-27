@@ -583,11 +583,7 @@ bool Regex::MakeDFA(Expr* expr_root, DFA &dfa, int limit, std::size_t neop)
           break;
         }
         case Expr::kEndLine: {
-          NFA::iterator next_iter = next.begin();
-          while (next_iter != next.end()) {
-            transition['\n'].insert(*next_iter);
-            ++next_iter;
-          }
+          transition['\n'].insert(next.begin(), next.end());
           break;
         }
         case Expr::kEOP: {

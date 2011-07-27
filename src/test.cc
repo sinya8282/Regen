@@ -9,12 +9,17 @@ struct testcase {
 
 int main(int argc, char *argv[]) {
   int opt;
+  std::size_t thread_num = 1;
   regen::Regex::Optimize olevel = regen::Regex::O3;
 
-  while ((opt = getopt(argc, argv, "nf:t:O:")) != -1) {
+  while ((opt = getopt(argc, argv, "nf:t:O:t:")) != -1) {
     switch(opt) {
       case 'O': {
         olevel = regen::Regex::Optimize(atoi(optarg));
+        break;
+      }
+      case 't': {
+        thread_num = atoi(optarg);
         break;
       }
     }
@@ -131,8 +136,18 @@ int main(int argc, char *argv[]) {
   std::size_t fail = 0;
   for (std::size_t i = 0; i < TESTNUM; i++) {
     regen::Regex r(test[i].regex);
-    r.Compile(olevel);
-    result[i] = r.FullMatch(test[i].text) == test[i].result;
+    if (thread_num <= 1) {
+      r.Compile(olevel);
+      result[i] = r.FullMatch(test[i].text) == test[i].result;
+    } else {
+      //r.Compile(regen::Regex::O0);
+      regen::ParallelDFA pdfa(r.expr_root(), r.state_exprs(), thread_num);
+      if (olevel != regen::Regex::Onone) {
+        pdfa.PreCompile();
+        pdfa.Compile();
+      }
+      result[i] = pdfa.FullMatch(test[i].text) == test[i].result;
+    }
   }
 
   for (std::size_t i = 0; i < TESTNUM; i++) {
