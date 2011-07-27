@@ -131,9 +131,9 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 64):
     // can transition without table lookup ?
     
     const DFA::AlterTrans &at = dfa.GetAlterTrans(i);
-    if (dfa.precompiled() && at.next1 != DFA::None) {
+    if (dfa.olevel() >= DFA::O1 && at.next1 != DFA::None) {
       std::size_t state = i;
-      std::size_t inline_level = dfa.inline_level(i);
+      std::size_t inline_level = dfa.olevel() == DFA::O2 ? dfa.inline_level(i) : 0;
       bool inlining = inline_level != 0;
       std::size_t transition_depth = -1;
       inLocalLabel();
@@ -244,7 +244,7 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 64):
   }
 }
 
-bool DFA::PreCompile()
+bool DFA::EliminateBranch()
 {
   alter_trans_.resize(size());
   for (std::size_t state = 0; state < size(); state++) {
@@ -272,7 +272,13 @@ bool DFA::PreCompile()
     at.key.first = begin;
     at.key.second = end;
   }
+  inline_level_.resize(size());
 
+  return true;
+}
+
+bool DFA::Reduce()
+{
   inline_level_.resize(size());
   src_states_[0].insert(DFA::None);
   std::vector<bool> inlined(size());
@@ -300,15 +306,23 @@ bool DFA::PreCompile()
   }
   src_states_[0].erase(DFA::None);
 
-  precompiled_ = true;
   return true;
 }
 
-bool DFA::Compile()
+bool DFA::Compile(Optimize olevel)
 {
+  olevel_ = O0;
+  if (olevel >= O1) {
+    if (EliminateBranch() && olevel == O2) {
+      olevel_ = O1;
+      if (Reduce()) {
+        olevel_ = O2;
+      }
+    }
+  }
   xgen_ = new XbyakCompiler(*this);
   CompiledFullMatch = (int (*)(const unsigned char *, const unsigned char *))xgen_->getCode();
-  compiled_ = true;
+
   return true;
 }
 #else
@@ -329,7 +343,7 @@ bool DFA::FullMatch(const unsigned char *str, const unsigned char *end) const
 {
   int state = 0;
 
-  if (compiled_) {
+  if (olevel_ >= O1) {
     state = CompiledFullMatch(str, end);
     return state != DFA::REJECT ? accepts_[state] : false;
   }

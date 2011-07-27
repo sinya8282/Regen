@@ -16,6 +16,13 @@ public:
     None   = -3
   };  
 
+  enum Optimize {
+    Onone = -1,
+    O0 = 0,
+    O1 = 1,
+    O2 = 2
+  };
+  
   struct Transition {
     int t[256];
     Transition(int fill = REJECT) { std::fill(t, t+256, fill); }
@@ -29,19 +36,19 @@ public:
     int next2;
   };
 
-  DFA(): compiled_(false), precompiled_(false) {}
+  DFA(): olevel_(Onone) {}
   #if __ENABLE_XBYAK__
-  ~DFA() { if (compiled_) delete xgen_; }
+  ~DFA() { if (olevel_ >= Onone) delete xgen_; }
   #endif
   
   bool empty() const { return transition_.empty(); }
-  bool precompiled() const { return precompiled_; }
   std::size_t size() const { return transition_.size(); }
   std::size_t start_state() const { return 0; }
   const std::deque<bool>& accepts() const { return accepts_; }
   std::size_t inline_level(std::size_t i) const { return inline_level_[i]; }
   const std::set<int> &src_states(std::size_t i) const { return src_states_[i]; }
   const std::set<int> &dst_states(std::size_t i) const { return dst_states_[i]; }
+  Optimize olevel() const { return olevel_; };
 
   Transition& get_new_transition();
   void set_state_info(bool accept, int default_state, std::set<int> &dst_state);
@@ -51,8 +58,7 @@ public:
   bool IsAcceptState(std::size_t state) const { return accepts_[state]; }
   void Complement();
   void Minimize();
-  bool Compile();
-  bool PreCompile();
+  bool Compile(Optimize olevel = O2);
   virtual bool FullMatch(const std::string &str) const { return FullMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
   virtual bool FullMatch(const unsigned char *str, const unsigned char *end) const;
   void int2label(int state, char* labelbuf) const;
@@ -64,8 +70,9 @@ protected:
   std::deque<std::set<int> > src_states_;
   std::deque<std::set<int> > dst_states_;
   int (*CompiledFullMatch)(const unsigned char *, const unsigned char *);
-  bool compiled_;
-  bool precompiled_;
+  bool EliminateBranch();
+  bool Reduce();
+  Optimize olevel_;
   #if __ENABLE_XBYAK__
   Xbyak::CodeGenerator *xgen_;
   #endif

@@ -140,11 +140,13 @@ int main(int argc, char *argv[]) {
       r.Compile(olevel);
       result[i] = r.FullMatch(test[i].text) == test[i].result;
     } else {
-      //r.Compile(regen::Regex::O0);
       regen::ParallelDFA pdfa(r.expr_root(), r.state_exprs(), thread_num);
-      if (olevel != regen::Regex::Onone) {
-        pdfa.PreCompile();
-        pdfa.Compile();
+      if (olevel == regen::Regex::O1) {
+        pdfa.Compile(regen::DFA::O0);
+      } else if (olevel == regen::Regex::O2) {
+        pdfa.Compile(regen::DFA::O1);
+      } else if (olevel == regen::Regex::O3) {
+        pdfa.Compile(regen::DFA::O2);
       }
       result[i] = pdfa.FullMatch(test[i].text) == test[i].result;
     }

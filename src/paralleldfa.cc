@@ -194,7 +194,7 @@ ParallelDFA::FullMatchTask(TaskArg targ) const
   const unsigned char *str = targ.str;
   const unsigned char *end = targ.end;
 
-  if (compiled_) {
+  if (olevel_ > DFA::Onone) {
     parallel_states_[targ.task_id] = CompiledFullMatch(str, end);
     return;
   }
