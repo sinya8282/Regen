@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
   std::string regex;
   int opt;
   std::size_t thread_num = 1;
-  regen::Regex::Optimize olevel = regen::Regex::Onone;
+  regen::Optimize olevel = regen::Onone;
 
   while ((opt = getopt(argc, argv, "f:O:t:")) != -1) {
     switch(opt) {
@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
         break;
       }
       case 'O': {
-        olevel = regen::Regex::Optimize(atoi(optarg));
+        olevel = regen::Optimize(atoi(optarg));
         break;
       }
       case 't': {
@@ -61,13 +61,7 @@ int main(int argc, char *argv[]) {
   } else {
     compile_time -= rdtsc();
     regen::ParallelDFA pdfa(r.expr_root(), r.state_exprs(), thread_num);
-    if (olevel == regen::Regex::O1) {
-      pdfa.Compile(regen::DFA::O0);
-    } else if (olevel == regen::Regex::O2) {
-      pdfa.Compile(regen::DFA::O1);
-    } else if (olevel == regen::Regex::O3) {
-      pdfa.Compile(regen::DFA::O2);
-    }
+    pdfa.Compile(olevel);
     compile_time += rdtsc();
     matching_time -= rdtsc();
     match = pdfa.FullMatch(mm.ptr, mm.ptr+mm.size);

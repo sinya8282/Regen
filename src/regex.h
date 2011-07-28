@@ -13,13 +13,6 @@ namespace regen {
   
 class Regex {
 public:
-  enum Optimize {
-    Onone = -1,
-    O0 = 0,
-    O1 = 1,
-    O2 = 2,
-    O3 = 3
-  };
   Regex(const std::string &regex, std::size_t recursive_depth_ = 2);
   ~Regex() { delete expr_root_; };
   void PrintRegex();

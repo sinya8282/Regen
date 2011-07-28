@@ -10,14 +10,20 @@ LIBTHREAD=-lboost_thread-mt
 endif
 
 CC=g++
-CFLAGS=-O3 -Wall -g3 -fno-operator-names $(REGENFLAGS)
+CFLAGS=-O0 -Wall -g3 -fno-operator-names $(REGENFLAGS)
 
 OBJS=regex.o expr.o exprutil.o dfa.o paralleldfa.o generator.o 
 
 regen: regen.cc $(OBJS)
 	$(CC) $(CFLAGS) $(LIBTHREAD) regen.cc $(OBJS) -o regen
 
-all: regen test.o bench.o
+all: regen fullmatch state_num test.o bench.o
+
+fullmatch: tests/fullmatch.cc $(OBJS)
+	$(CC) $(CFLAGS) $(LIBTHREAD) tests/fullmatch.cc $(OBJS) -o $@
+
+state_num: tests/state_num.cc $(OBJS)
+	$(CC) $(CFLAGS) $(LIBTHREAD) tests/state_num.cc $(OBJS) -o $@
 
 test: test.o
 	@./test.o
@@ -25,14 +31,14 @@ test: test.o
 bench: bench.o
 	@./bench.o
 
-test.o: test.cc $(OBJS)
-	$(CC) $(CFLAGS) $(LIBTHREAD) test.cc $(OBJS) -o test.o
+test.o: tests/test.cc $(OBJS)
+	$(CC) $(CFLAGS) $(LIBTHREAD) tests/test.cc $(OBJS) -o test.o
 
-bench.o: bench.cc $(OBJS)
-	$(CC) $(CFLAGS) $(LIBTHREAD) bench.cc $(OBJS) -o bench.o
+bench.o: tests/bench.cc $(OBJS)
+	$(CC) $(CFLAGS) $(LIBTHREAD) tests/bench.cc $(OBJS) -o bench.o 
 
 .cc.o:
 	$(CC) $(CFLAGS) -c $<
 
 clean:
-	rm -f $(OBJS) test.o bench.o paralleldfa.h.gch regen test bench
+	rm -f $(OBJS) test.o bench.o paralleldfa.h.gch regen test bench fullmatch state_num

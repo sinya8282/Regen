@@ -1,4 +1,4 @@
-#include "regex.h"
+#include "../regex.h"
 
 struct testcase {
   testcase(std::string regex_, std::string text_, std::string pretty_, bool result_): regex(regex_), text(text_), pretty(pretty_), result(result_) {}
@@ -27,12 +27,12 @@ static inline uint64_t rdtsc()
 
 int main(int argc, char *argv[]) {
   int opt;
-  regen::Regex::Optimize olevel = regen::Regex::Onone;
+  regen::Optimize olevel = regen::Onone;
 
   while ((opt = getopt(argc, argv, "nf:t:O:")) != -1) {
     switch(opt) {
       case 'O': {
-        olevel = regen::Regex::Optimize(atoi(optarg));
+        olevel = regen::Optimize(atoi(optarg));
         break;
       }
     }

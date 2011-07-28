@@ -796,20 +796,11 @@ bool Regex::Compile(Optimize olevel) {
     /* can not create DFA. (too many states) */
     return false;
   }
-  olevel_ = olevel;
-  switch (olevel) {
-    case O3:
-      if(!dfa_.Compile(DFA::O2)) olevel_ = O2;
-      break;
-    case O2:
-      if(!dfa_.Compile(DFA::O1)) olevel_ = O1;
-      break;
-    case O1:
-      if(!dfa_.Compile(DFA::O0)) olevel_ = O0;
-      break;
-    case O0:
-    default:
-      break;
+
+  if (!dfa_.Compile(olevel)) {
+    olevel_ = dfa_.olevel();
+  } else {
+    olevel_ = olevel;
   }
   return olevel_ == olevel;
 }

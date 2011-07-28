@@ -16,13 +16,6 @@ public:
     None   = -3
   };  
 
-  enum Optimize {
-    Onone = -1,
-    O0 = 0,
-    O1 = 1,
-    O2 = 2
-  };
-  
   struct Transition {
     int t[256];
     Transition(int fill = REJECT) { std::fill(t, t+256, fill); }
@@ -36,9 +29,9 @@ public:
     int next2;
   };
 
-  DFA(): olevel_(Onone) {}
+  DFA(): olevel_(O0) {}
   #if __ENABLE_XBYAK__
-  ~DFA() { if (olevel_ >= Onone) delete xgen_; }
+  ~DFA() { if (olevel_ >= O1) delete xgen_; }
   #endif
   
   bool empty() const { return transition_.empty(); }

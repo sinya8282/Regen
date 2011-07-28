@@ -131,9 +131,9 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 64):
     // can transition without table lookup ?
     
     const DFA::AlterTrans &at = dfa.GetAlterTrans(i);
-    if (dfa.olevel() >= DFA::O1 && at.next1 != DFA::None) {
+    if (dfa.olevel() >= O2 && at.next1 != DFA::None) {
       std::size_t state = i;
-      std::size_t inline_level = dfa.olevel() == DFA::O2 ? dfa.inline_level(i) : 0;
+      std::size_t inline_level = dfa.olevel() == O3 ? dfa.inline_level(i) : 0;
       bool inlining = inline_level != 0;
       std::size_t transition_depth = -1;
       inLocalLabel();
@@ -311,19 +311,19 @@ bool DFA::Reduce()
 
 bool DFA::Compile(Optimize olevel)
 {
-  olevel_ = O0;
-  if (olevel >= O1) {
-    if (EliminateBranch() && olevel == O2) {
-      olevel_ = O1;
-      if (Reduce()) {
-        olevel_ = O2;
-      }
+  if (olevel <= olevel_) return true;
+  if (olevel >= O2) {
+    if (EliminateBranch()) {
+      olevel_ = O2;
+    }
+    if (olevel == O3 && Reduce()) {
+      olevel_ = O3;
     }
   }
   xgen_ = new XbyakCompiler(*this);
   CompiledFullMatch = (int (*)(const unsigned char *, const unsigned char *))xgen_->getCode();
-
-  return true;
+  if (olevel_ < O1) olevel_ = O1;
+  return olevel == olevel_;
 }
 #else
 bool DFA::PreCompile()

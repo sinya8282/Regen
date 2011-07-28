@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
 
   regen::Regex r = regen::Regex(regex);
   regen::ParallelDFA pdfaN(r.expr_root(), r.state_exprs());
-  r.Compile(regen::Regex::O0);  
+  r.Compile(regen::O0);  
   regen::ParallelDFA pdfaD(r.dfa());
 
   printf(" DFA state num: %"PRIuS"\n PDFA(from NFA) state num: %"PRIuS"\n PDFA(from DFA) state num: %"PRIuS"\n",

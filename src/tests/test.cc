@@ -1,4 +1,4 @@
-#include "regex.h"
+#include "../regex.h"
 
 struct testcase {
   testcase(std::string regex_, std::string text_, bool result_): regex(regex_), text(text_), result(result_) {}
@@ -10,12 +10,12 @@ struct testcase {
 int main(int argc, char *argv[]) {
   int opt;
   std::size_t thread_num = 1;
-  regen::Regex::Optimize olevel = regen::Regex::O3;
+  regen::Optimize olevel = regen::O3;
 
   while ((opt = getopt(argc, argv, "nf:t:O:t:")) != -1) {
     switch(opt) {
       case 'O': {
-        olevel = regen::Regex::Optimize(atoi(optarg));
+        olevel = regen::Optimize(atoi(optarg));
         break;
       }
       case 't': {
@@ -141,13 +141,7 @@ int main(int argc, char *argv[]) {
       result[i] = r.FullMatch(test[i].text) == test[i].result;
     } else {
       regen::ParallelDFA pdfa(r.expr_root(), r.state_exprs(), thread_num);
-      if (olevel == regen::Regex::O1) {
-        pdfa.Compile(regen::DFA::O0);
-      } else if (olevel == regen::Regex::O2) {
-        pdfa.Compile(regen::DFA::O1);
-      } else if (olevel == regen::Regex::O3) {
-        pdfa.Compile(regen::DFA::O2);
-      }
+      pdfa.Compile(olevel);
       result[i] = pdfa.FullMatch(test[i].text) == test[i].result;
     }
   }

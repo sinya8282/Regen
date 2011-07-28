@@ -44,6 +44,14 @@
 
 namespace regen {
 
+enum Optimize {
+  Onone = -1,
+  O0 = 0,
+  O1 = 1,
+  O2 = 2,
+  O3 = 3
+};
+  
 namespace Util {
   
 struct mmap_t{
