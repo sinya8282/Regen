@@ -5,7 +5,7 @@
 #include "expr.h"
 #include "exprutil.h"
 #include "dfa.h"
-#ifdef __ENABLE_PARALLEL__
+#ifdef REGEN_ENABLE_PARALLEL
 #include "paralleldfa.h"
 #endif
 

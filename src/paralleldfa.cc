@@ -1,4 +1,4 @@
-#ifdef __ENABLE_PARALLEL__
+#ifdef REGEN_ENABLE_PARALLEL
 #include "paralleldfa.h"
 #include <boost/thread.hpp>
 #include <boost/bind.hpp>
@@ -273,4 +273,4 @@ ParallelDFA::FullMatch(const unsigned char *str, const unsigned char *end) const
 
 } // namespace regen
 
-#endif //__ENABLE_PARALLEL__
+#endif //REGEN_ENABLE_PARALLEL

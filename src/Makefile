@@ -1,23 +1,23 @@
-ENABLE_XBYAK=yes
-ENABLE_PARALLEL=yes
+REGEN_ENABLE_XBYAK=yes
+REGEN_ENABLE_PARALLEL=yes
 
-ifeq ($(ENABLE_XBYAK),yes)
-REGENFLAGS=-D__ENABLE_XBYAK__
+ifeq ($(REGEN_ENABLE_XBYAK),yes)
+REGENFLAGS=-DREGEN_ENABLE_XBYAK
 endif
-ifeq ($(ENABLE_PARALLEL),yes)
-REGENFLAGS+=-D__ENABLE_PARALLEL__
+ifeq ($(REGEN_ENABLE_PARALLEL),yes)
+REGENFLAGS+=-DREGEN_ENABLE_PARALLEL
 LIBTHREAD=-lboost_thread-mt
 endif
 
 CC=g++
-CFLAGS=-O0 -Wall -g3 -fno-operator-names $(REGENFLAGS)
+CFLAGS=-O3 -Wall -g3 -fno-operator-names $(REGENFLAGS)
 SRC=regex.cc expr.cc exprutil.cc dfa.cc paralleldfa.cc generator.cc 
 OBJS=$(SRC:.cc=.o)
 
+all: regen fullmatch state_num test.o bench.o
+
 regen: regen.cc $(OBJS)
 	$(CC) $(CFLAGS) $(LIBTHREAD) regen.cc $(OBJS) -o regen
-
-all: regen fullmatch state_num test.o bench.o
 
 fullmatch: tests/fullmatch.cc $(OBJS)
 	$(CC) $(CFLAGS) $(LIBTHREAD) tests/fullmatch.cc $(OBJS) -o $@

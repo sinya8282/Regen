@@ -1,7 +1,7 @@
 #ifndef REGEN_DFA_H_
 #define  REGEN_DFA_H_
 #include "util.h"
-#if __ENABLE_XBYAK__
+#if REGEN_ENABLE_XBYAK
 #include <xbyak/xbyak.h>
 #endif
 
@@ -9,20 +9,17 @@ namespace regen {
 
 class DFA {
 public:
-  
   enum State {
     REJECT = -1,
     ACCEPT = -2,
     None   = -3
   };  
-
   struct Transition {
     int t[256];
     Transition(int fill = REJECT) { std::fill(t, t+256, fill); }
     int &operator[](std::size_t index) { return t[index]; }
     const int &operator[](std::size_t index) const { return t[index]; }
   };
-
   struct AlterTrans {
     std::pair<unsigned char, unsigned char> key;
     int next1;
@@ -30,7 +27,7 @@ public:
   };
 
   DFA(): olevel_(O0) {}
-  #if __ENABLE_XBYAK__
+  #if REGEN_ENABLE_XBYAK
   ~DFA() { if (olevel_ >= O1) delete xgen_; }
   #endif
   
@@ -66,7 +63,7 @@ protected:
   bool EliminateBranch();
   bool Reduce();
   Optimize olevel_;
-  #if __ENABLE_XBYAK__
+  #if REGEN_ENABLE_XBYAK
   Xbyak::CodeGenerator *xgen_;
   #endif
   std::vector<AlterTrans> alter_trans_;

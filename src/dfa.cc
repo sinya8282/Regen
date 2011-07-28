@@ -74,7 +74,7 @@ DFA::Complement()
   }
 }
 
-#if __ENABLE_XBYAK__
+#if REGEN_ENABLE_XBYAK
 class XbyakCompiler: public Xbyak::CodeGenerator {
  public:
   XbyakCompiler(const DFA &dfa, std::size_t state_code_size);
@@ -326,17 +326,9 @@ bool DFA::Compile(Optimize olevel)
   return olevel == olevel_;
 }
 #else
-bool DFA::PreCompile()
-{
-  inline_level_.resize(size());
-  precompiled_ = false;
-  return true;
-}
-bool DFA::Compile()
-{
-  compiled_ = false;
-  return true;
-}
+bool DFA::EliminateBranch() { return false; }
+bool DFA::Reduce() { return false; }
+bool DFA::Compile(Optimize) { return false; }
 #endif
 
 bool DFA::FullMatch(const unsigned char *str, const unsigned char *end) const

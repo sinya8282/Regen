@@ -1,4 +1,4 @@
-#ifdef __ENABLE_PARALLEL__
+#ifdef REGEN_ENABLE_PARALLEL
 #ifndef REGEN_PARALLEL_DFA_H_
 #define  REGEN_PARALLEL_DFA_H_
 #include "regex.h"
@@ -39,4 +39,4 @@ private:
 
 } // namespace regen
 #endif // REGEN_PARALLEL_DFA_H_
-#endif // __ENABLE_PARALLEL__
+#endif // REGEN_ENABLE_PARALLEL
