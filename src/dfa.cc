@@ -272,7 +272,6 @@ bool DFA::EliminateBranch()
     at.key.first = begin;
     at.key.second = end;
   }
-  inline_level_.resize(size());
 
   return true;
 }
