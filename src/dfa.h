@@ -34,7 +34,7 @@ public:
   bool empty() const { return transition_.empty(); }
   std::size_t size() const { return transition_.size(); }
   std::size_t start_state() const { return 0; }
-  const std::deque<bool>& accepts() const { return accepts_; }
+  const std::vector<bool>& accepts() const { return accepts_; }
   std::size_t inline_level(std::size_t i) const { return inline_level_[i]; }
   const std::set<int> &src_states(std::size_t i) const { return src_states_[i]; }
   const std::set<int> &dst_states(std::size_t i) const { return dst_states_[i]; }
@@ -55,10 +55,10 @@ public:
 
 protected:
   std::vector<Transition> transition_;
-  std::deque<int> defaults_;
-  std::deque<bool> accepts_;
-  std::deque<std::set<int> > src_states_;
-  std::deque<std::set<int> > dst_states_;
+  std::vector<int> defaults_;
+  std::vector<bool> accepts_;
+  std::vector<std::set<int> > src_states_;
+  std::vector<std::set<int> > dst_states_;
   int (*CompiledFullMatch)(const unsigned char *, const unsigned char *);
   bool EliminateBranch();
   bool Reduce();

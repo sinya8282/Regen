@@ -33,7 +33,7 @@ private:
   std::size_t dfa_size_;
   std::set<std::size_t> start_states_;
   std::size_t thread_num_;
-  std::deque<bool> fa_accepts_;
+  std::vector<bool> fa_accepts_;
   std::vector<ParallelTransition> parallel_transitions_;
 };
 
