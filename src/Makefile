@@ -40,5 +40,12 @@ bench.o: tests/bench.cc $(OBJS)
 .cc.o:
 	$(CC) $(CFLAGS) -c $<
 
+dfa.o: dfa.cc dfa.h util.h
+expr.o: expr.cc expr.h util.h
+exprutil.o: exprutil.cc exprutil.h expr.h util.h
+generator.o: generator.cc generator.h regex.h util.h expr.h exprutil.h dfa.h
+paralleldfa.o: paralleldfa.cc
+regex.o: regex.cc regex.h util.h expr.h exprutil.h dfa.h
+
 clean:
 	rm -f $(OBJS) test.o bench.o paralleldfa.h.gch regen test bench fullmatch state_num
