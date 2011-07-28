@@ -2,7 +2,7 @@ Regen is Regular Expression Generator, Compiler, Engine.
 
 for High-speed regular expression matching, Regen gnerates
 native code from regular expression (require Xbyak).
-or Regen makes matching as parallel (require boost::thread).
+also Regen makes matching as parallel (require boost::thread).
 
 * install
 
@@ -17,3 +17,10 @@ or no Parallelization.
 % make REGEN_ENABLE_PARALLEL=no
 or enable neither.
 % make REGEN_ENABLE_XBYAK=no REGEN_ENABLE_XBYAK=no
+
+* test and behcnmarks
+% make test
+% make benchmark
+or try manually
+% make test.o && ./test.o -t THREAD_NUM {-O olevel}
+% make bench.o && ./bench.o {-O olevel}

@@ -44,7 +44,7 @@ clean:
 	rm -f $(OBJS) test.o bench.o paralleldfa.h.gch regen test bench fullmatch state_num
 
 depend:
-	sed '/^# DO NOT DELETE THIS LINE/q' Makefile >  tmp
+	sed '/^# DO NOT DELETE THIS LINE/q' Makefile > tmp
 	g++ -MM $(CFLAGS) $(SRC) >> tmp
 	mv tmp Makefile
 

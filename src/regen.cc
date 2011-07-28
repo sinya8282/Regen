@@ -42,6 +42,7 @@ int main(int argc, char *argv[]) {
   }
 
   regen::Regex r = regen::Regex(regex, recursive_limit);
+  r.Compile(regen::O0);
 
   switch (generate) {
     case CGEN:
