@@ -1,0 +1,19 @@
+Regen is Regular Expression Generator, Compiler, Engine.
+
+for High-speed regular expression matching, Regen gnerates
+native code from regular expression (require Xbyak).
+or Regen makes matching as parallel (require boost::thread).
+
+* install
+
+move to source directory
+% cd src
+
+and build Regen
+% make all
+or build Regen with no JIT-ver
+% make REGEN_ENABLE_XBYAK=no
+or no Parallelization.
+% make REGEN_ENABLE_PARALLEL=no
+or enable neither.
+% make REGEN_ENABLE_XBYAK=no REGEN_ENABLE_XBYAK=no

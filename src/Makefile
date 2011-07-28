@@ -17,7 +17,7 @@ OBJS=$(SRC:.cc=.o)
 all: regen fullmatch state_num test.o bench.o
 
 regen: regen.cc $(OBJS)
-	$(CC) $(CFLAGS) $(LIBTHREAD) regen.cc $(OBJS) -o regen
+	$(CC) $(CFLAGS) $(LIBTHREAD) regen.cc $(OBJS) -o $@
 
 fullmatch: tests/fullmatch.cc $(OBJS)
 	$(CC) $(CFLAGS) $(LIBTHREAD) tests/fullmatch.cc $(OBJS) -o $@
