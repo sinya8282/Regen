@@ -2,7 +2,6 @@
 #include "paralleldfa.h"
 #include <boost/thread.hpp>
 #include <boost/bind.hpp>
-#include <boost/function.hpp>
 
 namespace regen {
 
