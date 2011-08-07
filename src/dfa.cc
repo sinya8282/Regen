@@ -82,6 +82,7 @@ class XbyakCompiler: public Xbyak::CodeGenerator {
 
 XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 64):
     /* dfa.size()*state_code_size for code. <- code segment
+     * each states code was 16byte alligned.
      *                      ~~
      * padding for 4kb allign between code and data
      *                      ~~
@@ -120,7 +121,7 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 64):
   mov(rax, -1); // return false
   ret();
 
-  align(32);
+  align(16);
 
   // state code generation, and indexing every states address.
   char labelbuf[100];
@@ -230,10 +231,10 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 64):
       mov(rax, i);
       ret();
     }
-    align(32);
+    align(16);
   }
 
-  // backpatching (every states address)
+  // backpatching (each states address)
   for (std::size_t i = 0; i < dfa.size(); i++) {
     const DFA::Transition &trans = dfa.GetTransition(i);
     for (int c = 0; c < 256; c++) {
@@ -252,16 +253,16 @@ bool DFA::EliminateBranch()
     int next1 = trans[0], next2 = DFA::None;
     unsigned int begin = 0, end = 256;
     int c;
-    for (c = 1; next1 == trans[c] && c < 256; c++);
+    for (c = 1; c < 256 && next1 == trans[c]; c++);
     if (c < 256) {
       next2 = next1;
       next1 = trans[c];
       begin = c;
-      for (++c; next1 == trans[c] && c < 256; c++);
+      for (++c; c < 256 && next1 == trans[c]; c++);
     }
     if (c < 256) {
       end = --c;
-      for (++c; next2 == trans[c] && c < 256; c++);
+      for (++c; c < 256 && next2 == trans[c]; c++);
     }
     if (c < 256) {
       next1 = next2 = DFA::None;
