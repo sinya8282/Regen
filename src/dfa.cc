@@ -87,14 +87,14 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 64):
      * padding for 4kb allign between code and data
      *                      ~~
      * dfa.size()*256*sizeof(void *) for transition table. <- data segment */
-    CodeGenerator(  ((dfa.size()*2)+1)*state_code_size
-                  + (((dfa.size()*2)+1)*state_code_size % 4096)
+    CodeGenerator(  (dfa.size()+1)*state_code_size
+                  + (dfa.size()+1)*state_code_size % 4096
                   + dfa.size()*256*sizeof(void *))
 {
   std::vector<const uint8_t*> states_addr(dfa.size());
 
   const uint8_t* code_addr_top = getCurr();
-  const uint8_t** transition_table_ptr = (const uint8_t **)(code_addr_top + ((dfa.size()*2)+1)*state_code_size + (((dfa.size()+3)*state_code_size) % 4096));
+  const uint8_t** transition_table_ptr = (const uint8_t **)(code_addr_top + (dfa.size()+1)*state_code_size + ((dfa.size()+1)*state_code_size) % 4096);
 
 #ifdef XBYAK32
 #error "64 only"
