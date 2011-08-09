@@ -16,10 +16,15 @@ int main(int argc, char *argv[]) {
   std::string regex;
   int opt;
   std::size_t thread_num = 1;
+  std::size_t count = 1;
   regen::Optimize olevel = regen::Onone;
 
-  while ((opt = getopt(argc, argv, "f:O:t:")) != -1) {
+  while ((opt = getopt(argc, argv, "c:f:O:t:")) != -1) {
     switch(opt) {
+      case 'c': {
+        count = atoi(optarg);
+        break;
+      }
       case 'f': {
         std::ifstream ifs(optarg);
         ifs >> regex;
@@ -47,29 +52,34 @@ int main(int argc, char *argv[]) {
   }
 
   regen::Util::mmap_t mm(argv[optind]);
-  regen::Regex r = regen::Regex(regex);
-  uint64_t compile_time = 0, matching_time = 0;
-  bool match = false;
-  
-  if (thread_num <= 1) {
-    compile_time -= rdtsc();
-    r.Compile(olevel);
-    compile_time += rdtsc();
-    matching_time -= rdtsc();
-    match = r.FullMatch(mm.ptr, mm.ptr+mm.size);
-    matching_time += rdtsc();
-  } else {
-    compile_time -= rdtsc();
-    regen::ParallelDFA pdfa(r.expr_root(), r.state_exprs(), thread_num);
-    pdfa.Compile(olevel);
-    compile_time += rdtsc();
-    matching_time -= rdtsc();
-    match = pdfa.FullMatch(mm.ptr, mm.ptr+mm.size);
-    matching_time += rdtsc();
-  }
 
-  printf("compile time = %llu, matching time = %llu, %s\n",
-         compile_time, matching_time, match ? "match" : "not match." );
+  for (std::size_t i = 0; i < count; i++) {
+    uint64_t compile_time = 0, matching_time = 0;
+    bool match = false;
+
+    if (thread_num <= 1) {
+      compile_time -= rdtsc();
+      regen::Regex r = regen::Regex(regex);
+      r.Compile(olevel);
+      compile_time += rdtsc();
+      matching_time -= rdtsc();
+      match = r.FullMatch(mm.ptr, mm.ptr+mm.size);
+      matching_time += rdtsc();
+    } else {
+      compile_time -= rdtsc();
+      regen::Regex r = regen::Regex(regex);
+      r.Compile(regen::O0);
+      regen::ParallelDFA pdfa(r.expr_root(), r.state_exprs(), thread_num);
+      pdfa.Compile(olevel);
+      compile_time += rdtsc();
+      matching_time -= rdtsc();
+      match = pdfa.FullMatch(mm.ptr, mm.ptr+mm.size);
+      matching_time += rdtsc();
+    }
+
+    printf("compile time = %llu, matching time = %llu, %s\n",
+           compile_time, matching_time, match ? "match" : "not match." );
+  }
   
   return 0;
 }
