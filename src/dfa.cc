@@ -78,23 +78,35 @@ DFA::Complement()
 class XbyakCompiler: public Xbyak::CodeGenerator {
  public:
   XbyakCompiler(const DFA &dfa, std::size_t state_code_size);
+ private:
+  std::size_t code_segment_size_;
+  static std::size_t code_segment_size(std::size_t state_num) {
+    const std::size_t setup_code_size_ = 16;
+    const std::size_t state_code_size_ = 64;
+    const std::size_t segment_align = 4096;    
+    return (state_num*state_code_size_ + setup_code_size_)
+        +  ((state_num*state_code_size_ + setup_code_size_) % segment_align);
+  }
+  static std::size_t data_segment_size(std::size_t state_num) {
+    return state_num * 256 * sizeof(void *);
+  }
 };
 
 XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 64):
-    /* dfa.size()*state_code_size for code. <- code segment
-     * each states code was 16byte alligned.
-     *                      ~~
-     * padding for 4kb allign between code and data
-     *                      ~~
-     * dfa.size()*256*sizeof(void *) for transition table. <- data segment */
-    CodeGenerator(  (dfa.size()+1)*state_code_size
-                  + (dfa.size()+1)*state_code_size % 4096
-                  + dfa.size()*256*sizeof(void *))
+    /* code segment for state transition.
+     *   each states code was 16byte alligned.
+     *                        ~~
+     *   padding for 4kb allign between code and data
+     *                        ~~
+     * data segment for transition table
+     *                                                */
+    CodeGenerator(code_segment_size(dfa.size()) + data_segment_size(dfa.size())),
+    code_segment_size_(code_segment_size(dfa.size()))
 {
   std::vector<const uint8_t*> states_addr(dfa.size());
 
   const uint8_t* code_addr_top = getCurr();
-  const uint8_t** transition_table_ptr = (const uint8_t **)(code_addr_top + (dfa.size()+1)*state_code_size + ((dfa.size()+1)*state_code_size) % 4096);
+  const uint8_t** transition_table_ptr = (const uint8_t **)(code_addr_top + code_segment_size_);
 
 #ifdef XBYAK32
 #error "64 only"
