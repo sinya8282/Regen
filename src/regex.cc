@@ -823,26 +823,26 @@ bool Regex::FullMatchNFA(const unsigned char *begin, const unsigned char *end) c
 {
   typedef std::vector<StateExpr*> NFA;
   std::size_t nfa_size = state_exprs_.size();
-  std::vector<bool> next_states_flag(nfa_size);
+  std::vector<int> next_states_flag(nfa_size);
   NFA states, next_states;
   NFA::iterator iter;
   std::set<StateExpr*>::iterator next_iter;
 
   states.insert(states.begin(), expr_root_->transition().first.begin(), expr_root_->transition().first.end());
-  
-  for (const unsigned char *p = begin; p != end; p++) {
+  int k = 1;
+  for (const unsigned char *p = begin; p != end; p++, k++) {
     for (iter = states.begin(); iter != states.end(); ++iter) {
       StateExpr *s = *iter;
       if (s->Match(*p)) {
         for (next_iter = s->transition().follow.begin(); next_iter != s->transition().follow.end(); ++next_iter) {
-          if (!next_states_flag[(*next_iter)->state_id()]) {
-            next_states_flag[(*next_iter)->state_id()] = true;
+          if (next_states_flag[(*next_iter)->state_id()] != k) {
+            next_states_flag[(*next_iter)->state_id()] = k;
             next_states.push_back(*next_iter);
           }
         }
       }
     }
-    std::fill(next_states_flag.begin(), next_states_flag.end(), false);
+
     states.swap(next_states);
     if (states.empty()) break;
     next_states.clear();
