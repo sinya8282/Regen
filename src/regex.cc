@@ -841,6 +841,7 @@ bool Regex::FullMatchNFA(const unsigned char *begin, const unsigned char *end) c
   transition_cache.resize(dfa_id);
 
   for (const unsigned char *p = begin; p < end; p++, step++) {
+    /* on cache transition. */
     while (p < end && (dfa_next = transition_cache[dfa_state][*p++]) != DFA::REJECT) {
       dfa_state = dfa_next;
     }
@@ -848,6 +849,7 @@ bool Regex::FullMatchNFA(const unsigned char *begin, const unsigned char *end) c
     states = nfa_cache[dfa_state];
     if (p >= end) break;
 
+    /* when cache miss, trying to construct 1-DFA state. */
     for (iter = states.begin(); iter != states.end(); ++iter) {
       StateExpr *s = *iter;
       if (s->Match(*p)) {
@@ -865,6 +867,8 @@ bool Regex::FullMatchNFA(const unsigned char *begin, const unsigned char *end) c
       dfa_cache[next_states] = dfa_id++;
       transition_cache.resize(dfa_id);
     }
+
+    /* cache state, and retry transition on cache. */
     dfa_next = dfa_cache[next_states];
     transition_cache[dfa_state][*p] = dfa_next;
     dfa_state = dfa_next;
