@@ -16,9 +16,9 @@ public:
   };  
   struct Transition {
     int t[256];
-    Transition(int fill = REJECT) { std::fill(t, t+256, fill); }
+    Transition(std::size_t fill = REJECT) { std::fill(t, t+256, fill); }
     int &operator[](std::size_t index) { return t[index]; }
-    const int &operator[](std::size_t index) const { return t[index]; }
+    int operator[](std::size_t index) const { return t[index]; }
   };
   struct AlterTrans {
     std::pair<unsigned char, unsigned char> key;

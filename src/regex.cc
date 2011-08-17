@@ -823,26 +823,51 @@ bool Regex::FullMatchNFA(const unsigned char *begin, const unsigned char *end) c
 {
   typedef std::vector<StateExpr*> NFA;
   std::size_t nfa_size = state_exprs_.size();
-  std::vector<int> next_states_flag(nfa_size);
+  std::vector<uint32_t> next_states_flag(nfa_size);
+  uint32_t step = 1;
   NFA states, next_states;
   NFA::iterator iter;
   std::set<StateExpr*>::iterator next_iter;
+  std::vector<DFA::Transition> transition_cache;
+  std::map<NFA, std::size_t> dfa_cache;
+  std::map<std::size_t, NFA> nfa_cache;
+  std::map<NFA, std::size_t>::iterator dfa_iter;
+  std::size_t dfa_id = 0;
+  int dfa_state = 0, dfa_next;
 
   states.insert(states.begin(), expr_root_->transition().first.begin(), expr_root_->transition().first.end());
-  int k = 1;
-  for (const unsigned char *p = begin; p != end; p++, k++) {
+  nfa_cache[dfa_id] = states;
+  dfa_cache[states] = dfa_id++;
+  transition_cache.resize(dfa_id);
+
+  for (const unsigned char *p = begin; p < end; p++, step++) {
+    while (p < end && (dfa_next = transition_cache[dfa_state][*p++]) != DFA::REJECT) {
+      dfa_state = dfa_next;
+    }
+    if (dfa_next == DFA::REJECT) p--;
+    states = nfa_cache[dfa_state];
+    if (p >= end) break;
+
     for (iter = states.begin(); iter != states.end(); ++iter) {
       StateExpr *s = *iter;
       if (s->Match(*p)) {
         for (next_iter = s->transition().follow.begin(); next_iter != s->transition().follow.end(); ++next_iter) {
-          if (next_states_flag[(*next_iter)->state_id()] != k) {
-            next_states_flag[(*next_iter)->state_id()] = k;
+          if (next_states_flag[(*next_iter)->state_id()] != step) {
+            next_states_flag[(*next_iter)->state_id()] = step;
             next_states.push_back(*next_iter);
           }
         }
       }
     }
-
+    dfa_iter = dfa_cache.find(next_states);
+    if (dfa_iter == dfa_cache.end()) {
+      nfa_cache[dfa_id] = next_states;
+      dfa_cache[next_states] = dfa_id++;
+      transition_cache.resize(dfa_id);
+    }
+    dfa_next = dfa_cache[next_states];
+    transition_cache[dfa_state][*p] = dfa_next;
+    dfa_state = dfa_next;
     states.swap(next_states);
     if (states.empty()) break;
     next_states.clear();

@@ -345,14 +345,17 @@ bool DFA::Compile(Optimize) { return false; }
 
 bool DFA::FullMatch(const unsigned char *str, const unsigned char *end) const
 {
-  int state = 0;
+  int state = 0, next;
 
   if (olevel_ >= O1) {
     state = CompiledFullMatch(str, end);
     return state != DFA::REJECT ? accepts_[state] : false;
   }
 
-  while (str != end && (state = transition_[state][*str++]) != DFA::REJECT);
+  while (str < end && (next = transition_[state][*str++]) != DFA::REJECT) {
+    state = next;
+  }
+
   return state != DFA::REJECT ? accepts_[state] : false;
 }
 
