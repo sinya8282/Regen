@@ -3,10 +3,10 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <cassert>
-#include <unistd.h>
 #include <stdlib.h>
 #include <stdint.h>
+
+#include <cassert>
 #include <cstddef>
 #include <limits>
 #include <string>

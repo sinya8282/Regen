@@ -775,7 +775,7 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa)
 
 /*
  *         - slower -
- * Onone: NFA based matching
+ * Onone: NFA based matching (Thompson NFA, Cached)
  *    O0: DFA based matching
  *      ~ Xbyak required ~
  *    O1: JIT-ed DFA based matching

@@ -6,7 +6,7 @@
 #include "exprutil.h"
 #include "dfa.h"
 #ifdef REGEN_ENABLE_PARALLEL
-#include "paralleldfa.h"
+#include "ssfa.h"
 #endif
 
 namespace regen {

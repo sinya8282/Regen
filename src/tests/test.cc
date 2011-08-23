@@ -140,7 +140,7 @@ int main(int argc, char *argv[]) {
       r.Compile(olevel);
       result[i] = r.FullMatch(test[i].text) == test[i].result;
     } else {
-      regen::ParallelDFA pdfa(r.expr_root(), r.state_exprs(), thread_num);
+      regen::SSFA pdfa(r.expr_root(), r.state_exprs(), thread_num);
       pdfa.Compile(olevel);
       result[i] = pdfa.FullMatch(test[i].text) == test[i].result;
     }

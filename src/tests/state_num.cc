@@ -1,5 +1,5 @@
 #include "../regex.h"
-#include "../paralleldfa.h"
+#include "../ssfa.h"
 
 int main(int argc, char *argv[]) {
   std::string regex;
@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
   }
   if (s) {
     r.Compile(regen::O0);  
-    regen::ParallelDFA pdfa(r.dfa());
+    regen::SSFA pdfa(r.dfa());
     printf("PDFA(from DFA) state num: %"PRIuS"\n", pdfa.size());
   }
 

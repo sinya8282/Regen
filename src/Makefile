@@ -11,7 +11,7 @@ endif
 
 CC=g++
 CFLAGS=-O3 -Wall -g3 -fno-operator-names $(REGENFLAGS)
-SRC=regex.cc expr.cc exprutil.cc dfa.cc paralleldfa.cc generator.cc 
+SRC=regex.cc expr.cc exprutil.cc dfa.cc ssfa.cc generator.cc 
 OBJS=$(SRC:.cc=.o)
 
 all: regen fullmatch state_num test.o bench.o
@@ -41,7 +41,7 @@ bench.o: tests/bench.cc $(OBJS)
 	$(CC) $(CFLAGS) -c $<
 
 clean:
-	rm -f $(OBJS) test.o bench.o paralleldfa.h.gch regen test bench fullmatch state_num
+	rm -rf $(OBJS) test.o bench.o ssfa.h.gch regen test bench fullmatch state_num *.dSYM
 
 depend:
 	sed '/^# DO NOT DELETE THIS LINE/q' Makefile > tmp
@@ -49,11 +49,11 @@ depend:
 	mv tmp Makefile
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
-regex.o: regex.cc regex.h util.h expr.h exprutil.h dfa.h paralleldfa.h
+regex.o: regex.cc regex.h util.h expr.h exprutil.h dfa.h ssfa.h
 expr.o: expr.cc expr.h util.h
 exprutil.o: exprutil.cc exprutil.h expr.h util.h
 dfa.o: dfa.cc dfa.h util.h
-paralleldfa.o: paralleldfa.cc paralleldfa.h regex.h util.h expr.h \
+ssfa.o: ssfa.cc ssfa.h regex.h util.h expr.h \
   exprutil.h dfa.h
 generator.o: generator.cc generator.h regex.h util.h expr.h exprutil.h \
-  dfa.h paralleldfa.h
+  dfa.h ssfa.h

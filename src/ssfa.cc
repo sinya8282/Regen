@@ -1,11 +1,11 @@
 #ifdef REGEN_ENABLE_PARALLEL
-#include "paralleldfa.h"
+#include "ssfa.h"
 #include <boost/thread.hpp>
 #include <boost/bind.hpp>
 
 namespace regen {
 
-ParallelDFA::ParallelDFA(Expr *expr_root, const std::vector<StateExpr*> &state_exprs, std::size_t thread_num):
+SSFA::SSFA(Expr *expr_root, const std::vector<StateExpr*> &state_exprs, std::size_t thread_num):
     nfa_size_(state_exprs.size()),
     dfa_size_(0),
     thread_num_(thread_num)
@@ -16,29 +16,29 @@ ParallelDFA::ParallelDFA(Expr *expr_root, const std::vector<StateExpr*> &state_e
     start_states_.insert((*i)->state_id());
   }
 
-  ParallelTransition parallel_transition;
-  std::map<ParallelTransition, int> pdfa_map;
-  std::queue<ParallelTransition> queue;
-  ParallelTransition::iterator iter;
+  SSTransition sst;
+  std::map<SSTransition, int> pdfa_map;
+  std::queue<SSTransition> queue;
+  SSTransition::iterator iter;
   std::size_t pdfa_id = 0;
 
-  pdfa_map[parallel_transition] = DFA::REJECT;
+  pdfa_map[sst] = DFA::REJECT;
 
   for (std::size_t i = 0; i < nfa_size_; i++) {
-    parallel_transition[i].insert(i);
+    sst[i].insert(i);
   }
 
-  pdfa_map[parallel_transition] = pdfa_id++;
-  queue.push(parallel_transition);
+  pdfa_map[sst] = pdfa_id++;
+  queue.push(sst);
 
   while (!queue.empty()) {
-    parallel_transition = queue.front();
-    parallel_transitions_.push_back(parallel_transition);
+    sst = queue.front();
+    sst_.push_back(sst);
     queue.pop();
-    std::vector<ParallelTransition> transition(256);
+    std::vector<SSTransition> transition(256);
 
-    iter = parallel_transition.begin();
-    while (iter != parallel_transition.end()) {
+    iter = sst.begin();
+    while (iter != sst.end()) {
       int start = (*iter).first;
       std::set<std::size_t> &currents = (*iter).second;
       for (std::set<std::size_t>::iterator i = currents.begin(); i != currents.end(); ++i) {
@@ -99,7 +99,7 @@ ParallelDFA::ParallelDFA(Expr *expr_root, const std::vector<StateExpr*> &state_e
     bool has_reject = false;
     
     for (std::size_t c = 0; c < 256; c++) {
-      ParallelTransition &next = transition[c];
+      SSTransition &next = transition[c];
       if (next.empty()) {
         has_reject = true;
         continue;
@@ -116,7 +116,7 @@ ParallelDFA::ParallelDFA(Expr *expr_root, const std::vector<StateExpr*> &state_e
   }
 }
 
-ParallelDFA::ParallelDFA(const DFA &dfa, std::size_t thread_num):
+SSFA::SSFA(const DFA &dfa, std::size_t thread_num):
     nfa_size_(0),
     dfa_size_(dfa.size()),
     thread_num_(thread_num)
@@ -125,36 +125,36 @@ ParallelDFA::ParallelDFA(const DFA &dfa, std::size_t thread_num):
 
   start_states_.insert(0);
   
-  ParallelDFATransition parallel_transition;
-  std::map<ParallelDFATransition, int> pdfa_map;
-  std::queue<ParallelDFATransition> queue;
-  ParallelDFATransition::iterator iter;
+  SSDTransition ssdt;
+  std::map<SSDTransition, int> pdfa_map;
+  std::queue<SSDTransition> queue;
+  SSDTransition::iterator iter;
   std::size_t pdfa_id = 0;
 
-  pdfa_map[parallel_transition] = DFA::REJECT;
+  pdfa_map[ssdt] = DFA::REJECT;
 
   for (std::size_t i = 0; i < dfa_size_; i++) {
-    parallel_transition[i] = i;
+    ssdt[i] = i;
   }
 
-  pdfa_map[parallel_transition] = pdfa_id++;
-  queue.push(parallel_transition);
+  pdfa_map[ssdt] = pdfa_id++;
+  queue.push(ssdt);
 
   while (!queue.empty()) {
-    parallel_transition = queue.front();
-    ParallelTransition parallel_transition_;
-    for (iter = parallel_transition.begin(); iter != parallel_transition.end(); ++iter) {
-      parallel_transition_[(*iter).first].insert((*iter).second);
+    ssdt = queue.front();
+    SSTransition sst;
+    for (iter = ssdt.begin(); iter != ssdt.end(); ++iter) {
+      sst[(*iter).first].insert((*iter).second);
     }
-    parallel_transitions_.push_back(parallel_transition_);
+    sst_.push_back(sst);
     queue.pop();
-    std::vector<ParallelDFATransition> transition(256);
+    std::vector<SSDTransition> transition(256);
     
-    iter = parallel_transition.begin();
-    while (iter != parallel_transition.end()) {
+    iter = ssdt.begin();
+    while (iter != ssdt.end()) {
       int start = (*iter).first;
       int current = (*iter).second;
-      const Transition &trans = dfa.GetTransition(current);
+      const DFA::Transition &trans = dfa.GetTransition(current);
       for (std::size_t c = 0; c < 256; c++) {
         int next = trans[c];
         if (next != DFA::REJECT) {
@@ -169,7 +169,7 @@ ParallelDFA::ParallelDFA(const DFA &dfa, std::size_t thread_num):
     bool has_reject = false;
     
     for (std::size_t c = 0; c < 256; c++) {
-      ParallelDFATransition &next = transition[c];
+      SSDTransition &next = transition[c];
       if (next.empty()) {
         has_reject = true;
         continue;
@@ -188,13 +188,13 @@ ParallelDFA::ParallelDFA(const DFA &dfa, std::size_t thread_num):
 }
 
 void
-ParallelDFA::FullMatchTask(TaskArg targ) const
+SSFA::FullMatchTask(TaskArg targ) const
 {
   const unsigned char *str = targ.str;
   const unsigned char *end = targ.end;
 
   if (olevel_ >= O1) {
-    parallel_states_[targ.task_id] = CompiledFullMatch(str, end);
+    partial_results_[targ.task_id] = CompiledFullMatch(str, end);
     return;
   }
   
@@ -202,12 +202,12 @@ ParallelDFA::FullMatchTask(TaskArg targ) const
 
   while (str != end && (state = transition_[state][*str++]) != DFA::REJECT);
 
-  parallel_states_[targ.task_id] = state;
+  partial_results_[targ.task_id] = state;
   return;
 }
 
 bool
-ParallelDFA::FullMatch(const unsigned char *str, const unsigned char *end) const
+SSFA::FullMatch(const unsigned char *str, const unsigned char *end) const
 {
   std::size_t thread_num = thread_num_;
   if (end-str <= 2)  {
@@ -215,7 +215,7 @@ ParallelDFA::FullMatch(const unsigned char *str, const unsigned char *end) const
   } else if ((std::size_t)(end-str) < thread_num) {
     thread_num = end-str;
   }
-  parallel_states_.resize(thread_num);
+  partial_results_.resize(thread_num);
   boost::thread *threads[thread_num];
   std::size_t task_string_length = (end-str) / thread_num;
   std::size_t remainder_length = (end-str) % thread_num;
@@ -230,7 +230,7 @@ ParallelDFA::FullMatch(const unsigned char *str, const unsigned char *end) const
     targ.task_id = i;
     threads[i] = new boost::thread(
         boost::bind(
-            boost::bind(&regen::ParallelDFA::FullMatchTask, this, _1),
+            boost::bind(&regen::SSFA::FullMatchTask, this, _1),
             targ));
     str_ = end_;
   }
@@ -241,13 +241,13 @@ ParallelDFA::FullMatch(const unsigned char *str, const unsigned char *end) const
 
   for (std::size_t i = 0; i < thread_num; i++) {
     threads[i]->join();
-    if ((pstate = parallel_states_[i]) == DFA::REJECT) {
+    if ((pstate = partial_results_[i]) == DFA::REJECT) {
       states.clear();
       break;
     }
     for (std::set<std::size_t>::iterator i = states.begin(); i != states.end(); ++i) {
-      ParallelTransition::const_iterator iter = parallel_transitions_[pstate].find(*i);
-      if (iter == parallel_transitions_[pstate].end()) continue;
+      SSTransition::const_iterator iter = sst_[pstate].find(*i);
+      if (iter == sst_[pstate].end()) continue;
       next_states.insert((*iter).second.begin(), (*iter).second.end());
     }
     states.swap(next_states);
