@@ -50,6 +50,7 @@ private:
   const std::string regex_;
   Expr *expr_root_;
   std::stack<const char *> parse_stack_;
+  bool macro_expand_;
   std::size_t recursive_depth_;
   std::size_t recursive_limit_;
   std::vector<StateExpr*> state_exprs_;

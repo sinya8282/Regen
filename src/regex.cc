@@ -23,6 +23,7 @@ namespace regen {
 
 Regex::Regex(const std::string &regex, std::size_t recursive_limit):
     regex_(regex),
+    macro_expand_(false),
     recursive_limit_(recursive_limit),
     involved_char_(std::bitset<256>()),
     parse_ptr_(regex.c_str()),
@@ -42,7 +43,11 @@ Expr::Type Regex::lex()
     } else {
       parse_ptr_ = parse_stack_.top();
       parse_stack_.pop();
-      recursive_depth_--;
+      if (macro_expand_) {
+        macro_expand_ = false;
+      } else {
+        recursive_depth_--;
+      }
       token_type_ = lex();
     }
   } else switch (parse_lit_ = *parse_ptr_++) {
@@ -135,9 +140,19 @@ Expr::Type Regex::lex()
         break;        
       }
       case '\\':
-        token_type_ = Expr::kLiteral;
-        if (*parse_ptr_ == '\0') exitmsg("bad '\\'");
         parse_lit_ = *parse_ptr_++;
+        switch (parse_lit_) {
+          case '\0': exitmsg("bad '\\'");
+          case 'd': {
+            parse_stack_.push(parse_ptr_);
+            parse_ptr_ = "[0-9]";
+            token_type_ = lex();
+            break;
+          }
+          default:
+            token_type_ = Expr::kLiteral;
+            break;
+        }
         break;
       default:
         token_type_ = Expr::kLiteral;
@@ -602,7 +617,7 @@ bool Regex::MakeDFA(Expr* expr_root, DFA &dfa, int limit, std::size_t neop)
     DFA::Transition &dfa_transition = dfa.get_new_transition();
     std::set<DFA::state_t> dst_state;
     bool has_reject = false;
-    // only support Most-Left-Shortest matching
+    // only Leftmost-Shortest matching
     //if (is_accept) goto settransition;
     
     for (DFA::state_t i = 0; i < 256; i++) {
