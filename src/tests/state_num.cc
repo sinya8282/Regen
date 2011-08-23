@@ -4,16 +4,29 @@
 int main(int argc, char *argv[]) {
   std::string regex;
   int opt;
+  bool n,d,s;
+  n = d = s = false;
 
-  while ((opt = getopt(argc, argv, "f:")) != -1) {
+  while ((opt = getopt(argc, argv, "f:nds")) != -1) {
     switch(opt) {
       case 'f': {
         std::ifstream ifs(optarg);
         ifs >> regex;
         break;
       }
+      case 'n':
+        n = true;
+        break;
+      case 'd':
+        d = true;
+        break;
+      case 's':
+        s = true;
+        break;
     }
   }
+
+  if (!(n || d || s)) n = d = s = true;
   
   if (regex.empty()) {
     if (optind >= argc) {
@@ -24,11 +37,19 @@ int main(int argc, char *argv[]) {
   }
 
   regen::Regex r = regen::Regex(regex);
-  r.Compile(regen::O0);  
-  regen::ParallelDFA pdfaD(r.dfa());
 
-  printf("NFA state num:  %"PRIuS"\nDFA state num: %"PRIuS"\nPDFA(from DFA) state num: %"PRIuS"\n",
-         r.state_exprs().size(), r.dfa().size(), pdfaD.size());
+  if (n) {
+    printf("NFA state num:  %"PRIuS"\n", r.state_exprs().size());
+  }
+  if (d) {
+    r.Compile(regen::O0);  
+    printf("DFA state num: %"PRIuS"\n", r.dfa().size());
+  }
+  if (s) {
+    r.Compile(regen::O0);  
+    regen::ParallelDFA pdfa(r.dfa());
+    printf("PDFA(from DFA) state num: %"PRIuS"\n", pdfa.size());
+  }
 
   return 0;
 }
