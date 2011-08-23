@@ -6,7 +6,7 @@ namespace Generator {
 
 char* normalize(int c, char *buf)
 {
-  int index = 0;
+  std::size_t index = 0;
   if (' ' <= c && c <= '~') {
     if (c == '"') {
         buf[index++] = '\\';

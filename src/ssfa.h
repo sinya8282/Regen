@@ -16,8 +16,8 @@ public:
   SSFA(const DFA &dfa, std::size_t thread_num = 2);
   std::size_t thread_num() const { return thread_num_; }
   void thread_num(std::size_t thread_num) { thread_num_ = thread_num; }
-  typedef std::map<std::size_t, std::set<std::size_t> > SSTransition;
-  typedef std::map<std::size_t, int> SSDTransition;
+  typedef std::map<state_t, std::set<state_t> > SSTransition;
+  typedef std::map<state_t, state_t> SSDTransition;
   void Minimize();
   bool FullMatch(const std::string &str) const { return FullMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
   bool FullMatch(const unsigned char *str, const unsigned char *end) const;
@@ -28,10 +28,10 @@ public:
   };
 private:
   void FullMatchTask(TaskArg targ) const;
-  mutable std::vector<int> partial_results_;
+  mutable std::vector<state_t> partial_results_;
   std::size_t nfa_size_;
   std::size_t dfa_size_;
-  std::set<std::size_t> start_states_;
+  std::set<state_t> start_states_;
   std::size_t thread_num_;
   std::vector<bool> fa_accepts_;
   std::vector<SSTransition> sst_;

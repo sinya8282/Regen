@@ -7,12 +7,12 @@ DFA::Transition& DFA::get_new_transition() {
   return transition_.back();
 }
 
-void DFA::set_state_info(bool accept, int default_next, std::set<int> &dst_state)
+void DFA::set_state_info(bool accept, state_t default_next, std::set<state_t> &dst_state)
 {
   accepts_.push_back(accept);
   defaults_.push_back(default_next);
   dst_states_.push_back(dst_state);
-  std::set<int>::iterator iter = dst_state.begin();
+  std::set<state_t>::iterator iter = dst_state.begin();
   while (iter != dst_state.end()) {
     if (*iter == DFA::REJECT) {
       ++iter;
@@ -26,12 +26,12 @@ void DFA::set_state_info(bool accept, int default_next, std::set<int> &dst_state
   }
 }
 
-void DFA::int2label(int state, char* labelbuf) const
+void DFA::state2label(state_t state, char* labelbuf) const
 {
   if (state == DFA::REJECT) {
     strcpy(labelbuf, "reject");
   } else {
-    assert(0 <= state && state <= (int)size());
+    assert(0 <= state && state <= (state_t)size());
     sprintf(labelbuf, "s%d", state);
   }
 }
@@ -46,7 +46,7 @@ DFA::Minimize()
 void
 DFA::Complement()
 {
-  int reject = DFA::REJECT;
+  state_t reject = DFA::REJECT;
   std::size_t final = size();
   for  (std::size_t state = 0; state < final; state++) {
     accepts_[state] = !accepts_[state];
@@ -56,7 +56,7 @@ DFA::Complement()
         if (reject == DFA::REJECT) {
           reject = transition_.size();
           transition_.push_back(Transition(reject));
-          std::set<int> dst_states;
+          std::set<state_t> dst_states;
           dst_states.insert(reject);
           set_state_info(true, reject, dst_states);
         }
@@ -138,7 +138,7 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 64):
   // state code generation, and indexing every states address.
   char labelbuf[100];
   for (std::size_t i = 0; i < dfa.size(); i++) {
-    dfa.int2label(i, labelbuf);
+    dfa.state2label(i, labelbuf);
     L(labelbuf);
     states_addr[i] = getCurr();
     // can transition without table lookup ?
@@ -163,7 +163,7 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 64):
       bool jn_flag = false;
       transition_depth++;
       assert(at.next1 != DFA::None);
-      dfa.int2label(at.next1, labelbuf);
+      dfa.state2label(at.next1, labelbuf);
       if (at.next1 != DFA::REJECT) {
         jn_flag = true;  
       }
@@ -204,7 +204,7 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 64):
             jnc("reject", T_NEAR);
           }
         }
-        dfa.int2label(at.next2, labelbuf);
+        dfa.state2label(at.next2, labelbuf);
         if (transition_depth == inline_level) {
           jmp(labelbuf, T_NEAR);
         } else {
@@ -250,9 +250,9 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 64):
   for (std::size_t i = 0; i < dfa.size(); i++) {
     const DFA::Transition &trans = dfa.GetTransition(i);
     for (int c = 0; c < 256; c++) {
-      int next = trans[c];
+      DFA::state_t next = trans[c];
       transition_table_ptr[i*256+c] =
-          (next  == -1 ? reject_state_addr : states_addr[next]);
+          (next  == DFA::REJECT ? reject_state_addr : states_addr[next]);
     }
   }
 }
@@ -262,7 +262,7 @@ bool DFA::EliminateBranch()
   alter_trans_.resize(size());
   for (std::size_t state = 0; state < size(); state++) {
     const Transition &trans = transition_[state];
-    int next1 = trans[0], next2 = DFA::None;
+    state_t next1 = trans[0], next2 = DFA::None;
     unsigned int begin = 0, end = 256;
     int c;
     for (c = 1; c < 256 && next1 == trans[c]; c++);
@@ -297,7 +297,7 @@ bool DFA::Reduce()
   for (std::size_t state = 0; state < size(); state++) {
     // Pick inlining region (make degenerate graph).
     if (inlined[state]) continue;
-    int current = state, next;
+    state_t current = state, next;
     for(;;) {
       if (dst_states_[current].size() > 2 ||
           dst_states_[current].size() == 0) break;
@@ -333,7 +333,7 @@ bool DFA::Compile(Optimize olevel)
     }
   }
   xgen_ = new XbyakCompiler(*this);
-  CompiledFullMatch = (int (*)(const unsigned char *, const unsigned char *))xgen_->getCode();
+  CompiledFullMatch = (state_t (*)(const unsigned char *, const unsigned char *))xgen_->getCode();
   if (olevel_ < O1) olevel_ = O1;
   return olevel == olevel_;
 }
@@ -345,7 +345,7 @@ bool DFA::Compile(Optimize) { return false; }
 
 bool DFA::FullMatch(const unsigned char *str, const unsigned char *end) const
 {
-  int state = 0, next;
+  state_t state = 0, next;
 
   if (olevel_ >= O1) {
     state = CompiledFullMatch(str, end);

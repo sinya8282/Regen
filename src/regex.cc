@@ -531,7 +531,7 @@ Regex::e4()
 
 bool Regex::MakeDFA(Expr* expr_root, DFA &dfa, int limit, std::size_t neop)
 {
-  std::size_t dfa_id = 0;
+  DFA::state_t dfa_id = 0;
 
   typedef std::set<StateExpr*> NFA;
   
@@ -600,12 +600,12 @@ bool Regex::MakeDFA(Expr* expr_root, DFA &dfa, int limit, std::size_t neop)
     }
 
     DFA::Transition &dfa_transition = dfa.get_new_transition();
-    std::set<int> dst_state;
+    std::set<DFA::state_t> dst_state;
     bool has_reject = false;
     // only support Most-Left-Shortest matching
     //if (is_accept) goto settransition;
     
-    for (int i = 0; i < 256; i++) {
+    for (DFA::state_t i = 0; i < 256; i++) {
       NFA &next = transition[i];
       if (next.empty()) {
         has_reject = true;
@@ -614,7 +614,7 @@ bool Regex::MakeDFA(Expr* expr_root, DFA &dfa, int limit, std::size_t neop)
 
       if (dfa_map.find(next) == dfa_map.end()) {
         dfa_map[next] = dfa_id++;
-        if (limit != -1 && (int)dfa_id > limit) {
+        if (limit >= 0 && dfa_id > (DFA::state_t)limit) {
           dfa_failure_ = true;
           return false;
         }
@@ -644,7 +644,7 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa)
     const DFA::Transition &transition = dfa.GetTransition(i);
     GNFATrans &gtransition = gnfa_transition[i];
     for (int c = 0; c < 256; c++) {
-      int next = transition[c];
+      DFA::state_t next = transition[c];
       if (next != DFA::REJECT) {
         Expr *e;
         if (c < 255 && next == transition[c+1]) {
@@ -833,7 +833,7 @@ bool Regex::FullMatchNFA(const unsigned char *begin, const unsigned char *end) c
   std::map<std::size_t, NFA> nfa_cache;
   std::map<NFA, std::size_t>::iterator dfa_iter;
   std::size_t dfa_id = 0;
-  int dfa_state = 0, dfa_next;
+  DFA::state_t dfa_state = 0, dfa_next;
 
   states.insert(states.begin(), expr_root_->transition().first.begin(), expr_root_->transition().first.end());
   nfa_cache[dfa_id] = states;
