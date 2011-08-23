@@ -17,18 +17,18 @@ SSFA::SSFA(Expr *expr_root, const std::vector<StateExpr*> &state_exprs, std::siz
   }
 
   SSTransition sst;
-  std::map<SSTransition, int> pdfa_map;
+  std::map<SSTransition, int> ssfa_map;
   std::queue<SSTransition> queue;
   SSTransition::iterator iter;
-  std::size_t pdfa_id = 0;
+  std::size_t ssfa_id = 0;
 
-  pdfa_map[sst] = DFA::REJECT;
+  ssfa_map[sst] = DFA::REJECT;
 
   for (std::size_t i = 0; i < nfa_size_; i++) {
     sst[i].insert(i);
   }
 
-  pdfa_map[sst] = pdfa_id++;
+  ssfa_map[sst] = ssfa_id++;
   queue.push(sst);
 
   while (!queue.empty()) {
@@ -104,12 +104,12 @@ SSFA::SSFA(Expr *expr_root, const std::vector<StateExpr*> &state_exprs, std::siz
         has_reject = true;
         continue;
       }
-      if (pdfa_map.find(next) == pdfa_map.end()) {
-        pdfa_map[next] = pdfa_id++;
+      if (ssfa_map.find(next) == ssfa_map.end()) {
+        ssfa_map[next] = ssfa_id++;
         queue.push(next);
       }
-      dfa_transition[c] = pdfa_map[next];
-      dst_state.insert(pdfa_map[next]);
+      dfa_transition[c] = ssfa_map[next];
+      dst_state.insert(ssfa_map[next]);
     }
     if (has_reject) dst_state.insert(DFA::REJECT);
     set_state_info(false ,DFA::REJECT, dst_state);
@@ -126,18 +126,18 @@ SSFA::SSFA(const DFA &dfa, std::size_t thread_num):
   start_states_.insert(0);
   
   SSDTransition ssdt;
-  std::map<SSDTransition, int> pdfa_map;
+  std::map<SSDTransition, int> ssfa_map;
   std::queue<SSDTransition> queue;
   SSDTransition::iterator iter;
-  std::size_t pdfa_id = 0;
+  std::size_t ssfa_id = 0;
 
-  pdfa_map[ssdt] = DFA::REJECT;
+  ssfa_map[ssdt] = DFA::REJECT;
 
   for (std::size_t i = 0; i < dfa_size_; i++) {
     ssdt[i] = i;
   }
 
-  pdfa_map[ssdt] = pdfa_id++;
+  ssfa_map[ssdt] = ssfa_id++;
   queue.push(ssdt);
 
   while (!queue.empty()) {
@@ -175,12 +175,12 @@ SSFA::SSFA(const DFA &dfa, std::size_t thread_num):
         continue;
       }
 
-      if (pdfa_map.find(next) == pdfa_map.end()) {
-        pdfa_map[next] = pdfa_id++;
+      if (ssfa_map.find(next) == ssfa_map.end()) {
+        ssfa_map[next] = ssfa_id++;
         queue.push(next);
       }
-      dfa_transition[c] = pdfa_map[next];
-      dst_state.insert(pdfa_map[next]);
+      dfa_transition[c] = ssfa_map[next];
+      dst_state.insert(ssfa_map[next]);
     }
     if (has_reject) dst_state.insert(DFA::REJECT);
     set_state_info(false ,DFA::REJECT, dst_state);
