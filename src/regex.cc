@@ -839,7 +839,6 @@ bool Regex::FullMatchNFA(const unsigned char *begin, const unsigned char *end) c
   typedef std::vector<StateExpr*> NFA;
   std::size_t nfa_size = state_exprs_.size();
   std::vector<uint32_t> next_states_flag(nfa_size);
-  uint32_t step = 1;
   NFA states, next_states;
   NFA::iterator iter;
   std::set<StateExpr*>::iterator next_iter;
@@ -847,8 +846,7 @@ bool Regex::FullMatchNFA(const unsigned char *begin, const unsigned char *end) c
   std::map<NFA, std::size_t> dfa_cache;
   std::map<std::size_t, NFA> nfa_cache;
   std::map<NFA, std::size_t>::iterator dfa_iter;
-  std::size_t dfa_id = 0;
-  DFA::state_t dfa_state = 0, dfa_next;
+  DFA::state_t dfa_id = 0, step = 1, dfa_state = 0, dfa_next;
 
   states.insert(states.begin(), expr_root_->transition().first.begin(), expr_root_->transition().first.end());
   nfa_cache[dfa_id] = states;
@@ -864,11 +862,13 @@ bool Regex::FullMatchNFA(const unsigned char *begin, const unsigned char *end) c
     states = nfa_cache[dfa_state];
     if (p >= end) break;
 
-    /* when cache miss, trying to construct 1-DFA state. */
+    /* trying to construct 1-DFA(cache missed) state. */
     for (iter = states.begin(); iter != states.end(); ++iter) {
       StateExpr *s = *iter;
       if (s->Match(*p)) {
-        for (next_iter = s->transition().follow.begin(); next_iter != s->transition().follow.end(); ++next_iter) {
+        for (next_iter = s->transition().follow.begin();
+             next_iter != s->transition().follow.end();
+             ++next_iter) {
           if (next_states_flag[(*next_iter)->state_id()] != step) {
             next_states_flag[(*next_iter)->state_id()] = step;
             next_states.push_back(*next_iter);
