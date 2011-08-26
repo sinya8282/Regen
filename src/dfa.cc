@@ -48,7 +48,7 @@ DFA::Complement()
 {
   state_t reject = DFA::REJECT;
   std::size_t final = size();
-  for  (std::size_t state = 0; state < final; state++) {
+  for (std::size_t state = 0; state < final; state++) {
     accepts_[state] = !accepts_[state];
     bool to_reject = false;
     for (std::size_t i = 0; i < 256; i++) {

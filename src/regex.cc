@@ -146,6 +146,7 @@ Expr::Type Regex::lex()
           case 'd': {
             parse_stack_.push(parse_ptr_);
             parse_ptr_ = "[0-9]";
+            macro_expand_ = true;
             token_type_ = lex();
             break;
           }
