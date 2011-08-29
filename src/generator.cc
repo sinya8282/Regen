@@ -4,7 +4,7 @@ namespace regen {
 
 namespace Generator {
 
-char* normalize(int c, char *buf)
+unsigned char* normalize(unsigned int c, unsigned char *buf)
 {
   std::size_t index = 0;
   if (' ' <= c && c <= '~') {
@@ -14,7 +14,7 @@ char* normalize(int c, char *buf)
     buf[index++] = c;
     buf[index] = '\0';
   } else {
-    sprintf(buf, "\\x%02x", c);
+    sprintf((char *)buf, "\\x%02x", (unsigned char)c);
   }
   return buf;
 }
@@ -24,7 +24,7 @@ void DotGenerate(const Regex &regex)
   static const char* const normal = "circle";
   static const char* const accept = "doublecircle";
   static const char* const thema  = "fillcolor=lightsteelblue1, style=filled, color = navyblue ";
-  char buf[10];
+  unsigned char buf[10];
   puts("digraph DFA {\n  rankdir=\"LR\"");
   const DFA &dfa = regex.dfa();
   for (std::size_t i = 0; i < dfa.size(); i++) {
@@ -34,7 +34,7 @@ void DotGenerate(const Regex &regex)
   for (std::size_t state = 0; state < dfa.size(); state++) {
     const DFA::Transition &transition = dfa.GetTransition(state);
 
-    for (int input = 0; input < 256; input++) {
+    for (unsigned int input = 0; input < 256; input++) {
       if (transition[input] != DFA::REJECT &&
           transition[input] != dfa.GetDefaultNext(state)) {
         printf("  q%"PRIuS" -> q%d [label=\"", state, transition[input]);

@@ -120,15 +120,15 @@ private:
 
 class Literal: public StateExpr {
 public:
-  Literal(const char literal): literal_(literal) {}
+  Literal(const unsigned char literal): literal_(literal) {}
   ~Literal() {}
-  char literal() { return literal_; }
+  unsigned char literal() { return literal_; }
   Expr::Type type() { return Expr::kLiteral; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   bool Match(const unsigned char c) { return c == literal_; };
   Expr *Clone() { return new Literal(literal_); };
 private:
-  const char literal_;
+  const unsigned char literal_;
   DISALLOW_COPY_AND_ASSIGN(Literal);
 };
 

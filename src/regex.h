@@ -21,6 +21,7 @@ public:
   Expr* CreateRegexFromDFA(DFA &dfa);
   void DumpExprTree() const;
   bool Compile(Optimize olevel = O3);
+  bool MinimizeDFA() { if (has_dfa_) { dfa_.Minimize(); return true; } else return false; }
   bool FullMatch(const std::string &string) const;
   bool FullMatch(const unsigned char *begin, const unsigned char *end) const;
   bool FullMatchNFA(const unsigned char *begin, const unsigned char *end) const;
@@ -37,6 +38,8 @@ public:
 
 private:
   Expr::Type lex();
+  void lex_metachar();
+  void lex_repetition();
   Expr* e0();
   Expr* e1();
   Expr* e2();
@@ -63,7 +66,7 @@ private:
 
   Expr::Type token_type_;
   const char *parse_ptr_;
-  char parse_lit_;
+  unsigned char parse_lit_;
   int lower_repetition_, upper_repetition_;
   std::size_t expr_id_;
   std::size_t state_id_;

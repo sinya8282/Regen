@@ -85,80 +85,123 @@ Expr::Type Regex::lex()
         }
         break;
       }
-      case '{': {
-        const char *ptr = parse_ptr_;
-        lower_repetition_ = 0;
-        if ('0' <= *ptr && *ptr <= '9') {
-          do {
-            lower_repetition_ *= 10;
-            lower_repetition_ += *ptr++ - '0';
-          } while ('0' <= *ptr && *ptr <= '9');
-        } else if (*ptr == ',') {
-          lower_repetition_ = 0;
-        } else {
-          goto invalid;
-        }
-        if (*ptr == ',') {
-          upper_repetition_ = 0;
-          ptr++;
-          if ('0' <= *ptr && *ptr <= '9') {
-            do {
-              upper_repetition_ *= 10;
-              upper_repetition_ += *ptr++ - '0';
-            } while ('0' <= *ptr && *ptr <= '9');
-            if (*ptr != '}') {
-              goto invalid;
-            }
-          } else if (*ptr == '}') {
-            upper_repetition_ = -1;
-          } else {
-            goto invalid;
-          }
-        } else if (*ptr == '}') {
-          upper_repetition_ = lower_repetition_;
-        } else {
-          goto invalid;
-        }
-        parse_ptr_ = ++ptr;
-        if (lower_repetition_ == 0 && upper_repetition_ == -1) {
-          token_type_ = Expr::kStar;
-        } else if (lower_repetition_ == 1 && upper_repetition_ == -1) {
-          token_type_ = Expr::kPlus;
-        } else if (lower_repetition_ == 0 && upper_repetition_ == 1) {
-          token_type_ = Expr::kQmark;
-        } else if (lower_repetition_ == 1 && upper_repetition_ == 1) {
-          token_type_ = lex();
-        } else if (upper_repetition_ != -1 && upper_repetition_ < lower_repetition_) {
-          exitmsg("Invalid repetition quantifier {%d,%d}",
-                  lower_repetition_, upper_repetition_);
-        } else {
-          token_type_ = Expr::kRepetition;
-        }
+      case '{':
+        lex_repetition();
         break;
-     invalid:
-        token_type_ = Expr::kLiteral;
-        break;        
-      }
       case '\\':
-        parse_lit_ = *parse_ptr_++;
-        switch (parse_lit_) {
-          case '\0': exitmsg("bad '\\'");
-          case 'd': {
-            parse_stack_.push(parse_ptr_);
-            parse_ptr_ = "[0-9]";
-            macro_expand_ = true;
-            token_type_ = lex();
-            break;
-          }
-          default:
-            token_type_ = Expr::kLiteral;
-            break;
-        }
+        lex_metachar();
         break;
       default:
         token_type_ = Expr::kLiteral;
   }
   return token_type_;
+}
+
+void Regex::lex_metachar()
+{
+  parse_lit_ = *parse_ptr_++;
+  switch (parse_lit_) {
+    case '\0': exitmsg("bad '\\'");
+    case 'd':
+      parse_stack_.push(parse_ptr_);
+      parse_ptr_ = "[0-9]";
+      macro_expand_ = true;
+      token_type_ = lex();
+      break;
+    case 'D':
+      parse_stack_.push(parse_ptr_);
+      parse_ptr_ = "[^0-9]";
+      macro_expand_ = true;
+      token_type_ = lex();
+      break;
+    case 'n':
+      parse_lit_ = '\n';
+      token_type_ = Expr::kLiteral;
+    case 'x': {
+      unsigned char hex = 0;
+      for (int i = 0; i < 2; i++) {
+        parse_lit_ = *parse_ptr_++;
+        hex <<= 4;
+        if ('A' <= parse_lit_ && parse_lit_ <= 'F') {
+          hex += parse_lit_ - 'A' + 10;
+        } else if ('a' <= parse_lit_ && parse_lit_ <= 'f') {
+          hex += parse_lit_ - 'a' + 10;
+        } else if ('0' <= parse_lit_ && parse_lit_ <= '9') {
+          hex += parse_lit_ - '0';
+        } else {
+          if (i == 0) {
+            hex = 0;
+          } else {
+            hex >>= 4;
+          }
+          parse_ptr_--;
+          break;
+        }
+      }
+      token_type_ = Expr::kLiteral;
+      parse_lit_ = hex;
+      break;
+    }
+    default:
+      token_type_ = Expr::kLiteral;
+      break;
+  }
+}
+
+void Regex::lex_repetition()
+{
+  const char *ptr = parse_ptr_;
+  lower_repetition_ = 0;
+  if ('0' <= *ptr && *ptr <= '9') {
+    do {
+      lower_repetition_ *= 10;
+      lower_repetition_ += *ptr++ - '0';
+    } while ('0' <= *ptr && *ptr <= '9');
+  } else if (*ptr == ',') {
+    lower_repetition_ = 0;
+  } else {
+    goto invalid;
+  }
+  if (*ptr == ',') {
+    upper_repetition_ = 0;
+    ptr++;
+    if ('0' <= *ptr && *ptr <= '9') {
+      do {
+        upper_repetition_ *= 10;
+        upper_repetition_ += *ptr++ - '0';
+      } while ('0' <= *ptr && *ptr <= '9');
+      if (*ptr != '}') {
+        goto invalid;
+      }
+    } else if (*ptr == '}') {
+      upper_repetition_ = -1;
+    } else {
+      goto invalid;
+    }
+  } else if (*ptr == '}') {
+    upper_repetition_ = lower_repetition_;
+  } else {
+    goto invalid;
+  }
+  parse_ptr_ = ++ptr;
+  if (lower_repetition_ == 0 && upper_repetition_ == -1) {
+    token_type_ = Expr::kStar;
+  } else if (lower_repetition_ == 1 && upper_repetition_ == -1) {
+    token_type_ = Expr::kPlus;
+  } else if (lower_repetition_ == 0 && upper_repetition_ == 1) {
+    token_type_ = Expr::kQmark;
+  } else if (lower_repetition_ == 1 && upper_repetition_ == 1) {
+    token_type_ = lex();
+  } else if (upper_repetition_ != -1 && upper_repetition_ < lower_repetition_) {
+    exitmsg("Invalid repetition quantifier {%d,%d}",
+            lower_repetition_, upper_repetition_);
+  } else {
+    token_type_ = Expr::kRepetition;
+  }
+  return;
+invalid:
+  token_type_ = Expr::kLiteral;
+  return;
 }
 
 StateExpr*
@@ -251,7 +294,7 @@ void Regex::Parse()
 {
   Expr* e;
   StateExpr *eop;
-  
+
   lex();
 
   do {
