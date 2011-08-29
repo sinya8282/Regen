@@ -27,7 +27,7 @@ public:
     state_t next2;
   };
 
-  DFA(): olevel_(O0) {}
+  DFA(): minimum_(false), olevel_(O0) {}
   #if REGEN_ENABLE_XBYAK
   ~DFA() { if (olevel_ >= O1) delete xgen_; }
   #endif
@@ -60,6 +60,7 @@ protected:
   std::vector<bool> accepts_;
   std::vector<std::set<state_t> > src_states_;
   std::vector<std::set<state_t> > dst_states_;
+  bool minimum_;
   state_t (*CompiledFullMatch)(const unsigned char *, const unsigned char *);
   bool EliminateBranch();
   bool Reduce();

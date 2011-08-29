@@ -39,7 +39,106 @@ void DFA::state2label(state_t state, char* labelbuf) const
 void
 DFA::Minimize()
 {
-  // TODO
+  if (minimum_) return;
+  
+  std::vector<std::vector<bool> > distinction_table;
+  distinction_table.resize(size()-1);
+  for (state_t i = 0; i < size()-1; i++) {
+    distinction_table[i].resize(size()-i-1);
+    for (state_t j = i+1; j < size(); j++) {
+      distinction_table[i][size()-j-1] = accepts_[i] != accepts_[j];
+    }
+  }
+
+  bool distinction_flag = true;
+  while (distinction_flag) {
+    distinction_flag = false;
+    for (state_t i = 0; i < size()-1; i++) {
+      for (state_t j = i+1; j < size(); j++) {
+        if (!distinction_table[i][size()-j-1]) {
+          for (std::size_t input = 0; input < 256; input++) {
+            state_t n1, n2;
+            n1 = transition_[i][input];
+            n2 = transition_[j][input];
+            if (n1 != n2) {
+              if (n1 > n2) std::swap(n1, n2);
+              if ((n1 == REJECT || n2 == REJECT) ||
+                  distinction_table[n1][size()-n2-1]) {
+                distinction_flag = true;
+                distinction_table[i][size()-j-1] = true;
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  std::map<state_t, state_t> swap_map;
+  for (state_t i = 0; i < size()-1; i++) {
+    for (state_t j = i+1; j < size(); j++) {
+      if (swap_map.find(j) == swap_map.end()) {
+        if (!distinction_table[i][size()-j-1]) {
+          swap_map[j] = i;
+        }
+      }
+    }
+  }
+
+  if (swap_map.empty()) {
+    minimum_ = true;
+    return;
+  }
+  
+  size_t minimum_size = size() - swap_map.size();
+  std::vector<state_t> replace_map(size());
+  for (state_t s = 0, d = 0; s < size(); s++) {
+    if (swap_map.find(s) == swap_map.end()) {
+      replace_map[s] = d++;
+      if (s != replace_map[s]) {
+        transition_[replace_map[s]] = transition_[s];
+        accepts_[replace_map[s]] = accepts_[s];
+        defaults_[replace_map[s]] = defaults_[s];
+        dst_states_[replace_map[s]] = dst_states_[s];
+        src_states_[replace_map[s]] = src_states_[s];
+      }
+    } else {
+      replace_map[s] = replace_map[swap_map[s]];
+    }
+  }
+
+  std::set<state_t>::iterator iter;
+  std::set<state_t> tmp_set;
+  for (state_t s = 0; s < minimum_size; s++) {
+    for (std::size_t input = 0; input < 256; input++) {
+      state_t n = transition_[s][input];
+      if (n != REJECT) {
+        transition_[s][input] = replace_map[n];
+      }
+    }
+    if (defaults_[s] != REJECT) defaults_[s] = replace_map[defaults_[s]];
+    tmp_set.clear();
+    for (iter = dst_states_[s].begin(); iter != dst_states_[s].end(); ++iter) {
+      if (*iter != REJECT) tmp_set.insert(replace_map[*iter]);
+      else tmp_set.insert(REJECT);
+    }
+    dst_states_[s] = tmp_set;
+    tmp_set.clear();
+    for (iter = src_states_[s].begin(); iter != src_states_[s].end(); ++iter) {
+      tmp_set.insert(replace_map[*iter]);
+    }
+    src_states_[s] = tmp_set;
+  }
+
+  transition_.resize(minimum_size);
+  accepts_.resize(minimum_size);
+  defaults_.resize(minimum_size);
+  dst_states_.resize(minimum_size);
+  src_states_.resize(minimum_size);
+
+  minimum_ = true;
+  
   return;
 }
 

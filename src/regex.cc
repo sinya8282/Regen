@@ -838,8 +838,8 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa)
  *    O0: DFA based matching
  *      ~ Xbyak required ~
  *    O1: JIT-ed DFA based matching
- *    O2: optimized-JIT-ed DFA based mathing
- *    O3: optimized-JIT-ed minimum-DFA based matching
+ *    O2: transition rule optimized-JIT-ed DFA based mathing
+ *    O3: transition rule & dfa reduction optimized-JIT-ed DFA based mathing
  *         - faster -
  */
 
@@ -850,6 +850,7 @@ bool Regex::Compile(Optimize olevel) {
     int limit = state_exprs_.size();
     limit = limit * limit * limit;
     has_dfa_ = MakeDFA(expr_root_, dfa_, limit);
+    dfa_.Minimize();
   }
   if (dfa_failure_) {
     /* can not create DFA. (too many states) */
