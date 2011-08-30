@@ -18,7 +18,7 @@ public:
   void thread_num(std::size_t thread_num) { thread_num_ = thread_num; }
   typedef std::map<state_t, std::set<state_t> > SSTransition;
   typedef std::map<state_t, state_t> SSDTransition;
-  void Minimize();
+  void Minimize() {}
   bool FullMatch(const std::string &str) const { return FullMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
   bool FullMatch(const unsigned char *str, const unsigned char *end) const;
   struct TaskArg {

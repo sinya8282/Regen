@@ -48,7 +48,7 @@ public:
   state_t GetDefaultNext(std::size_t state) const { return defaults_[state]; }
   bool IsAcceptState(std::size_t state) const { return accepts_[state]; }
   void Complement();
-  void Minimize();
+  virtual void Minimize();
   bool Compile(Optimize olevel = O2);
   virtual bool FullMatch(const std::string &str) const { return FullMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
   virtual bool FullMatch(const unsigned char *str, const unsigned char *end) const;
