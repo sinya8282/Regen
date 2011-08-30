@@ -8,15 +8,10 @@ int main(int argc, char *argv[]) {
   std::string regex;
   int opt;
   int recursive_limit = 2;
-  bool parallel = false;
   Generate generate = REGEN;
 
-  while ((opt = getopt(argc, argv, "dcxepf:r:")) != -1) {
+  while ((opt = getopt(argc, argv, "dcxef:r:")) != -1) {
     switch(opt) {
-      case 'p': {
-        parallel = true;
-        break;
-      }
       case 'f': {
         std::ifstream ifs(optarg);
         ifs >> regex;

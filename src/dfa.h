@@ -13,7 +13,7 @@ public:
   enum State {
     REJECT = (state_t)-1,
     ACCEPT = (state_t)-2,
-    None   = (state_t)-3
+    NONE   = (state_t)-3
   };  
   struct Transition {
     state_t t[256];

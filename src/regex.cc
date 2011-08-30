@@ -891,7 +891,7 @@ bool Regex::FullMatchNFA(const unsigned char *begin, const unsigned char *end) c
   std::map<NFA, std::size_t> dfa_cache;
   std::map<std::size_t, NFA> nfa_cache;
   std::map<NFA, std::size_t>::iterator dfa_iter;
-  DFA::state_t dfa_id = 0, step = 1, dfa_state = 0, dfa_next;
+  DFA::state_t dfa_id = 0, step = 1, dfa_state = 0, dfa_next = DFA::NONE;
 
   states.insert(states.begin(), expr_root_->transition().first.begin(), expr_root_->transition().first.end());
   nfa_cache[dfa_id] = states;

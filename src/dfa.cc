@@ -243,7 +243,7 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 64):
     // can transition without table lookup ?
     
     const DFA::AlterTrans &at = dfa.GetAlterTrans(i);
-    if (dfa.olevel() >= O2 && at.next1 != DFA::None) {
+    if (dfa.olevel() >= O2 && at.next1 != DFA::NONE) {
       std::size_t state = i;
       std::size_t inline_level = dfa.olevel() == O3 ? dfa.inline_level(i) : 0;
       bool inlining = inline_level != 0;
@@ -261,12 +261,12 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 64):
       const DFA::AlterTrans &at = dfa.GetAlterTrans(state);
       bool jn_flag = false;
       transition_depth++;
-      assert(at.next1 != DFA::None);
+      assert(at.next1 != DFA::NONE);
       dfa.state2label(at.next1, labelbuf);
       if (at.next1 != DFA::REJECT) {
         jn_flag = true;  
       }
-      if (at.next2 == DFA::None) {
+      if (at.next2 == DFA::NONE) {
         if (!inlining) {
           inc(arg1);
           jmp(labelbuf, T_NEAR);
@@ -361,7 +361,7 @@ bool DFA::EliminateBranch()
   alter_trans_.resize(size());
   for (std::size_t state = 0; state < size(); state++) {
     const Transition &trans = transition_[state];
-    state_t next1 = trans[0], next2 = DFA::None;
+    state_t next1 = trans[0], next2 = DFA::NONE;
     unsigned int begin = 0, end = 256;
     int c;
     for (c = 1; c < 256 && next1 == trans[c]; c++);
@@ -376,7 +376,7 @@ bool DFA::EliminateBranch()
       for (++c; c < 256 && next2 == trans[c]; c++);
     }
     if (c < 256) {
-      next1 = next2 = DFA::None;
+      next1 = next2 = DFA::NONE;
     }
     AlterTrans &at = alter_trans_[state];
     at.next1 = next1;
@@ -391,7 +391,7 @@ bool DFA::EliminateBranch()
 bool DFA::Reduce()
 {
   inline_level_.resize(size());
-  src_states_[0].insert(DFA::None);
+  src_states_[0].insert(DFA::NONE);
   std::vector<bool> inlined(size());
   for (std::size_t state = 0; state < size(); state++) {
     // Pick inlining region (make degenerate graph).
@@ -405,7 +405,7 @@ bool DFA::Reduce()
       if (dst_states_[current].size() == 1 &&
           dst_states_[current].count(DFA::REJECT) == 1) break;
       next = *(dst_states_[current].lower_bound(0));
-      if (alter_trans_[next].next1 == DFA::None) break;
+      if (alter_trans_[next].next1 == DFA::NONE) break;
       if (src_states_[next].size() != 1 ||
           accepts_[next]) break;
       if (inlined[next]) break;
@@ -415,7 +415,7 @@ bool DFA::Reduce()
       inline_level_[state]++;
     }
   }
-  src_states_[0].erase(DFA::None);
+  src_states_[0].erase(DFA::NONE);
 
   return true;
 }
