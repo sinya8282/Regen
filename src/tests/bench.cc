@@ -49,20 +49,18 @@ int main(int argc, char *argv[]) {
   bench.push_back(testcase("((0123456789)_?)*", text, "((0123456789){10}_){100}", true));
 
   text = "a";
-  for (std::size_t i = 0; i < 10; i++) {
+  for (std::size_t i = 0; i < 9; i++) {
     text += text;
   }
 
-  bench.push_back(testcase("(a?){512}a{512}", text, "a{1024}", true));
+  bench.push_back(testcase("(a?){256}a{256}", text, "a{512}", true));
 
   text += "bbbbbbbbbb";
   bench.push_back(testcase(".*b.{8}b", text, "a{1024}b{10}", true));
 
-  /* fix..
   std::string regex = "http://((([a-zA-Z0-9]|[a-zA-Z0-9][-a-zA-Z0-9]*[a-zA-Z0-9])\\.)*([a-zA-Z]|[a-zA-Z][-a-zA-Z0-9]*[a-zA-Z0-9])\\.?|[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)(:[0-9]*)?(/([-_.!~*'()a-zA-Z0-9:@&=+$,]|%[0-9A-Fa-f][0-9A-Fa-f])*(;([-_.!~*'()a-zA-Z0-9:@&=+$,]|%[0-9A-Fa-f][0-9A-Fa-f])*)*(/([-_.!~*'()a-zA-Z0-9:@&=+$,]|%[0-9A-Fa-f][0-9A-Fa-f])*(;([-_.!~*'()a-zA-Z0-9:@&=+$,]|%[0-9A-Fa-f][0-9A-Fa-f])*)*)*(\\?([-_.!~*'()a-zA-Z0-9;/?:@&=+$,]|%[0-9A-Fa-f][0-9A-Fa-f])*)?)?";
   text = "http://en.wikipedia.org/wiki/Parsing_expression_grammar";
   bench.push_back(testcase(regex, text, text, true));
-  */
   
   uint64_t start, end;
   std::vector<benchresult> result(bench.size());

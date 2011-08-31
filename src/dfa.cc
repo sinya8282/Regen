@@ -90,7 +90,7 @@ DFA::Minimize()
     minimum_ = true;
     return;
   }
-  
+
   size_t minimum_size = size() - swap_map.size();
   std::vector<state_t> replace_map(size());
   for (state_t s = 0, d = 0; s < size(); s++) {
