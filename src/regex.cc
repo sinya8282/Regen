@@ -102,21 +102,54 @@ void Regex::lex_metachar()
   parse_lit_ = *parse_ptr_++;
   switch (parse_lit_) {
     case '\0': exitmsg("bad '\\'");
-    case 'd':
+    case 'a': /* bell */
+      parse_lit_ = '\a';
+      token_type_ = Expr::kLiteral;
+      break;      
+    case 'd': /*digits*/
       parse_stack_.push(parse_ptr_);
       parse_ptr_ = "[0-9]";
       macro_expand_ = true;
       token_type_ = lex();
       break;
-    case 'D':
+    case 'D': /*not digits*/
       parse_stack_.push(parse_ptr_);
       parse_ptr_ = "[^0-9]";
       macro_expand_ = true;
       token_type_ = lex();
       break;
-    case 'n':
+    case 'f': /* form feed */
+      parse_lit_ = '\f';
+      token_type_ = Expr::kLiteral;
+      break;
+    case 'n': /* new line */
       parse_lit_ = '\n';
       token_type_ = Expr::kLiteral;
+      break;
+    case 'r': /* carriage retur */
+      parse_lit_ = '\r';
+      token_type_ = Expr::kLiteral;
+      break;
+    case 't': /* horizontal tab */
+      parse_lit_ = '\t';
+      token_type_ = Expr::kLiteral;
+      break;
+    case 'v': /* vertical tab */
+      parse_lit_ = '\v';
+      token_type_ = Expr::kLiteral;
+      break;
+    case 'w':
+      parse_stack_.push(parse_ptr_);
+      parse_ptr_ = "[0-9A-Za-z_]";
+      macro_expand_ = true;
+      token_type_ = lex();
+      break;
+    case 'W':
+      parse_stack_.push(parse_ptr_);
+      parse_ptr_ = "[^0-9A-Za-z_]";
+      macro_expand_ = true;
+      token_type_ = lex();
+      break;
     case 'x': {
       unsigned char hex = 0;
       for (int i = 0; i < 2; i++) {
@@ -836,7 +869,7 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa)
  *         - slower -
  * Onone: NFA based matching (Thompson NFA, Cached)
  *    O0: DFA based matching
- *      ~ Xbyak required ~
+ *      ~ Xbyak(JIT library) required ~
  *    O1: JIT-ed DFA based matching
  *    O2: transition rule optimized-JIT-ed DFA based mathing
  *    O3: transition rule & dfa reduction optimized-JIT-ed DFA based mathing
