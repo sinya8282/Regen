@@ -1,23 +1,4 @@
 #include "regex.h"
-#include "exprutil.h"
-
-// for debug
-void nfadump(const std::set<regen::StateExpr*> &nfa, bool verbose = false)
-{
-  std::set<regen::StateExpr*>::iterator iter = nfa.begin();
-  while (iter != nfa.end()) {
-    printf("%"PRIuS"", (*iter)->state_id());
-    if (verbose) {
-      printf("(");
-
-      regen::PrintExprVisitor::Print(*iter);
-      printf(")");
-    }
-    printf(", ");
-    ++iter;
-  }
-  puts("");
-}
 
 namespace regen {
 
