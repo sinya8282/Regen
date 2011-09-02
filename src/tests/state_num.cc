@@ -47,8 +47,8 @@ int main(int argc, char *argv[]) {
   }
   if (s) {
     r.Compile(regen::O0);  
-    regen::SSFA pdfa(r.dfa());
-    printf("PDFA(from DFA) state num: %"PRIuS"\n", pdfa.size());
+    regen::SSFA ssfa(r.dfa());
+    printf("SSFA(from DFA) state num: %"PRIuS"\n", ssfa.size());
   }
 
   return 0;
