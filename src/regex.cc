@@ -327,7 +327,7 @@ void Regex::Parse()
   // dotstar->set_expr_id(++expr_id_);
   // e = new Concat(dotstar, e);
   // e->set_expr_id(++expr_id_);
-  
+
   eop = new EOP();
   e = new Concat(e, eop);
   e->set_expr_id(++expr_id_);
@@ -699,6 +699,61 @@ bool Regex::MakeDFA(Expr* expr_root, DFA &dfa, int limit, std::size_t neop)
     //settransition:
     if (has_reject) dst_state.insert(DFA::REJECT);
     dfa.set_state_info(is_accept, dfa_map[default_next], dst_state);
+  }
+
+  return true;
+}
+
+bool Regex::MakeDFA(NFA &nfa, DFA &dfa)
+{
+  DFA::state_t dfa_id = 0;
+
+  typedef std::set<NFA::state_t> NFA_;
+
+  std::map<std::set<NFA::state_t>, DFA::state_t> dfa_map;
+  std::queue<NFA_> queue;
+  const NFA_ &start_states = nfa.start_states();
+  
+  dfa_map[start_states] = dfa_id++;
+  queue.push(start_states);
+
+  while (!queue.empty()) {
+    NFA_ nfa_states = queue.front();
+    queue.pop();
+    std::vector<NFA_> transition(256);
+    bool is_accept = false;
+
+    for (NFA_::iterator iter = nfa_states.begin(); iter != nfa_states.end(); ++iter) {
+      NFA::State &state = nfa.state(*iter);
+      for (std::size_t i = 0; i < 256; i++) {
+        transition[i].insert(state.transition[i].begin(), state.transition[i].end());
+      }
+      is_accept |= state.accept;
+    }
+
+    DFA::Transition &dfa_transition = dfa.get_new_transition();
+    std::set<DFA::state_t> dst_state;
+    bool has_reject = false;
+    // only Leftmost-Shortest matching
+    //if (is_accept) goto settransition;
+    
+    for (DFA::state_t i = 0; i < 256; i++) {
+      NFA_ &next = transition[i];
+      if (next.empty()) {
+        has_reject = true;
+        continue;
+      }
+
+      if (dfa_map.find(next) == dfa_map.end()) {
+        dfa_map[next] = dfa_id++;
+        queue.push(next);
+      }
+      dfa_transition[i] = dfa_map[next];
+      dst_state.insert(dfa_map[next]);
+    }
+    //settransition:
+    if (has_reject) dst_state.insert(DFA::REJECT);
+    dfa.set_state_info(is_accept, DFA::REJECT, dst_state);
   }
 
   return true;

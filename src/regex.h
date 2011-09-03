@@ -4,6 +4,7 @@
 #include "util.h"
 #include "expr.h"
 #include "exprutil.h"
+#include "nfa.h"
 #include "dfa.h"
 #ifdef REGEN_ENABLE_PARALLEL
 #include "ssfa.h"
@@ -47,6 +48,7 @@ private:
   Expr* e4();
   void Parse();
   bool MakeDFA(Expr* e, DFA &dfa, int limit = -1, std::size_t neop = 1);
+  bool MakeDFA(NFA &nfa, DFA &dfa);
   CharClass* BuildCharClass();
   StateExpr* CombineStateExpr(StateExpr* e1, StateExpr* e2);
 
