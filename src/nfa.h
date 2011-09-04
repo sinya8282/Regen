@@ -17,8 +17,9 @@ public:
   std::size_t size() const { return states_.size(); }
   std::set<state_t>& start_states() { return start_states_; }
   const std::set<state_t>& start_states() const { return start_states_; }
-  State& get_new_state();
   State& state(state_t s) { return states_[s]; }
+  const State& state(state_t s) const { return states_[s]; }
+  State& get_new_state();
 
 protected:
   std::vector<State> states_;

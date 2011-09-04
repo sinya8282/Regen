@@ -22,7 +22,7 @@ public:
   Expr* CreateRegexFromDFA(DFA &dfa);
   void DumpExprTree() const;
   bool Compile(Optimize olevel = O3);
-  bool MinimizeDFA() { if (has_dfa_) { dfa_.Minimize(); return true; } else return false; }
+  bool MinimizeDFA() { if (dfa_.Complete()) { dfa_.Minimize(); return true; } else return false; }
   bool FullMatch(const std::string &string) const;
   bool FullMatch(const unsigned char *begin, const unsigned char *end) const;
   bool FullMatchNFA(const unsigned char *begin, const unsigned char *end) const;
@@ -47,8 +47,8 @@ private:
   Expr* e3();
   Expr* e4();
   void Parse();
-  bool MakeDFA(Expr* e, DFA &dfa, int limit = -1, std::size_t neop = 1);
-  bool MakeDFA(NFA &nfa, DFA &dfa);
+  //bool MakeDFA(Expr* e, DFA &dfa, int limit = -1, std::size_t neop = 1);
+  //bool MakeDFA(NFA &nfa, DFA &dfa);
   CharClass* BuildCharClass();
   StateExpr* CombineStateExpr(StateExpr* e1, StateExpr* e2);
 
@@ -74,7 +74,6 @@ private:
   std::size_t state_id_;
 
   Optimize olevel_;
-  bool has_dfa_;
   bool dfa_failure_;
   DFA dfa_;
 };

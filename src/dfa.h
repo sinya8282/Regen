@@ -1,6 +1,8 @@
 #ifndef REGEN_DFA_H_
 #define  REGEN_DFA_H_
 #include "util.h"
+#include "nfa.h"
+#include "expr.h"
 #if REGEN_ENABLE_XBYAK
 #include <xbyak/xbyak.h>
 #endif
@@ -14,7 +16,7 @@ public:
     REJECT = (state_t)-1,
     ACCEPT = (state_t)-2,
     NONE   = (state_t)-3
-  };  
+  };
   struct Transition {
     state_t t[256];
     Transition(state_t fill = REJECT) { std::fill(t, t+256, fill); }
@@ -27,9 +29,11 @@ public:
     state_t next2;
   };
 
-  DFA(): minimum_(false), olevel_(O0) {}
+  DFA(): complete_(false), minimum_(false), olevel_(O0), xgen_(NULL) {}
+  DFA(Expr *expr_root, std::size_t limit = std::numeric_limits<size_t>::max(), std::size_t neop = 1);
+  DFA(const NFA &nfa, std::size_t limit = std::numeric_limits<size_t>::max());
   #if REGEN_ENABLE_XBYAK
-  ~DFA() { if (olevel_ >= O1) delete xgen_; }
+  ~DFA() { if (xgen_ != NULL) delete xgen_; }
   #endif
   
   bool empty() const { return transition_.empty(); }
@@ -40,6 +44,7 @@ public:
   const std::set<state_t> &src_states(std::size_t i) const { return src_states_[i]; }
   const std::set<state_t> &dst_states(std::size_t i) const { return dst_states_[i]; }
   Optimize olevel() const { return olevel_; };
+  bool Complete() const { return complete_; }
 
   Transition& get_new_transition();
   void set_state_info(bool accept, state_t default_state, std::set<state_t> &dst_state);
@@ -47,6 +52,8 @@ public:
   const Transition &GetTransition(std::size_t state) const { return transition_[state]; }
   state_t GetDefaultNext(std::size_t state) const { return defaults_[state]; }
   bool IsAcceptState(std::size_t state) const { return accepts_[state]; }
+  bool Construct(Expr *expr_root, std::size_t limit = std::numeric_limits<size_t>::max(), std::size_t neop = 1);
+  bool Construct(const NFA &nfa, std::size_t limit = std::numeric_limits<size_t>::max());
   void Complement();
   virtual void Minimize();
   bool Compile(Optimize olevel = O2);
@@ -60,6 +67,7 @@ protected:
   std::vector<bool> accepts_;
   std::vector<std::set<state_t> > src_states_;
   std::vector<std::set<state_t> > dst_states_;
+  bool complete_;
   bool minimum_;
   state_t (*CompiledFullMatch)(const unsigned char *, const unsigned char *);
   bool EliminateBranch();

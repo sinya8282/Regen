@@ -114,6 +114,8 @@ SSFA::SSFA(Expr *expr_root, const std::vector<StateExpr*> &state_exprs, std::siz
     if (has_reject) dst_state.insert(DFA::REJECT);
     set_state_info(false ,DFA::REJECT, dst_state);
   }
+
+  complete_ = true;
 }
 
 SSFA::SSFA(const DFA &dfa, std::size_t thread_num):
@@ -185,6 +187,8 @@ SSFA::SSFA(const DFA &dfa, std::size_t thread_num):
     if (has_reject) dst_state.insert(DFA::REJECT);
     set_state_info(false ,DFA::REJECT, dst_state);
   }
+
+  complete_ = true;
 }
 
 void

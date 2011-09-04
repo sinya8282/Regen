@@ -2,6 +2,174 @@
 
 namespace regen{
 
+DFA::DFA(Expr *expr_root, std::size_t limit, std::size_t neop):
+    complete_(false), minimum_(false), olevel_(O0), xgen_(NULL)
+{
+  complete_ = Construct(expr_root, limit, neop);
+}
+
+DFA::DFA(const NFA &nfa, std::size_t limit):
+    complete_(false), minimum_(false), olevel_(O0), xgen_(NULL)
+{
+  complete_ = Construct(nfa, limit);
+}
+
+bool DFA::Construct(Expr *expr_root, std::size_t limit, std::size_t neop)
+{
+  state_t dfa_id = 0;
+
+  typedef std::set<StateExpr*> NFA;
+  
+  std::map<NFA, int> dfa_map;
+  std::queue<NFA> queue;
+  NFA default_next;
+  NFA first_states = expr_root->transition().first;
+
+  dfa_map[default_next] = REJECT;
+  dfa_map[first_states] = dfa_id++;
+  queue.push(first_states);
+
+  while (!queue.empty()) {
+    NFA nfa_states = queue.front();
+    queue.pop();
+    std::vector<NFA> transition(256);
+    NFA::iterator iter = nfa_states.begin();
+    bool is_accept = false;
+    default_next.clear();
+    std::set<EOP*> eops;
+
+    while (iter != nfa_states.end()) {
+      NFA &next = (*iter)->transition().follow;
+      switch ((*iter)->type()) {
+        case Expr::kLiteral: {
+          Literal* literal = static_cast<Literal*>(*iter);
+          unsigned char index = (unsigned char)literal->literal();
+          transition[index].insert(next.begin(), next.end());
+          break;
+        }
+        case Expr::kCharClass: {
+          CharClass* charclass = static_cast<CharClass*>(*iter);
+          for (int i = 0; i < 256; i++) {
+            if (charclass->Involve(static_cast<unsigned char>(i))) {
+              transition[i].insert(next.begin(), next.end());
+            }
+          }
+          break;
+        }
+        case Expr::kDot: {
+          for (int i = 0; i < 256; i++) {
+            transition[i].insert(next.begin(), next.end());
+          }
+          default_next.insert(next.begin(), next.end());
+          break;
+        }
+        case Expr::kBegLine: {
+          transition['\n'].insert(next.begin(), next.end());
+          break;
+        }
+        case Expr::kEndLine: {
+          transition['\n'].insert(next.begin(), next.end());
+          break;
+        }
+        case Expr::kEOP: {
+          eops.insert((EOP*)(*iter));
+          if (eops.size() == neop) {
+            is_accept = true;
+          }
+          break;
+        }
+        case Expr::kNone: break;
+        default: exitmsg("notype");
+      }
+      ++iter;
+    }
+
+    Transition &dfa_transition = get_new_transition();
+    std::set<state_t> dst_state;
+    bool has_reject = false;
+    // only Leftmost-Shortest matching
+    //if (is_accept) goto settransition;
+    
+    for (state_t i = 0; i < 256; i++) {
+      NFA &next = transition[i];
+      if (next.empty()) {
+        has_reject = true;
+        continue;
+      }
+
+      if (dfa_map.find(next) == dfa_map.end()) {
+        dfa_map[next] = dfa_id++;
+        if (dfa_id > (state_t)limit) {
+          return false;
+        }
+        queue.push(next);
+      }
+      dfa_transition[i] = dfa_map[next];
+      dst_state.insert(dfa_map[next]);
+    }
+    //settransition:
+    if (has_reject) dst_state.insert(REJECT);
+    set_state_info(is_accept, dfa_map[default_next], dst_state);
+  }
+  complete_ = true;
+  return true;
+}
+
+bool DFA::Construct(const NFA &nfa, size_t limit)
+{
+  DFA::state_t dfa_id = 0;
+
+  typedef std::set<NFA::state_t> NFA_;
+
+  std::map<std::set<NFA::state_t>, DFA::state_t> dfa_map;
+  std::queue<NFA_> queue;
+  const NFA_ &start_states = nfa.start_states();
+  
+  dfa_map[start_states] = dfa_id++;
+  queue.push(start_states);
+
+  while (!queue.empty()) {
+    NFA_ nfa_states = queue.front();
+    queue.pop();
+    std::vector<NFA_> transition(256);
+    bool is_accept = false;
+
+    for (NFA_::iterator iter = nfa_states.begin(); iter != nfa_states.end(); ++iter) {
+      const NFA::State &state = nfa.state(*iter);
+      for (std::size_t i = 0; i < 256; i++) {
+        transition[i].insert(state.transition[i].begin(), state.transition[i].end());
+      }
+      is_accept |= state.accept;
+    }
+
+    DFA::Transition &dfa_transition = get_new_transition();
+    std::set<DFA::state_t> dst_state;
+    bool has_reject = false;
+    // only Leftmost-Shortest matching
+    //if (is_accept) goto settransition;
+    
+    for (DFA::state_t i = 0; i < 256; i++) {
+      NFA_ &next = transition[i];
+      if (next.empty()) {
+        has_reject = true;
+        continue;
+      }
+
+      if (dfa_map.find(next) == dfa_map.end()) {
+        dfa_map[next] = dfa_id++;
+        queue.push(next);
+      }
+      dfa_transition[i] = dfa_map[next];
+      dst_state.insert(dfa_map[next]);
+    }
+    //settransition:
+    if (has_reject) dst_state.insert(DFA::REJECT);
+    set_state_info(is_accept, DFA::REJECT, dst_state);
+  }
+  complete_ = true;
+  return true;
+}
+
 DFA::Transition& DFA::get_new_transition() {
   transition_.resize(transition_.size()+1);
   return transition_.back();

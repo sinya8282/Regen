@@ -9,7 +9,6 @@ Regex::Regex(const std::string &regex, std::size_t recursive_limit):
     involved_char_(std::bitset<256>()),
     parse_ptr_(regex.c_str()),
     olevel_(Onone),
-    has_dfa_(false),
     dfa_failure_(false)
 {
   Parse();
@@ -408,9 +407,8 @@ Regex::e1()
       ++iter;
     }
     
-    DFA dfa;
     e->FillTransition();
-    MakeDFA(e, dfa, -1, exprs.size());
+    DFA dfa(e, std::numeric_limits<size_t>::max(), exprs.size());
     e = CreateRegexFromDFA(dfa);
 
     iter = exprs.begin();
@@ -578,11 +576,10 @@ Regex::e4()
       } while (token_type_ == Expr::kComplement);
       e = e4();
       if (complement) {
-        DFA dfa;
         e = new Concat(e, new EOP());
         e->FillTransition();
         Expr *e_ = e;
-        MakeDFA(e, dfa);
+        DFA dfa(e);
         dfa.Complement();
         e = CreateRegexFromDFA(dfa);
         delete e_;
@@ -600,163 +597,6 @@ Regex::e4()
   lex();
 
   return e;
-}
-
-bool Regex::MakeDFA(Expr* expr_root, DFA &dfa, int limit, std::size_t neop)
-{
-  DFA::state_t dfa_id = 0;
-
-  typedef std::set<StateExpr*> NFA;
-  
-  std::map<NFA, int> dfa_map;
-  std::queue<NFA> queue;
-  NFA default_next;
-  NFA first_states = expr_root->transition().first;
-
-  dfa_map[default_next] = DFA::REJECT;
-  dfa_map[first_states] = dfa_id++;
-  queue.push(first_states);
-
-  while (!queue.empty()) {
-    NFA nfa_states = queue.front();
-    queue.pop();
-    std::vector<NFA> transition(256);
-    NFA::iterator iter = nfa_states.begin();
-    bool is_accept = false;
-    default_next.clear();
-    std::set<EOP*> eops;
-
-    while (iter != nfa_states.end()) {
-      NFA &next = (*iter)->transition().follow;
-      switch ((*iter)->type()) {
-        case Expr::kLiteral: {
-          Literal* literal = static_cast<Literal*>(*iter);
-          unsigned char index = (unsigned char)literal->literal();
-          transition[index].insert(next.begin(), next.end());
-          break;
-        }
-        case Expr::kCharClass: {
-          CharClass* charclass = static_cast<CharClass*>(*iter);
-          for (int i = 0; i < 256; i++) {
-            if (charclass->Involve(static_cast<unsigned char>(i))) {
-              transition[i].insert(next.begin(), next.end());
-            }
-          }
-          break;
-        }
-        case Expr::kDot: {
-          for (int i = 0; i < 256; i++) {
-            transition[i].insert(next.begin(), next.end());
-          }
-          default_next.insert(next.begin(), next.end());
-          break;
-        }
-        case Expr::kBegLine: {
-          transition['\n'].insert(next.begin(), next.end());
-          break;
-        }
-        case Expr::kEndLine: {
-          transition['\n'].insert(next.begin(), next.end());
-          break;
-        }
-        case Expr::kEOP: {
-          eops.insert((EOP*)(*iter));
-          if (eops.size() == neop) {
-            is_accept = true;
-          }
-          break;
-        }
-        case Expr::kNone: break;
-        default: exitmsg("notype");
-      }
-      ++iter;
-    }
-
-    DFA::Transition &dfa_transition = dfa.get_new_transition();
-    std::set<DFA::state_t> dst_state;
-    bool has_reject = false;
-    // only Leftmost-Shortest matching
-    //if (is_accept) goto settransition;
-    
-    for (DFA::state_t i = 0; i < 256; i++) {
-      NFA &next = transition[i];
-      if (next.empty()) {
-        has_reject = true;
-        continue;
-      }
-
-      if (dfa_map.find(next) == dfa_map.end()) {
-        dfa_map[next] = dfa_id++;
-        if (limit >= 0 && dfa_id > (DFA::state_t)limit) {
-          dfa_failure_ = true;
-          return false;
-        }
-        queue.push(next);
-      }
-      dfa_transition[i] = dfa_map[next];
-      dst_state.insert(dfa_map[next]);
-    }
-    //settransition:
-    if (has_reject) dst_state.insert(DFA::REJECT);
-    dfa.set_state_info(is_accept, dfa_map[default_next], dst_state);
-  }
-
-  return true;
-}
-
-bool Regex::MakeDFA(NFA &nfa, DFA &dfa)
-{
-  DFA::state_t dfa_id = 0;
-
-  typedef std::set<NFA::state_t> NFA_;
-
-  std::map<std::set<NFA::state_t>, DFA::state_t> dfa_map;
-  std::queue<NFA_> queue;
-  const NFA_ &start_states = nfa.start_states();
-  
-  dfa_map[start_states] = dfa_id++;
-  queue.push(start_states);
-
-  while (!queue.empty()) {
-    NFA_ nfa_states = queue.front();
-    queue.pop();
-    std::vector<NFA_> transition(256);
-    bool is_accept = false;
-
-    for (NFA_::iterator iter = nfa_states.begin(); iter != nfa_states.end(); ++iter) {
-      NFA::State &state = nfa.state(*iter);
-      for (std::size_t i = 0; i < 256; i++) {
-        transition[i].insert(state.transition[i].begin(), state.transition[i].end());
-      }
-      is_accept |= state.accept;
-    }
-
-    DFA::Transition &dfa_transition = dfa.get_new_transition();
-    std::set<DFA::state_t> dst_state;
-    bool has_reject = false;
-    // only Leftmost-Shortest matching
-    //if (is_accept) goto settransition;
-    
-    for (DFA::state_t i = 0; i < 256; i++) {
-      NFA_ &next = transition[i];
-      if (next.empty()) {
-        has_reject = true;
-        continue;
-      }
-
-      if (dfa_map.find(next) == dfa_map.end()) {
-        dfa_map[next] = dfa_id++;
-        queue.push(next);
-      }
-      dfa_transition[i] = dfa_map[next];
-      dst_state.insert(dfa_map[next]);
-    }
-    //settransition:
-    if (has_reject) dst_state.insert(DFA::REJECT);
-    dfa.set_state_info(is_accept, DFA::REJECT, dst_state);
-  }
-
-  return true;
 }
 
 // Converte DFA to Regular Expression using GNFA.
@@ -914,11 +754,11 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa)
 
 bool Regex::Compile(Optimize olevel) {
   if (olevel == Onone || olevel_ >= olevel) return true;
-  if (!dfa_failure_ && !has_dfa_) {
+  if (!dfa_failure_ && !dfa_.Complete()) {
     /* try create DFA.  */
     int limit = state_exprs_.size();
     limit = limit * limit * limit;
-    has_dfa_ = MakeDFA(expr_root_, dfa_, limit);
+    dfa_.Construct(expr_root_, limit);
     dfa_.Minimize();
   }
   if (dfa_failure_) {
@@ -940,7 +780,7 @@ bool Regex::FullMatch(const std::string &string)  const {
 }
 
 bool Regex::FullMatch(const unsigned char *begin, const unsigned char * end) const {
-  if (has_dfa_) {
+  if (dfa_.Complete()) {
     return dfa_.FullMatch(begin, end);
   } else {
     return FullMatchNFA(begin, end);
