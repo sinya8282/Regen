@@ -12,7 +12,7 @@ namespace regen {
 class DFA {
 public:
   typedef uint32_t state_t;
-  enum State {
+  enum StateType {
     REJECT = (state_t)-1,
     ACCEPT = (state_t)-2,
     NONE   = (state_t)-3
@@ -21,14 +21,29 @@ public:
     state_t t[256];
     Transition(state_t fill = REJECT) { std::fill(t, t+256, fill); }
     state_t &operator[](std::size_t index) { return t[index]; }
-    state_t operator[](std::size_t index) const { return t[index]; }
+    const state_t &operator[](std::size_t index) const { return t[index]; }
   };
   struct AlterTrans {
     std::pair<unsigned char, unsigned char> key;
     state_t next1;
     state_t next2;
   };
-
+  struct State {
+   State(): transitions(NULL), accept(false), default_next(REJECT), id(NONE), inline_level(0) {}
+    std::vector<Transition> *transitions;
+    bool accept;
+    state_t default_next;
+    state_t id;
+    std::set<state_t> dst_states;
+    std::set<state_t> src_states;
+    AlterTrans alter_transition;
+    std::size_t inline_level;    
+    state_t &operator[](std::size_t index) { return (*transitions)[id][index]; }
+    const state_t &operator[](std::size_t index) const { return (*transitions)[id][index]; }
+  };
+  typedef std::deque<State>::iterator iterator;
+  typedef std::deque<State>::const_iterator const_iterator;  
+  
   DFA(): complete_(false), minimum_(false), olevel_(O0), xgen_(NULL) {}
   DFA(Expr *expr_root, std::size_t limit = std::numeric_limits<size_t>::max(), std::size_t neop = 1);
   DFA(const NFA &nfa, std::size_t limit = std::numeric_limits<size_t>::max());
@@ -39,19 +54,18 @@ public:
   bool empty() const { return transition_.empty(); }
   std::size_t size() const { return transition_.size(); }
   state_t start_state() const { return 0; }
-  const std::vector<bool>& accepts() const { return accepts_; }
-  std::size_t inline_level(std::size_t i) const { return inline_level_[i]; }
-  const std::set<state_t> &src_states(std::size_t i) const { return src_states_[i]; }
-  const std::set<state_t> &dst_states(std::size_t i) const { return dst_states_[i]; }
   Optimize olevel() const { return olevel_; };
   bool Complete() const { return complete_; }
 
-  Transition& get_new_transition();
-  void set_state_info(bool accept, state_t default_state, std::set<state_t> &dst_state);
-  const AlterTrans &GetAlterTrans(std::size_t state) const { return alter_trans_[state]; }
+  State& get_new_state();
+  std::size_t inline_level(std::size_t i) const { return states_[i].inline_level; }
+  const std::set<state_t> &src_states(std::size_t i) const { return states_[i].src_states; }
+  const std::set<state_t> &dst_states(std::size_t i) const { return states_[i].dst_states; }
+  const AlterTrans &GetAlterTrans(std::size_t state) const { return states_[state].alter_transition; }
   const Transition &GetTransition(std::size_t state) const { return transition_[state]; }
-  state_t GetDefaultNext(std::size_t state) const { return defaults_[state]; }
-  bool IsAcceptState(std::size_t state) const { return accepts_[state]; }
+  state_t GetDefaultNext(std::size_t state) const { return states_[state].default_next; }
+  bool IsAcceptState(std::size_t state) const { return states_[state].accept; }
+
   bool Construct(Expr *expr_root, std::size_t limit = std::numeric_limits<size_t>::max(), std::size_t neop = 1);
   bool Construct(const NFA &nfa, std::size_t limit = std::numeric_limits<size_t>::max());
   void Complement();
@@ -61,14 +75,20 @@ public:
   virtual bool FullMatch(const unsigned char *str, const unsigned char *end) const;
   void state2label(state_t state, char* labelbuf) const;
 
+  iterator begin() { return states_.begin(); }
+  iterator end() { return states_.end(); }
+  const_iterator begin() const { return states_.begin(); }
+  const_iterator end() const { return states_.end(); }
+  
+  State &operator[](std::size_t index) { return states_[index]; }
+  const State &operator[](std::size_t index) const { return states_[index]; }
+  
 protected:
   std::vector<Transition> transition_;
-  std::vector<state_t> defaults_;
-  std::vector<bool> accepts_;
-  std::vector<std::set<state_t> > src_states_;
-  std::vector<std::set<state_t> > dst_states_;
+  std::deque<State> states_;
   bool complete_;
   bool minimum_;
+  void Finalize();
   state_t (*CompiledFullMatch)(const unsigned char *, const unsigned char *);
   bool EliminateBranch();
   bool Reduce();

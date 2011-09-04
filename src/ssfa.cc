@@ -94,8 +94,7 @@ SSFA::SSFA(Expr *expr_root, const std::vector<StateExpr*> &state_exprs, std::siz
       ++iter;
     }
 
-    DFA::Transition &dfa_transition = get_new_transition();
-    std::set<state_t> dst_state;
+    State &state = get_new_state();
     bool has_reject = false;
     
     for (std::size_t c = 0; c < 256; c++) {
@@ -108,11 +107,10 @@ SSFA::SSFA(Expr *expr_root, const std::vector<StateExpr*> &state_exprs, std::siz
         ssfa_map[next] = ssfa_id++;
         queue.push(next);
       }
-      dfa_transition[c] = ssfa_map[next];
-      dst_state.insert(ssfa_map[next]);
+      state[c] = ssfa_map[next];
+      state.dst_states.insert(ssfa_map[next]);
     }
-    if (has_reject) dst_state.insert(DFA::REJECT);
-    set_state_info(false ,DFA::REJECT, dst_state);
+    if (has_reject) state.dst_states.insert(DFA::REJECT);
   }
 
   complete_ = true;
@@ -123,7 +121,9 @@ SSFA::SSFA(const DFA &dfa, std::size_t thread_num):
     dfa_size_(dfa.size()),
     thread_num_(thread_num)
 {
-  fa_accepts_ = dfa.accepts();
+  for (DFA::const_iterator s = dfa.begin(); s != dfa.end(); ++s) {
+    fa_accepts_[s->id] = s->accept;
+  }
 
   start_states_.insert(0);
   
@@ -166,8 +166,7 @@ SSFA::SSFA(const DFA &dfa, std::size_t thread_num):
       ++iter;
     }
 
-    DFA::Transition &dfa_transition = get_new_transition();
-    std::set<state_t> dst_state;
+    State &state = get_new_state();
     bool has_reject = false;
     
     for (std::size_t c = 0; c < 256; c++) {
@@ -181,11 +180,10 @@ SSFA::SSFA(const DFA &dfa, std::size_t thread_num):
         ssfa_map[next] = ssfa_id++;
         queue.push(next);
       }
-      dfa_transition[c] = ssfa_map[next];
-      dst_state.insert(ssfa_map[next]);
+      state[c] = ssfa_map[next];
+      state.dst_states.insert(ssfa_map[next]);
     }
-    if (has_reject) dst_state.insert(DFA::REJECT);
-    set_state_info(false ,DFA::REJECT, dst_state);
+    if (has_reject) state.dst_states.insert(DFA::REJECT);
   }
 
   complete_ = true;
