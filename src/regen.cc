@@ -45,10 +45,12 @@ int main(int argc, char *argv[]) {
   r.Compile(regen::O0);
 
   switch (generate) {
+    r.MinimizeDFA();
     case CGEN:
       regen::Generator::CGenerate(r);
       break;
     case DOTGEN:
+      r.MinimizeDFA();      
       regen::Generator::DotGenerate(r);
       break;
     case REGEN:

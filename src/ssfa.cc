@@ -121,6 +121,7 @@ SSFA::SSFA(const DFA &dfa, std::size_t thread_num):
     dfa_size_(dfa.size()),
     thread_num_(thread_num)
 {
+  fa_accepts_.resize(dfa.size());
   for (DFA::const_iterator s = dfa.begin(); s != dfa.end(); ++s) {
     fa_accepts_[s->id] = s->accept;
   }

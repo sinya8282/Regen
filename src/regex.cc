@@ -759,7 +759,6 @@ bool Regex::Compile(CompileFlag olevel) {
     int limit = state_exprs_.size();
     limit = limit * limit * limit;
     dfa_.Construct(expr_root_, limit);
-    //dfa_.Minimize();
   }
   if (dfa_failure_) {
     /* can not create DFA. (too many states) */

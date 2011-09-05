@@ -10,7 +10,7 @@ LIBTHREAD=-lboost_thread-mt
 endif
 
 CC=g++
-CFLAGS=-O0 -Wall -g3 -fno-operator-names $(REGENFLAGS)
+CFLAGS=-O3 -Wall -g3 -fno-operator-names $(REGENFLAGS)
 SRC=regex.cc expr.cc exprutil.cc nfa.cc dfa.cc ssfa.cc generator.cc 
 OBJS=$(SRC:.cc=.o)
 
