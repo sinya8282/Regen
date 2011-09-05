@@ -10,12 +10,12 @@ struct testcase {
 int main(int argc, char *argv[]) {
   int opt;
   std::size_t thread_num = 1;
-  regen::Optimize olevel = regen::O3;
+  regen::CompileFlag olevel = regen::O3;
 
   while ((opt = getopt(argc, argv, "nf:t:O:t:")) != -1) {
     switch(opt) {
       case 'O': {
-        olevel = regen::Optimize(atoi(optarg));
+        olevel = regen::CompileFlag(atoi(optarg));
         break;
       }
       case 't': {

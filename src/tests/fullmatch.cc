@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
   int opt;
   std::size_t thread_num = 1;
   std::size_t count = 1;
-  regen::Optimize olevel = regen::Onone;
+  regen::CompileFlag olevel = regen::Onone;
 
   while ((opt = getopt(argc, argv, "c:f:O:t:")) != -1) {
     switch(opt) {
@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
         break;
       }
       case 'O': {
-        olevel = regen::Optimize(atoi(optarg));
+        olevel = regen::CompileFlag(atoi(optarg));
         break;
       }
       case 't': {

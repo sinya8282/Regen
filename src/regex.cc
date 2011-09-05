@@ -752,7 +752,7 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa)
  *         - faster -
  */
 
-bool Regex::Compile(Optimize olevel) {
+bool Regex::Compile(CompileFlag olevel) {
   if (olevel == Onone || olevel_ >= olevel) return true;
   if (!dfa_failure_ && !dfa_.Complete()) {
     /* try create DFA.  */

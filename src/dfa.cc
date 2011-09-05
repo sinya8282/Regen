@@ -209,10 +209,11 @@ void DFA::state2label(state_t state, char* labelbuf) const
   }
 }
 
-void
+bool
 DFA::Minimize()
 {
-  if (minimum_) return;
+  if (!complete_) return false;
+  if (minimum_) return true;
   
   std::vector<std::vector<bool> > distinction_table;
   distinction_table.resize(size()-1);
@@ -261,7 +262,7 @@ DFA::Minimize()
 
   if (swap_map.empty()) {
     minimum_ = true;
-    return;
+    return true;
   }
 
   size_t minimum_size = size() - swap_map.size();
@@ -306,8 +307,7 @@ DFA::Minimize()
   states_.resize(minimum_size);
 
   minimum_ = true;
-  
-  return;
+  return true;
 }
 
 void
@@ -587,7 +587,7 @@ bool DFA::Reduce()
   return true;
 }
 
-bool DFA::Compile(Optimize olevel)
+bool DFA::Compile(CompileFlag olevel)
 {
   if (olevel <= olevel_) return true;
   if (olevel >= O2) {
@@ -606,7 +606,7 @@ bool DFA::Compile(Optimize olevel)
 #else
 bool DFA::EliminateBranch() { return false; }
 bool DFA::Reduce() { return false; }
-bool DFA::Compile(Optimize) { return false; }
+bool DFA::Compile(CompileFlag) { return false; }
 #endif
 
 bool DFA::FullMatch(const unsigned char *str, const unsigned char *end) const

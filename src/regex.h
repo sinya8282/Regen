@@ -21,7 +21,7 @@ public:
   void PrintParseTree() const;
   Expr* CreateRegexFromDFA(DFA &dfa);
   void DumpExprTree() const;
-  bool Compile(Optimize olevel = O3);
+  bool Compile(CompileFlag olevel = O3);
   bool MinimizeDFA() { if (dfa_.Complete()) { dfa_.Minimize(); return true; } else return false; }
   bool FullMatch(const std::string &string) const;
   bool FullMatch(const unsigned char *begin, const unsigned char *end) const;
@@ -33,7 +33,7 @@ public:
   std::size_t must_max_length() const { return must_max_length_; }
   const std::string& must_max_word() const { return must_max_word_; }
   const DFA& dfa() const { return dfa_; }
-  Optimize olevel() const { return olevel_; }
+  CompileFlag olevel() const { return olevel_; }
   Expr* expr_root() const { return expr_root_; }
   const std::vector<StateExpr*> &state_exprs() const { return state_exprs_; }  
 
@@ -73,7 +73,7 @@ private:
   std::size_t expr_id_;
   std::size_t state_id_;
 
-  Optimize olevel_;
+  CompileFlag olevel_;
   bool dfa_failure_;
   DFA dfa_;
 };

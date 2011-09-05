@@ -27,12 +27,12 @@ static inline uint64_t rdtsc()
 
 int main(int argc, char *argv[]) {
   int opt;
-  regen::Optimize olevel = regen::Onone;
+  regen::CompileFlag olevel = regen::Onone;
 
   while ((opt = getopt(argc, argv, "nf:t:O:")) != -1) {
     switch(opt) {
       case 'O': {
-        olevel = regen::Optimize(atoi(optarg));
+        olevel = regen::CompileFlag(atoi(optarg));
         break;
       }
     }

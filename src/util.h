@@ -44,7 +44,7 @@
 
 namespace regen {
 
-enum Optimize {
+enum CompileFlag {
   Onone = -1,
   O0 = 0,
   O1 = 1,

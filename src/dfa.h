@@ -54,7 +54,7 @@ public:
   bool empty() const { return transition_.empty(); }
   std::size_t size() const { return transition_.size(); }
   state_t start_state() const { return 0; }
-  Optimize olevel() const { return olevel_; };
+  CompileFlag olevel() const { return olevel_; };
   bool Complete() const { return complete_; }
 
   State& get_new_state();
@@ -69,8 +69,8 @@ public:
   bool Construct(Expr *expr_root, std::size_t limit = std::numeric_limits<size_t>::max(), std::size_t neop = 1);
   bool Construct(const NFA &nfa, std::size_t limit = std::numeric_limits<size_t>::max());
   void Complement();
-  virtual void Minimize();
-  bool Compile(Optimize olevel = O2);
+  virtual bool Minimize();
+  bool Compile(CompileFlag olevel = O2);
   virtual bool FullMatch(const std::string &str) const { return FullMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
   virtual bool FullMatch(const unsigned char *str, const unsigned char *end) const;
   void state2label(state_t state, char* labelbuf) const;
@@ -92,7 +92,7 @@ protected:
   state_t (*CompiledFullMatch)(const unsigned char *, const unsigned char *);
   bool EliminateBranch();
   bool Reduce();
-  Optimize olevel_;
+  CompileFlag olevel_;
   #if REGEN_ENABLE_XBYAK
   Xbyak::CodeGenerator *xgen_;
   #endif
