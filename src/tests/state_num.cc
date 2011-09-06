@@ -4,16 +4,19 @@
 int main(int argc, char *argv[]) {
   std::string regex;
   int opt;
-  bool n,d,s;
-  n = d = s = false;
+  bool n,d,s,m;
+  n = d = s = m = false;
 
-  while ((opt = getopt(argc, argv, "f:nds")) != -1) {
+  while ((opt = getopt(argc, argv, "f:ndsm")) != -1) {
     switch(opt) {
       case 'f': {
         std::ifstream ifs(optarg);
         ifs >> regex;
         break;
       }
+      case 'm':
+        m = true;
+        break;
       case 'n':
         n = true;
         break;
@@ -43,12 +46,12 @@ int main(int argc, char *argv[]) {
   }
   if (d) {
     r.Compile(regen::O0);
-    r.MinimizeDFA();
+    if (m) r.MinimizeDFA();
     printf("DFA state num: %"PRIuS"\n", r.dfa().size());
   }
   if (s) {
     r.Compile(regen::O0);
-    r.MinimizeDFA();    
+    if (m) r.MinimizeDFA();    
     regen::SSFA ssfa(r.dfa());
     printf("SSFA(from DFA) state num: %"PRIuS"\n", ssfa.size());
   }
