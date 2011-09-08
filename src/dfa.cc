@@ -273,7 +273,7 @@ DFA::Minimize()
       if (s != replace_map[s]) {
         transition_[replace_map[s]] = transition_[s];
         states_[replace_map[s]] = states_[s];
-        states_[s].id = s;
+        states_[replace_map[s]].id = replace_map[s];
       }
     } else {
       replace_map[s] = replace_map[swap_map[s]];
@@ -316,7 +316,9 @@ DFA::Complement()
   state_t reject = REJECT;
   for (iterator state_iter = begin(); state_iter != end(); ++state_iter) {
     State &state = *state_iter;
-    state.accept = !state.accept;
+    if (state.id != reject) {
+      state.accept = !state.accept;
+    }
     bool to_reject = false;
     for (std::size_t i = 0; i < 256; i++) {
       if (state[i] == REJECT) {
@@ -325,7 +327,7 @@ DFA::Complement()
           reject = reject_state.id;
           reject_state.dst_states.insert(reject);
           reject_state.accept = true;
-          to_reject = true;          
+          to_reject = true;
         }
         state[i] = reject;
       }
