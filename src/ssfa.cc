@@ -116,6 +116,70 @@ SSFA::SSFA(Expr *expr_root, const std::vector<StateExpr*> &state_exprs, std::siz
   complete_ = true;
 }
 
+SSFA::SSFA(const NFA &nfa, std::size_t thread_num):
+    nfa_size_(nfa.size()),
+    dfa_size_(0),
+    thread_num_(thread_num)
+{
+  fa_accepts_.resize(nfa_size_);
+  for (NFA::const_iterator state_iter = nfa.begin(); state_iter != nfa.end(); ++state_iter)
+    fa_accepts_[(*state_iter).id] = (*state_iter).accept;
+
+  SSTransition sst;
+  std::map<SSTransition, state_t> ssfa_map;
+  std::queue<SSTransition> queue;
+  SSTransition::iterator iter;
+  state_t ssfa_id = 0;
+
+  ssfa_map[sst] = DFA::REJECT;
+
+  for (std::size_t i = 0; i < nfa_size_; i++) {
+    sst[i].insert(i);
+  }
+
+  ssfa_map[sst] = ssfa_id++;
+  queue.push(sst);
+
+  while (!queue.empty()) {
+    sst = queue.front();
+    sst_.push_back(sst);
+    queue.pop();
+    std::vector<SSTransition> transition(256);
+
+    for (iter = sst.begin(); iter != sst.end(); ++iter) {
+      state_t start = (*iter).first;
+      std::set<state_t> &currents = (*iter).second;
+      for (std::set<state_t>::iterator i = currents.begin(); i != currents.end(); ++i) {
+        for (std::size_t c = 0; c < 256; c++) {
+          if (!nfa[*i][c].empty()) {
+            transition[c][start].insert(nfa[*i][c].begin(), nfa[*i][c].end());
+          }
+        }
+      }
+    }
+
+    State &state = get_new_state();
+    bool has_reject = false;
+    
+    for (std::size_t c = 0; c < 256; c++) {
+      SSTransition &next = transition[c];
+      if (next.empty()) {
+        has_reject = true;
+        continue;
+      }
+      if (ssfa_map.find(next) == ssfa_map.end()) {
+        ssfa_map[next] = ssfa_id++;
+        queue.push(next);
+      }
+      state[c] = ssfa_map[next];
+      state.dst_states.insert(ssfa_map[next]);
+    }
+    if (has_reject) state.dst_states.insert(DFA::REJECT);
+  }
+
+  complete_ = true;
+}
+
 SSFA::SSFA(const DFA &dfa, std::size_t thread_num):
     nfa_size_(0),
     dfa_size_(dfa.size()),

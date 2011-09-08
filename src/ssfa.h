@@ -4,6 +4,7 @@
 #include "regex.h"
 #include "util.h"
 #include "expr.h"
+#include "nfa.h"
 #include "dfa.h"
 
 class Regex;
@@ -13,6 +14,7 @@ namespace regen {
 class SSFA: public DFA {
 public:
   SSFA(Expr* expr_root, const std::vector<StateExpr*> &state_exprs, std::size_t thread_num = 2);
+  SSFA(const NFA &nfa, std::size_t thread_num = 2);  
   SSFA(const DFA &dfa, std::size_t thread_num = 2);
   std::size_t thread_num() const { return thread_num_; }
   void thread_num(std::size_t thread_num) { thread_num_ = thread_num; }
