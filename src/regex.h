@@ -47,6 +47,7 @@ private:
   Expr* e3();
   Expr* e4();
   void Parse();
+  void Capture(Expr* e);
   //bool MakeDFA(Expr* e, DFA &dfa, int limit = -1, std::size_t neop = 1);
   //bool MakeDFA(NFA &nfa, DFA &dfa);
   CharClass* BuildCharClass();
@@ -59,6 +60,7 @@ private:
   std::size_t recursive_depth_;
   std::size_t recursive_limit_;
   std::vector<StateExpr*> state_exprs_;
+  std::size_t capture_num_;
 
   Must must_;
   std::size_t must_max_length_;

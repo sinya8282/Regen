@@ -6,6 +6,7 @@ Regex::Regex(const std::string &regex, std::size_t recursive_limit):
     regex_(regex),
     macro_expand_(false),
     recursive_limit_(recursive_limit),
+    capture_num_(0),
     involved_char_(std::bitset<256>()),
     parse_ptr_(regex.c_str()),
     olevel_(Onone),
@@ -567,6 +568,7 @@ Regex::e4()
       lex();
       e = e0();
       if (token_type_ != Expr::kRpar) exitmsg("expected a ')'");
+      Capture(e);
       break;
     case Expr::kComplement: {
       bool complement = false;
@@ -597,6 +599,23 @@ Regex::e4()
   lex();
 
   return e;
+}
+
+void Regex::Capture(Expr* e)
+{
+  std::set<StateExpr*>& first = e->transition().first;
+  std::set<StateExpr*>& last = e->transition().last;
+
+  std::set<StateExpr*>::iterator iter;
+  for (iter = first.begin(); iter != first.end(); ++iter) {
+    (*iter)->tag().enter.insert(capture_num_);
+  }
+  for (iter = last.begin(); iter != last.end(); ++iter) {
+    (*iter)->tag().leave.insert(capture_num_+1);
+  }
+  
+  capture_num_++;
+  return;
 }
 
 // Converte DFA to Regular Expression using GNFA.

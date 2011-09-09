@@ -55,7 +55,12 @@ struct Transition {
   std::set<StateExpr*> first;
   std::set<StateExpr*> last;
   std::set<StateExpr*> before;
-  std::set<StateExpr*> follow;  
+  std::set<StateExpr*> follow;
+};
+
+struct Tag {
+  std::set<std::size_t> enter;
+  std::set<std::size_t> leave;
 };
 
 class Expr {
@@ -81,6 +86,7 @@ public:
   std::size_t min_length() { return min_length_; }
   void set_min_length(int len) { min_length_ = len; }
   Transition& transition() { return transition_; }
+
   Expr* parent() { return parent_; }
   void set_parent(Expr *parent) { parent_ = parent; }
   static const char* TypeString(Expr::Type type);
@@ -110,11 +116,13 @@ public:
   void FillTransition() {}
   std::size_t state_id() { return state_id_; }
   void set_state_id(std::size_t id) { state_id_ = id; }
+  Tag& tag() { return tag_; }  
   Expr::SuperType stype() { return Expr::kStateExpr; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   virtual bool Match(const unsigned char c) = 0;
 private:
   std::size_t state_id_;
+  Tag tag_;
   DISALLOW_COPY_AND_ASSIGN(StateExpr);
 };
 
