@@ -3,13 +3,19 @@
 namespace regen{
 
 DFA::DFA(Expr *expr_root, std::size_t limit, std::size_t neop):
-    complete_(false), minimum_(false), olevel_(O0), xgen_(NULL)
+    complete_(false), minimum_(false), olevel_(O0)
+#ifdef REGEN_ENABLE_XBYAK
+    , xgen_(NULL)
+#endif
 {
   complete_ = Construct(expr_root, limit, neop);
 }
 
 DFA::DFA(const NFA &nfa, std::size_t limit):
-    complete_(false), minimum_(false), olevel_(O0), xgen_(NULL)
+    complete_(false), minimum_(false), olevel_(O0)
+#ifdef REGEN_ENABLE_XBYAK
+    , xgen_(NULL)
+#endif
 {
   complete_ = Construct(nfa, limit);
 }
