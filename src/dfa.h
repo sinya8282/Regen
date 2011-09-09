@@ -44,7 +44,11 @@ public:
   typedef std::deque<State>::iterator iterator;
   typedef std::deque<State>::const_iterator const_iterator;  
   
-  DFA(): complete_(false), minimum_(false), olevel_(O0), xgen_(NULL) {}
+  DFA(): complete_(false), minimum_(false), olevel_(O0)
+#ifdef REGEN_ENABLE_XBYAK
+  , xgen_(NULL)
+#endif
+  {}
   DFA(Expr *expr_root, std::size_t limit = std::numeric_limits<size_t>::max(), std::size_t neop = 1);
   DFA(const NFA &nfa, std::size_t limit = std::numeric_limits<size_t>::max());
   #if REGEN_ENABLE_XBYAK
