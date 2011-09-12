@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
       default: exitmsg("USAGE: regen [options] regexp\n");
     }
   }
-  
+
   if (regex.empty()) {
     if (optind >= argc) {
       exitmsg("USAGE: regen [options] regexp\n");
@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
       regen::Generator::CGenerate(r);
       break;
     case DOTGEN:
-      r.MinimizeDFA();      
+      r.MinimizeDFA();
       regen::Generator::DotGenerate(r);
       break;
     case REGEN:

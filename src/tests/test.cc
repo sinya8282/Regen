@@ -131,7 +131,7 @@ int main(int argc, char *argv[]) {
     testcase("a[-]?c", "ac", true)
   };
 
-  std::size_t TESTNUM = sizeof(test) / sizeof(testcase);
+  const std::size_t TESTNUM = sizeof(test) / sizeof(testcase);
   bool result[TESTNUM];
   std::size_t fail = 0;
   for (std::size_t i = 0; i < TESTNUM; i++) {
@@ -140,9 +140,14 @@ int main(int argc, char *argv[]) {
       r.Compile(olevel);
       result[i] = r.FullMatch(test[i].text) == test[i].result;
     } else {
+#ifdef REGEN_ENABLE_PARALLEL
       regen::SSFA pdfa(r.expr_root(), r.state_exprs(), thread_num);
       pdfa.Compile(olevel);
       result[i] = pdfa.FullMatch(test[i].text) == test[i].result;
+#else
+      fprintf(stderr, "not support regen::SSFA, define REGEN_ENABLE_PARALLEL\n");
+      exit(1);
+#endif
     }
   }
 
