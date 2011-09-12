@@ -383,28 +383,46 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 64):
   const uint8_t** transition_table_ptr = (const uint8_t **)(code_addr_top + code_segment_size_);
 
 #ifdef XBYAK32
-#error "64 only"
+  const Xbyak::Reg32& arg1(ecx);
+  const Xbyak::Reg32& arg2(edx);
+  const Xbyak::Reg32& tbl (ebp);
+  const Xbyak::Reg32& tmp1(esi);
+  const Xbyak::Reg32& tmp2(edi);  
+  const Xbyak::Reg32& reg_a(eax);
+  push(esi);
+  push(edi);
+  push(ebp);
+  const int P_ = 4 * 3;
+  mov(arg1, ptr [esp + P_ + 4]);
+  mov(arg2, ptr [esp + P_ + 8]);
 #elif defined(XBYAK64_WIN)
   const Xbyak::Reg64 arg1(rcx);
   const Xbyak::Reg64 arg2(rdx);
   const Xbyak::Reg64 tbl (r8);
   const Xbyak::Reg64 tmp1(r10);
-  const Xbyak::Reg64 tmp2(r11);  
+  const Xbyak::Reg64 tmp2(r11);
+  const Xbyak::Reg64& reg_a(rax);
 #else
   const Xbyak::Reg64 arg1(rdi);
   const Xbyak::Reg64 arg2(rsi);
   const Xbyak::Reg64 tbl (rdx);
   const Xbyak::Reg64 tmp1(r10);
   const Xbyak::Reg64 tmp2(r11);
+  const Xbyak::Reg64& reg_a(rax);
 #endif
 
   // setup enviroment on register
-  mov(tbl,  (uint64_t)transition_table_ptr);
+  mov(tbl,  (size_t)transition_table_ptr);
   jmp("s0");
 
   L("reject");
   const uint8_t *reject_state_addr = getCurr();
-  mov(rax, -1); // return false
+  mov(reg_a, -1); // return false
+#ifdef XBYAK32
+  pop(ebp);
+  pop(edi);
+  pop(esi);
+#endif
   ret();
 
   align(16);
@@ -497,13 +515,23 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 64):
         je("@f", T_NEAR);
         movzx(tmp1, byte[arg1]);
         inc(arg1);
-        jmp(ptr[tbl+i*256*8+tmp1*8]);
+        jmp(ptr[tbl+i*256*sizeof(uint8_t*)+tmp1*sizeof(uint8_t*)]);
         L("@@");
-        mov(rax, i);
+        mov(reg_a, i);
+#ifdef XBYAK32
+        pop(ebp);
+        pop(edi);
+        pop(esi);
+#endif
         ret();
       } else {
         L(".ret");
-        mov(rax, i);
+        mov(reg_a, i);
+#ifdef XBYAK32
+        pop(ebp);
+        pop(edi);
+        pop(esi);
+#endif
         ret();
       }
       outLocalLabel();
@@ -512,9 +540,14 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 64):
       je("@f");
       movzx(tmp1, byte[arg1]);
       inc(arg1);
-      jmp(ptr[tbl+i*256*8+tmp1*8]);
+      jmp(ptr[tbl+i*256*sizeof(uint8_t*)+tmp1*sizeof(uint8_t*)]);
       L("@@");
-      mov(rax, i);
+      mov(reg_a, i);
+#ifdef XBYAK32
+      pop(ebp);
+      pop(edi);
+      pop(esi);
+#endif
       ret();
     }
     align(16);

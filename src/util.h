@@ -8,6 +8,7 @@
 typedef __int64 int64_t;
 typedef unsigned __int64 uint64_t;
 typedef unsigned int uint32_t;
+typedef unsigned char uint8_t;
 #else
 #include <stdint.h>
 #endif

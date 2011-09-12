@@ -11,7 +11,7 @@
 		FavorSizeOrSpeed="1"
 		OmitFramePointers="true"
 		AdditionalIncludeDirectories="$(SolutionDir)"
-		PreprocessorDefinitions="WIN32;NOMINMAX;WIN32_LEAN_AND_MEAN"
+		PreprocessorDefinitions="WIN32;NOMINMAX;WIN32_LEAN_AND_MEAN;REGEN_ENABLE_XBYAK"
 		RuntimeLibrary="3"
 		BufferSecurityCheck="false"
 		EnableEnhancedInstructionSet="0"
