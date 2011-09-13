@@ -11,7 +11,7 @@ endif
 
 CC=g++
 CFLAGS=-O3 -Wall -g3 -fno-operator-names $(REGENFLAGS)
-SRC=regex.cc expr.cc exprutil.cc nfa.cc dfa.cc ssfa.cc generator.cc 
+SRC=regex.cc lexer.cc expr.cc exprutil.cc nfa.cc dfa.cc ssfa.cc generator.cc 
 OBJS=$(SRC:.cc=.o)
 
 all: regen fullmatch state_num test.o bench.o
@@ -49,11 +49,14 @@ depend:
 	mv tmp Makefile
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
-regex.o: regex.cc regex.h util.h expr.h exprutil.h dfa.h ssfa.h
+regex.o: regex.cc regex.h util.h lexer.h expr.h exprutil.h nfa.h dfa.h \
+  ssfa.h
+lexer.o: lexer.cc lexer.h util.h
 expr.o: expr.cc expr.h util.h
 exprutil.o: exprutil.cc exprutil.h expr.h util.h
 nfa.o: nfa.cc nfa.h util.h
-dfa.o: dfa.cc dfa.h util.h
-ssfa.o: ssfa.cc ssfa.h regex.h util.h expr.h exprutil.h dfa.h
-generator.o: generator.cc generator.h regex.h util.h expr.h exprutil.h \
-  dfa.h ssfa.h
+dfa.o: dfa.cc dfa.h util.h nfa.h expr.h
+ssfa.o: ssfa.cc ssfa.h regex.h util.h lexer.h expr.h exprutil.h nfa.h \
+  dfa.h
+generator.o: generator.cc generator.h regex.h util.h lexer.h expr.h \
+  exprutil.h nfa.h dfa.h ssfa.h

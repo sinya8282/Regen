@@ -6,10 +6,9 @@ const char*
 Expr::TypeString(Expr::Type type)
 {
   static const char* const type_strings[] = {
-    "Literal", "CharClass", "Dot", "BegLine",
-    "EndLine", "EOP", "Concat", "Union", "Intersection",
-    "Qmark", "Star", "Plus", "Repetition", "Rpar", "Lpar",
-    "Epsilon", "None", "Complement"
+    "Literal", "CharClass", "Dot", "BegLine", "EndLine",
+    "EOP", "Concat", "Union", "Qmark", "Star", "Plus",
+    "Epsilon", "None"
   };
 
   return type_strings[type];
@@ -22,6 +21,17 @@ Expr::SuperTypeString(Expr::SuperType stype)
   };
 
   return stype_strings[stype];
+}
+
+void Expr::Capture(std::set<StateExpr*> &src, std::set<StateExpr*> &dst) {
+  std::set<StateExpr*>::iterator iter = src.begin();
+  Tag::iterator tag_iter;
+  while (iter != src.end()) {
+    for (tag_iter = (*iter)->tag().leave.begin(); tag_iter != (*iter)->tag().leave.end(); ++tag_iter) {
+      tag_iter->second.insert(dst.begin(), dst.end());
+    }
+    ++iter;
+  }
 }
 
 void Expr::Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst) {
@@ -107,6 +117,7 @@ Concat::Concat(Expr *lhs, Expr *rhs):
 
 void Concat::FillTransition()
 {
+  Capture(lhs_->transition().last, rhs_->transition().first);
   Connect(lhs_->transition().last, rhs_->transition().first);
   rhs_->FillTransition();
   lhs_->FillTransition();

@@ -59,18 +59,18 @@ struct Transition {
 };
 
 struct Tag {
+  typedef std::map<std::size_t, std::set<StateExpr*> >::iterator iterator;
   std::set<std::size_t> enter;
-  std::set<std::size_t> leave;
+  std::map<std::size_t, std::set<StateExpr*> > leave;
 };
 
 class Expr {
 public:
   enum Type {
-    kLiteral=0, kCharClass, kDot, kBegLine,
-    kEndLine, kEOP,
-    kConcat, kUnion,  kIntersection,
-    kQmark, kStar, kPlus, kRepetition,
-    kRpar, kLpar, kEpsilon, kNone, kComplement
+    kLiteral=0, kCharClass, kDot,
+    kBegLine, kEndLine, kEOP,
+    kConcat, kUnion, kQmark, kStar, kPlus,
+    kEpsilon, kNone
   };
   enum SuperType {
     kStateExpr=0, kBinaryExpr, kUnaryExpr
@@ -100,6 +100,7 @@ public:
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 protected:
   static void Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst);
+  static void Capture(std::set<StateExpr*> &src, std::set<StateExpr*> &dst);
   std::size_t expr_id_;
   std::size_t max_length_;
   std::size_t min_length_;

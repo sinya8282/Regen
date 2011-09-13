@@ -4,218 +4,18 @@ namespace regen {
 
 Regex::Regex(const std::string &regex, std::size_t recursive_limit):
     regex_(regex),
-    macro_expand_(false),
+    recursive_depth_(0),
     recursive_limit_(recursive_limit),
     capture_num_(0),
     involved_char_(std::bitset<256>()),
-    parse_ptr_(regex.c_str()),
     olevel_(Onone),
     dfa_failure_(false)
 {
-  Parse();
+  const unsigned char *begin = (const unsigned char*)regex.c_str(),
+      *end = begin + regex.length();
+  Lexer lexer(begin, end);
+  Parse(&lexer);
   NumberingStateExprVisitor::Numbering(expr_root_, &state_exprs_);
-}
-
-Expr::Type Regex::lex()
-{
-  if (*parse_ptr_ == '\0') {
-    if (parse_stack_.empty()) {
-      token_type_ = Expr::kEOP;
-    } else {
-      parse_ptr_ = parse_stack_.top();
-      parse_stack_.pop();
-      if (macro_expand_) {
-        macro_expand_ = false;
-      } else {
-        recursive_depth_--;
-      }
-      token_type_ = lex();
-    }
-  } else switch (parse_lit_ = *parse_ptr_++) {
-      case '.': token_type_ = Expr::kDot;       break;
-      case '[': token_type_ = Expr::kCharClass; break;
-      case '|': token_type_ = Expr::kUnion;     break;
-      case '?': token_type_ = Expr::kQmark;     break;
-      case '+': token_type_ = Expr::kPlus;      break;
-      case '*': token_type_ = Expr::kStar;      break;
-      case '!': token_type_ = Expr::kComplement;  break;
-      case '&': token_type_ = Expr::kIntersection;  break;
-      case ')': token_type_ = Expr::kRpar;      break;
-      case '^': token_type_ = Expr::kBegLine;   break;
-      case '$': token_type_ = Expr::kEndLine;   break;
-      case '(': {
-        if (*parse_ptr_ == ')') {
-          parse_ptr_++;
-          token_type_ = Expr::kNone;
-        } else if (*parse_ptr_     == '?' &&
-            *(parse_ptr_+1) == 'R' &&
-            *(parse_ptr_+2) == ')') {
-          // recursive expression
-          parse_ptr_ += 2;
-          if (recursive_depth_ >= recursive_limit_) {
-            parse_ptr_++;
-            token_type_ = Expr::kNone;
-          } else {
-            parse_stack_.push(parse_ptr_);
-            recursive_depth_++;
-            parse_ptr_ = regex_.c_str();
-            token_type_ = Expr::kLpar;
-          }
-        } else {
-          token_type_ = Expr::kLpar;
-        }
-        break;
-      }
-      case '{':
-        lex_repetition();
-        break;
-      case '\\':
-        lex_metachar();
-        break;
-      default:
-        token_type_ = Expr::kLiteral;
-  }
-  return token_type_;
-}
-
-void Regex::lex_metachar()
-{
-  parse_lit_ = *parse_ptr_++;
-  switch (parse_lit_) {
-    case '\0': exitmsg("bad '\\'");
-    case 'a': /* bell */
-      parse_lit_ = '\a';
-      token_type_ = Expr::kLiteral;
-      break;      
-    case 'd': /*digits*/
-      parse_stack_.push(parse_ptr_);
-      parse_ptr_ = "[0-9]";
-      macro_expand_ = true;
-      token_type_ = lex();
-      break;
-    case 'D': /*not digits*/
-      parse_stack_.push(parse_ptr_);
-      parse_ptr_ = "[^0-9]";
-      macro_expand_ = true;
-      token_type_ = lex();
-      break;
-    case 'f': /* form feed */
-      parse_lit_ = '\f';
-      token_type_ = Expr::kLiteral;
-      break;
-    case 'n': /* new line */
-      parse_lit_ = '\n';
-      token_type_ = Expr::kLiteral;
-      break;
-    case 'r': /* carriage retur */
-      parse_lit_ = '\r';
-      token_type_ = Expr::kLiteral;
-      break;
-    case 't': /* horizontal tab */
-      parse_lit_ = '\t';
-      token_type_ = Expr::kLiteral;
-      break;
-    case 'v': /* vertical tab */
-      parse_lit_ = '\v';
-      token_type_ = Expr::kLiteral;
-      break;
-    case 'w':
-      parse_stack_.push(parse_ptr_);
-      parse_ptr_ = "[0-9A-Za-z_]";
-      macro_expand_ = true;
-      token_type_ = lex();
-      break;
-    case 'W':
-      parse_stack_.push(parse_ptr_);
-      parse_ptr_ = "[^0-9A-Za-z_]";
-      macro_expand_ = true;
-      token_type_ = lex();
-      break;
-    case 'x': {
-      unsigned char hex = 0;
-      for (int i = 0; i < 2; i++) {
-        parse_lit_ = *parse_ptr_++;
-        hex <<= 4;
-        if ('A' <= parse_lit_ && parse_lit_ <= 'F') {
-          hex += parse_lit_ - 'A' + 10;
-        } else if ('a' <= parse_lit_ && parse_lit_ <= 'f') {
-          hex += parse_lit_ - 'a' + 10;
-        } else if ('0' <= parse_lit_ && parse_lit_ <= '9') {
-          hex += parse_lit_ - '0';
-        } else {
-          if (i == 0) {
-            hex = 0;
-          } else {
-            hex >>= 4;
-          }
-          parse_ptr_--;
-          break;
-        }
-      }
-      token_type_ = Expr::kLiteral;
-      parse_lit_ = hex;
-      break;
-    }
-    default:
-      token_type_ = Expr::kLiteral;
-      break;
-  }
-}
-
-void Regex::lex_repetition()
-{
-  const char *ptr = parse_ptr_;
-  lower_repetition_ = 0;
-  if ('0' <= *ptr && *ptr <= '9') {
-    do {
-      lower_repetition_ *= 10;
-      lower_repetition_ += *ptr++ - '0';
-    } while ('0' <= *ptr && *ptr <= '9');
-  } else if (*ptr == ',') {
-    lower_repetition_ = 0;
-  } else {
-    goto invalid;
-  }
-  if (*ptr == ',') {
-    upper_repetition_ = 0;
-    ptr++;
-    if ('0' <= *ptr && *ptr <= '9') {
-      do {
-        upper_repetition_ *= 10;
-        upper_repetition_ += *ptr++ - '0';
-      } while ('0' <= *ptr && *ptr <= '9');
-      if (*ptr != '}') {
-        goto invalid;
-      }
-    } else if (*ptr == '}') {
-      upper_repetition_ = -1;
-    } else {
-      goto invalid;
-    }
-  } else if (*ptr == '}') {
-    upper_repetition_ = lower_repetition_;
-  } else {
-    goto invalid;
-  }
-  parse_ptr_ = ++ptr;
-  if (lower_repetition_ == 0 && upper_repetition_ == -1) {
-    token_type_ = Expr::kStar;
-  } else if (lower_repetition_ == 1 && upper_repetition_ == -1) {
-    token_type_ = Expr::kPlus;
-  } else if (lower_repetition_ == 0 && upper_repetition_ == 1) {
-    token_type_ = Expr::kQmark;
-  } else if (lower_repetition_ == 1 && upper_repetition_ == 1) {
-    token_type_ = lex();
-  } else if (upper_repetition_ != -1 && upper_repetition_ < lower_repetition_) {
-    exitmsg("Invalid repetition quantifier {%d,%d}",
-            lower_repetition_, upper_repetition_);
-  } else {
-    token_type_ = Expr::kRepetition;
-  }
-  return;
-invalid:
-  token_type_ = Expr::kLiteral;
-  return;
 }
 
 StateExpr*
@@ -245,77 +45,18 @@ Regex::CombineStateExpr(StateExpr *e1, StateExpr *e2)
   return s;
 }
 
-CharClass*
-Regex::BuildCharClass() {
-  std::size_t i;
-  CharClass *cc = new CharClass();
-  std::bitset<256>& table = cc->table();
-  bool range;
-  char lastc = '\0';
-
-  if (*parse_ptr_ == '^') {
-    parse_ptr_++;
-    cc->set_negative(true);
-  }
-
-  if (*parse_ptr_ == ']' || *parse_ptr_ == '-') {
-    table.set((unsigned char)*parse_ptr_);
-    lastc = *parse_ptr_++;
-  }
-
-  for (range = false; (*parse_ptr_ != '\0') && (*parse_ptr_ != ']'); parse_ptr_++) {
-    if (!range && *parse_ptr_ == '-') {
-      range = true;
-      continue;
-    }
-
-    if (*parse_ptr_ == '\\') {
-      if (*(parse_ptr_++) == '\0') {
-        exitmsg(" [ ] imbalance");
-      }
-    }
-
-    table.set(*parse_ptr_);
-
-    if (range) {
-      for (i = (unsigned char)(*parse_ptr_) - 1; i > (unsigned char)lastc; i--) {
-        table.set(i);
-      }
-      range = false;
-    }
-    lastc = *parse_ptr_;
-  }
-  if (*parse_ptr_ == '\0') exitmsg(" [ ] imbalance");
-
-  if (range) {
-    table.set('-');
-    range = false;
-  }
-
-  parse_ptr_++;
-
-  if (cc->count() == 1) {
-    parse_lit_ = lastc;
-  } else if (cc->count() >= 128 && !cc->negative()) {
-    cc->set_negative(true);
-    cc->flip();
-  }
-
-  return cc;
-}
-
-void Regex::Parse()
+void Regex::Parse(Lexer *lexer)
 {
   Expr* e;
   StateExpr *eop;
 
-  lex();
+  lexer->Consume();
 
   do {
-    e = e0();
+    e = e0(lexer);
   } while (e->type() == Expr::kNone);
 
-  if (token_type_ != Expr::kEOP) exitmsg("expected end of pattern.");
+  if (lexer->token() != Lexer::kEOP) exitmsg("expected end of pattern.");
 
   // add '.*' to top of regular expression.
   // Expr *dotstar;
@@ -345,20 +86,20 @@ void Regex::Parse()
  * e4 ::= ATOM | '(' e0 ')' | '!' e0      # ATOM, grouped expresion, complement expresion
 */
 
-Expr *Regex::e0()
+Expr* Regex::e0(Lexer *lexer)
 {
   Expr *e, *f;
-  e = e1();
+  e = e1(lexer);
   
   while (e->type() == Expr::kNone &&
-         token_type_ == Expr::kUnion) {
-    lex();
-    e = e1();
+         lexer->token() == Lexer::kUnion) {
+    lexer->Consume();
+    e = e1(lexer);
   }
   
-  while (token_type_ == Expr::kUnion) {
-    lex();
-    f = e1();
+  while (lexer->token() == Lexer::kUnion) {
+    lexer->Consume();
+    f = e1(lexer);
     if (f->type() != Expr::kNone) {
       if (e->stype() == Expr::kStateExpr &&
           f->stype() == Expr::kStateExpr) {
@@ -372,24 +113,23 @@ Expr *Regex::e0()
 }
 
 Expr *
-Regex::e1()
+Regex::e1(Lexer *lexer)
 {
   Expr *e;
-  std::vector<Expr*> exprs;
+  e = e2(lexer);
 
-  e = e2();
-
+  std::vector<Expr*> exprs;  
   while (e->type() == Expr::kNone &&
-         token_type_ == Expr::kIntersection) {
-    lex();
-    e = e2();
+         lexer->token() == Lexer::kIntersection) {
+    lexer->Consume();
+    e = e2(lexer);
   }
 
   exprs.push_back(e);
 
-  while (token_type_ == Expr::kIntersection) {
-    lex();
-    e = e2();
+  while (lexer->token() == Lexer::kIntersection) {
+    lexer->Consume();
+    e = e2(lexer);
     if (e->type() != Expr::kNone) {
       exprs.push_back(e);
     }
@@ -423,32 +163,18 @@ Regex::e1()
 }
 
 Expr *
-Regex::e2()
+Regex::e2(Lexer *lexer)
 {
   Expr *e, *f;
-  e = e3();
+  e = e3(lexer);
   
   while (e->type() == Expr::kNone &&
-         (token_type_ == Expr::kLiteral ||
-          token_type_ == Expr::kCharClass ||
-          token_type_ == Expr::kDot ||
-          token_type_ == Expr::kEndLine ||
-          token_type_ == Expr::kBegLine ||
-          token_type_ == Expr::kNone ||
-          token_type_ == Expr::kLpar ||
-          token_type_ == Expr::kComplement)) {
-    e = e3();
+         lexer->Concatenated()) {
+    e = e3(lexer);
   }
 
-  while (token_type_ == Expr::kLiteral ||
-         token_type_ == Expr::kCharClass ||
-         token_type_ == Expr::kDot ||
-         token_type_ == Expr::kEndLine ||
-         token_type_ == Expr::kBegLine ||
-         token_type_ == Expr::kNone ||
-         token_type_ == Expr::kLpar ||
-         token_type_ == Expr::kComplement) {
-    f = e3();
+  while (lexer->Concatenated()) {
+    f = e3(lexer);
     if (f->type() != Expr::kNone) {
       e = new Concat(e, f);
     }
@@ -458,28 +184,28 @@ Regex::e2()
 }
 
 Expr *
-Regex::e3()
+Regex::e3(Lexer *lexer)
 {
   Expr *e;
-  e = e4();
+  e = e4(lexer);
   bool infinity = false, nullable = false;
 
 looptop:
-  switch (token_type_) {
-    case Expr::kStar:
+  switch (lexer->token()) {
+    case Lexer::kStar:
       infinity = true;
       nullable = true;
       goto loop;
-    case Expr::kPlus:
+    case Lexer::kPlus:
       infinity = true;
       goto loop;
-    case Expr::kQmark:
+    case Lexer::kQmark:
       nullable = true;
       goto loop;
     default: goto loopend;
   }
 loop:
-  lex();
+  lexer->Consume();
   goto looptop;
 loopend:
 
@@ -494,32 +220,34 @@ loopend:
     }
   }
   
-  if (token_type_ == Expr::kRepetition) {
+  if (lexer->token() == Lexer::kRepetition) {
+    std::pair<int, int> r = lexer->repetition();
+    int lower_repetition = r.first, upper_repetition = r.second;
     if (e->type() == Expr::kNone) goto loop;
-    if (lower_repetition_ == 0 && upper_repetition_ == 0) {
+    if (lower_repetition == 0 && upper_repetition == 0) {
       delete e;
       e = new None();
-    } else if (upper_repetition_ == -1) {
+    } else if (upper_repetition == -1) {
       Expr* f = e;
-      for (int i = 0; i < lower_repetition_ - 2; i++) {
+      for (int i = 0; i < lower_repetition - 2; i++) {
         e = new Concat(e, f->Clone());
       }
       e = new Concat(e, new Plus(f->Clone()));
-    } else if (upper_repetition_ == lower_repetition_) {
+    } else if (upper_repetition == lower_repetition) {
       Expr* f = e;
-      for (int i = 0; i < lower_repetition_ - 1; i++) {
+      for (int i = 0; i < lower_repetition - 1; i++) {
         e = new Concat(e, f->Clone());
       }
     } else {
       Expr *f = e;
-      for (int i = 0; i < lower_repetition_ - 1; i++) {
+      for (int i = 0; i < lower_repetition - 1; i++) {
         e = new Concat(e, f->Clone());
       }
-      if (lower_repetition_ == 0) {
+      if (lower_repetition == 0) {
         e = new Qmark(e);
-        lower_repetition_ = 1;
+        lower_repetition = 1;
       }
-      for (int i = 0; i < (upper_repetition_ - lower_repetition_); i++) {
+      for (int i = 0; i < (upper_repetition - lower_repetition); i++) {
         e = new Concat(e, new Qmark(f->Clone()));
       }
     }
@@ -531,27 +259,31 @@ loopend:
 }
 
 Expr *
-Regex::e4()
+Regex::e4(Lexer *lexer)
 { 
   Expr *e;
 
-  switch(token_type_) {
-    case Expr::kLiteral:
-      e = new Literal(parse_lit_);
+  switch(lexer->token()) {
+    case Lexer::kLiteral:
+      e = new Literal(lexer->literal());
       break;
-    case Expr::kBegLine:
+    case Lexer::kBegLine:
       e = new BegLine();
       break;
-    case Expr::kEndLine:
+    case Lexer::kEndLine:
       e = new EndLine();
       break;
-    case Expr::kDot:
+    case Lexer::kDot:
       e = new Dot();
       break;
-    case Expr::kCharClass: {
-      CharClass *cc = BuildCharClass();
+    case Lexer::kByteRange: {
+      e = new CharClass(lexer->table());
+      break;
+    }
+    case Lexer::kCharClass: {
+      CharClass *cc = BuildCharClass(lexer);
       if (cc->count() == 1) {
-        e = new Literal(parse_lit_);
+        e = new Literal(lexer->literal());
         delete cc;
       } else if (cc->count() == 256) {
         e = new Dot();
@@ -561,22 +293,22 @@ Regex::e4()
       }
       break;
     }
-    case Expr::kNone:
+    case Lexer::kNone:
       e = new None();
       break;
-    case Expr::kLpar:
-      lex();
-      e = e0();
-      if (token_type_ != Expr::kRpar) exitmsg("expected a ')'");
+    case Lexer::kLpar:
+      lexer->Consume();
+      e = e0(lexer);
+      if (lexer->token() != Lexer::kRpar) exitmsg("expected a ')'");
       Capture(e);
       break;
-    case Expr::kComplement: {
+    case Lexer::kComplement: {
       bool complement = false;
       do {
         complement = !complement;
-        lex();
-      } while (token_type_ == Expr::kComplement);
-      e = e4();
+        lexer->Consume();
+      } while (lexer->token() == Lexer::kComplement);
+      e = e4(lexer);
       if (complement) {
         e = new Concat(e, new EOP());
         e->FillTransition();
@@ -586,19 +318,88 @@ Regex::e4()
         e = CreateRegexFromDFA(dfa);
         delete e_;
       }
-      return e;
+      break;
     }
-    case Expr::kRpar:
+    case Lexer::kRecursive: {
+      if (recursive_depth_ < recursive_limit_) {
+        recursive_depth_++;
+        const unsigned char *begin = (const unsigned char*)regex_.c_str(),
+            *end = begin + regex_.length();
+        Lexer l(begin, end);
+        l.Consume();
+        e = e0(&l);
+        recursive_depth_--;
+      } else {
+        e = new None();
+      }
+      break;
+    }
+    case Lexer::kRpar:
       exitmsg("expected a '('!");
-    case Expr::kEOP:
+    case Lexer::kEOP:
       exitmsg("expected none-nullable expression.");
     default:
-      exitmsg("can't handle Expr: %s", Expr::TypeString(token_type_));
+      exitmsg("can't handle Expr: %s (%c)", lexer->TokenToString(),lexer->literal());
   }
 
-  lex();
+  lexer->Consume();
 
   return e;
+}
+
+CharClass*
+Regex::BuildCharClass(Lexer *lexer) {
+  CharClass *cc = new CharClass();
+  std::bitset<256>& table = cc->table();
+  bool range;
+  unsigned char lastc = '\0';
+
+  lexer->Consume();
+  if (lexer->token() == Lexer::kBegLine) {
+    lexer->Consume();
+    cc->set_negative(true);
+  }
+  if (lexer->literal() == '-' ||
+      lexer->literal() == ']') {
+    table.set(lexer->literal());
+    lastc = lexer->literal();
+    lexer->Consume();
+  }
+
+  for (range = false; lexer->token() != Lexer::kEOP && lexer->literal() != ']'; lexer->Consume()) {
+    if (!range && lexer->literal() == '-') {
+      range = true;
+      continue;
+    }
+
+    if (lexer->token() == Lexer::kByteRange) {
+      table |= lexer->table();
+    } else {
+      table.set(lexer->literal());
+    }
+
+    if (range) {
+      for (std::size_t c = lexer->literal() - 1; c > lastc; c--) {
+        table.set(c);
+      }
+      range = false;
+    }
+
+    lastc = lexer->literal();
+  }
+  if (lexer->token() == Lexer::kEOP) exitmsg(" [ ] imbalance");
+
+  if (range) {
+    table.set('-');
+  }
+
+  if (cc->count() == 1) {
+    lexer->literal(lastc);
+  } else if (cc->count() >= 128 && !cc->negative()) {
+    cc->set_negative(true);
+    cc->flip();
+  }
+  return cc;
 }
 
 void Regex::Capture(Expr* e)
@@ -611,7 +412,7 @@ void Regex::Capture(Expr* e)
     (*iter)->tag().enter.insert(capture_num_);
   }
   for (iter = last.begin(); iter != last.end(); ++iter) {
-    (*iter)->tag().leave.insert(capture_num_+1);
+    (*iter)->tag().leave[capture_num_];
   }
   
   capture_num_++;

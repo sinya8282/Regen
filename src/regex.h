@@ -2,6 +2,7 @@
 #define REGEN_REGEX_H_
 
 #include "util.h"
+#include "lexer.h"
 #include "expr.h"
 #include "exprutil.h"
 #include "nfa.h"
@@ -38,25 +39,20 @@ public:
   const std::vector<StateExpr*> &state_exprs() const { return state_exprs_; }  
 
 private:
-  Expr::Type lex();
-  void lex_metachar();
-  void lex_repetition();
-  Expr* e0();
-  Expr* e1();
-  Expr* e2();
-  Expr* e3();
-  Expr* e4();
-  void Parse();
+  void Parse(Lexer *);  
+  Expr* e0(Lexer *);
+  Expr* e1(Lexer *);
+  Expr* e2(Lexer *);
+  Expr* e3(Lexer *);
+  Expr* e4(Lexer *);
   void Capture(Expr* e);
   //bool MakeDFA(Expr* e, DFA &dfa, int limit = -1, std::size_t neop = 1);
   //bool MakeDFA(NFA &nfa, DFA &dfa);
-  CharClass* BuildCharClass();
+  CharClass* BuildCharClass(Lexer *);
   StateExpr* CombineStateExpr(StateExpr* e1, StateExpr* e2);
 
   const std::string regex_;
   Expr *expr_root_;
-  std::stack<const char *> parse_stack_;
-  bool macro_expand_;
   std::size_t recursive_depth_;
   std::size_t recursive_limit_;
   std::vector<StateExpr*> state_exprs_;
@@ -68,10 +64,6 @@ private:
   std::bitset<256> involved_char_;
   std::size_t count_involved_char_;
 
-  Expr::Type token_type_;
-  const char *parse_ptr_;
-  unsigned char parse_lit_;
-  int lower_repetition_, upper_repetition_;
   std::size_t expr_id_;
   std::size_t state_id_;
 
