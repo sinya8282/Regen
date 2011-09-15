@@ -349,24 +349,7 @@ DFA::Complement()
 }
 
 #if REGEN_ENABLE_XBYAK
-class XbyakCompiler: public Xbyak::CodeGenerator {
- public:
-  XbyakCompiler(const DFA &dfa, std::size_t state_code_size);
- private:
-  std::size_t code_segment_size_;
-  static std::size_t code_segment_size(std::size_t state_num) {
-    const std::size_t setup_code_size_ = 16;
-    const std::size_t state_code_size_ = 64;
-    const std::size_t segment_align = 4096;    
-    return (state_num*state_code_size_ + setup_code_size_)
-        +  ((state_num*state_code_size_ + setup_code_size_) % segment_align);
-  }
-  static std::size_t data_segment_size(std::size_t state_num) {
-    return state_num * 256 * sizeof(void *);
-  }
-};
-
-XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 64):
+JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
     /* code segment for state transition.
      *   each states code was 16byte alligned.
      *                        ~~
@@ -375,7 +358,9 @@ XbyakCompiler::XbyakCompiler(const DFA &dfa, std::size_t state_code_size = 64):
      * data segment for transition table
      *                                                */
     CodeGenerator(code_segment_size(dfa.size()) + data_segment_size(dfa.size())),
-    code_segment_size_(code_segment_size(dfa.size()))
+    code_segment_size_(code_segment_size(dfa.size())),
+    data_segment_size_(data_segment_size(dfa.size())),
+    total_segment_size_(code_segment_size(dfa.size())+data_segment_size(dfa.size()))
 {
   std::vector<const uint8_t*> states_addr(dfa.size());
 
@@ -640,7 +625,7 @@ bool DFA::Compile(CompileFlag olevel)
       olevel_ = O3;
     }
   }
-  xgen_ = new XbyakCompiler(*this);
+  xgen_ = new JITCompiler(*this);
   CompiledFullMatch = (state_t (*)(const unsigned char *, const unsigned char *))xgen_->getCode();
   if (olevel_ < O1) olevel_ = O1;
   return olevel == olevel_;

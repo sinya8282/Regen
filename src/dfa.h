@@ -8,7 +8,30 @@
 #endif
 
 namespace regen {
-
+  
+#if REGEN_ENABLE_XBYAK
+class DFA;
+class JITCompiler: public Xbyak::CodeGenerator {
+ public:
+  JITCompiler(const DFA &dfa, std::size_t state_code_size);
+  std::size_t CodeSize() { return total_segment_size_; };
+ private:
+  std::size_t code_segment_size_;
+  std::size_t data_segment_size_;
+  std::size_t total_segment_size_;
+  static std::size_t code_segment_size(std::size_t state_num) {
+    const std::size_t setup_code_size_ = 16;
+    const std::size_t state_code_size_ = 64;
+    const std::size_t segment_align = 4096;    
+    return (state_num*state_code_size_ + setup_code_size_)
+        +  ((state_num*state_code_size_ + setup_code_size_) % segment_align);
+  }
+  static std::size_t data_segment_size(std::size_t state_num) {
+    return state_num * 256 * sizeof(void *);
+  }
+};
+#endif
+  
 class DFA {
 public:
   typedef uint32_t state_t;
@@ -98,7 +121,7 @@ protected:
   bool Reduce();
   CompileFlag olevel_;
   #if REGEN_ENABLE_XBYAK
-  Xbyak::CodeGenerator *xgen_;
+  JITCompiler *xgen_;
   #endif
   std::vector<AlterTrans> alter_trans_;
   std::vector<std::size_t> inline_level_;
