@@ -16,17 +16,16 @@ typedef unsigned char uint8_t;
 #include <cstddef>
 #include <limits>
 #include <string>
-#include <set>
-#include <bitset>
-#include <vector>
-#include <stack>
-#include <queue>
-#include <deque>
-#include <functional>
-#include <map>
 #include <iostream>
 #include <typeinfo>
 #include <fstream>
+
+#include <set>
+#include <bitset>
+#include <vector>
+#include <queue>
+#include <deque>
+#include <map>
 
 #include <sys/stat.h>
 #ifdef _MSC_VER
