@@ -598,6 +598,7 @@ bool DFA::Reduce()
 {
   states_[0].src_states.insert(DFA::NONE);
   std::vector<bool> inlined(size());
+  const std::size_t MAX_REDUCE = 10;
 
   for (iterator state_iter = begin(); state_iter != end(); ++state_iter) {
     // Pick inlining region (make degenerate graph).
@@ -620,7 +621,7 @@ bool DFA::Reduce()
       inlined[next.id] = true;
       current_id = next.id;
 
-      if(++(state_iter->inline_level) >= 10) break;
+      if(++(state_iter->inline_level) >= MAX_REDUCE) break;
     }
   }
   states_[0].src_states.erase(DFA::NONE);
@@ -654,7 +655,7 @@ bool DFA::FullMatch(const unsigned char *str, const unsigned char *end) const
 {
   state_t state = 0;
 
-  if (olevel_ >= O1) {
+  if (complete_ && olevel_ >= O1) {
     state = CompiledFullMatch(str, end);
     return state != DFA::REJECT ? states_[state].accept : false;
   }

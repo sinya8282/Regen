@@ -4,7 +4,7 @@ namespace regen {
 
 Lexer::Type Lexer::Consume()
 {
-  if (ptr_ == end_) {
+  if (ptr_ >= end_) {
     token_ = kEOP;
     return token_;
   }
@@ -25,9 +25,7 @@ Lexer::Type Lexer::Consume()
       if (*ptr_ == ')') {
         ptr_++;
         token_ = kNone;
-      } else if (*ptr_ == '?' &&
-                 *(ptr_+1) == 'R' &&
-                 *(ptr_+2) == ')') {
+      } else if (*ptr_ == '?' && *(ptr_+1) == 'R' && *(ptr_+2) == ')') {
         ptr_ += 3;
         token_ = kRecursive;
       } else {
