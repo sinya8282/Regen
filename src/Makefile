@@ -17,13 +17,13 @@ OBJS=$(SRC:.cc=.o)
 all: regen fullmatch state_num test.o bench.o
 
 regen: regen.cc $(OBJS)
-	$(CC) $(CFLAGS) $(LIBTHREAD) regen.cc $(OBJS) -o $@
+	$(CC) regen.cc $(OBJS) -o $@ $(CFLAGS) $(LIBTHREAD)
 
 fullmatch: tests/fullmatch.cc $(OBJS)
-	$(CC) $(CFLAGS) $(LIBTHREAD) tests/fullmatch.cc $(OBJS) -o $@
+	$(CC) tests/fullmatch.cc $(OBJS) -o $@ $(CFLAGS) $(LIBTHREAD)
 
 state_num: tests/state_num.cc $(OBJS)
-	$(CC) $(CFLAGS) $(LIBTHREAD) tests/state_num.cc $(OBJS) -o $@
+	$(CC) tests/state_num.cc $(OBJS) -o $@ $(CFLAGS) $(LIBTHREAD)
 
 test: test.o
 	@./test.o
@@ -32,13 +32,13 @@ bench: bench.o
 	@./bench.o
 
 test.o: tests/test.cc $(OBJS)
-	$(CC) $(CFLAGS) $(LIBTHREAD) tests/test.cc $(OBJS) -o test.o
+	$(CC) tests/test.cc $(OBJS) -o test.o $(CFLAGS) $(LIBTHREAD)
 
 bench.o: tests/bench.cc $(OBJS)
-	$(CC) $(CFLAGS) $(LIBTHREAD) tests/bench.cc $(OBJS) -o bench.o 
+	$(CC) tests/bench.cc $(OBJS) -o bench.o $(CFLAGS) $(LIBTHREAD)
 
 .cc.o:
-	$(CC) $(CFLAGS) -c $<
+	$(CC) -c $< $(CFLAGS)
 
 clean:
 	rm -rf $(OBJS) test.o bench.o ssfa.h.gch regen test bench fullmatch state_num *.dSYM
