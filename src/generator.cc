@@ -35,8 +35,7 @@ void DotGenerate(const Regex &regex)
     const DFA::Transition &transition = dfa.GetTransition(state);
 
     for (unsigned int input = 0; input < 256; input++) {
-      if (transition[input] != DFA::REJECT &&
-          transition[input] != dfa.GetDefaultNext(state)) {
+      if (transition[input] != DFA::REJECT) {
         printf("  q%"PRIuS" -> q%d [label=\"", state, transition[input]);
         if (input < 255 && transition[input] == transition[input+1]) {
           printf("[%s", normalize(input, buf));
@@ -50,12 +49,6 @@ void DotGenerate(const Regex &regex)
         printf("\"]\n");
       }
     }
-    
-    if (dfa.GetDefaultNext(state) != DFA::REJECT) {
-      printf("  q%"PRIuS" -> q%d [color=red]\n",
-             state, dfa.GetDefaultNext(state));
-    }
-
   }
   puts("}");
 }

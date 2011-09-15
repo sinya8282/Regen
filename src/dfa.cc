@@ -26,14 +26,11 @@ bool DFA::Construct(Expr *expr_root, std::size_t limit, std::size_t neop)
 
   typedef std::set<StateExpr*> NFA;
   
-  std::map<NFA, int> dfa_map;
+  std::map<NFA, state_t> dfa_map;
   std::queue<NFA> queue;
-  NFA default_next;
-  NFA first_states = expr_root->transition().first;
 
-  dfa_map[default_next] = REJECT;
-  dfa_map[first_states] = dfa_id++;
-  queue.push(first_states);
+  dfa_map[expr_root->transition().first] = dfa_id++;
+  queue.push(expr_root->transition().first);
 
   while (!queue.empty()) {
     NFA nfa_states = queue.front();
@@ -41,7 +38,6 @@ bool DFA::Construct(Expr *expr_root, std::size_t limit, std::size_t neop)
     std::vector<NFA> transition(256);
     NFA::iterator iter = nfa_states.begin();
     bool is_accept = false;
-    default_next.clear();
     std::set<EOP*> eops;
 
     while (iter != nfa_states.end()) {
@@ -66,7 +62,6 @@ bool DFA::Construct(Expr *expr_root, std::size_t limit, std::size_t neop)
           for (int i = 0; i < 256; i++) {
             transition[i].insert(next.begin(), next.end());
           }
-          default_next.insert(next.begin(), next.end());
           break;
         }
         case Expr::kBegLine: {
@@ -92,31 +87,27 @@ bool DFA::Construct(Expr *expr_root, std::size_t limit, std::size_t neop)
 
     State &state = get_new_state();
     Transition &trans = transition_[state.id];
-    bool has_reject = false;
     // only Leftmost-Shortest matching
     //if (is_accept) goto settransition;
     
     for (state_t i = 0; i < 256; i++) {
       NFA &next = transition[i];
-      if (next.empty()) {
-        has_reject = true;
-        continue;
-      }
-
       if (dfa_map.find(next) == dfa_map.end()) {
-        dfa_map[next] = dfa_id++;
-        if (dfa_id > (state_t)limit) {
-          return false;
+        if (next.empty()) {
+          dfa_map[next] = REJECT;
+        } else {
+          dfa_map[next] = dfa_id++;
+          if (dfa_id > (state_t)limit) {
+            return false;
+          }
+          queue.push(next);
         }
-        queue.push(next);
       }
       trans[i] = dfa_map[next];
       state.dst_states.insert(dfa_map[next]);
     }
     //settransition:
-    if (has_reject) state.dst_states.insert(REJECT);
     state.accept = is_accept;
-    state.default_next = dfa_map[default_next];
   }
 
   Finalize();
@@ -134,7 +125,7 @@ bool DFA::Construct(const NFA &nfa, size_t limit)
   std::map<std::set<NFA::state_t>, state_t> dfa_map;
   std::queue<NFA_> queue;
   const NFA_ &start_states = nfa.start_states();
-  
+
   dfa_map[start_states] = dfa_id++;
   queue.push(start_states);
 
@@ -154,26 +145,23 @@ bool DFA::Construct(const NFA &nfa, size_t limit)
 
     State &state = get_new_state();
     Transition &trans = transition_[state.id];
-    bool has_reject = false;
     // only Leftmost-Shortest matching
     //if (is_accept) goto settransition;
     
     for (state_t i = 0; i < 256; i++) {
       NFA_ &next = transition[i];
-      if (next.empty()) {
-        has_reject = true;
-        continue;
-      }
-
       if (dfa_map.find(next) == dfa_map.end()) {
-        dfa_map[next] = dfa_id++;
-        queue.push(next);
+        if (next.empty()) {
+          dfa_map[next] = REJECT;
+        } else {
+          dfa_map[next] = dfa_id++;
+          queue.push(next);
+        }
       }
       trans[i] = dfa_map[next];
       state.dst_states.insert(dfa_map[next]);
     }
     //settransition:
-    if (has_reject) state.dst_states.insert(REJECT);
     state.accept = is_accept;
   }
 
@@ -201,7 +189,7 @@ DFA::State& DFA::get_new_state() {
   State &new_state = states_.back();
   new_state.transitions = &transition_;
   new_state.id = states_.size()-1;
-  new_state.alter_transition.next1 = NONE;
+  new_state.alter_transition.next1 = UNDEF;
   return new_state;
 }
 
@@ -295,7 +283,6 @@ DFA::Minimize()
         state[input] = replace_map[n];
       }
     }
-    if (state.default_next != REJECT) state.default_next = replace_map[state.default_next];
     tmp_set.clear();
     for (std::set<state_t>::iterator iter = state.dst_states.begin(); iter != state.dst_states.end(); ++iter) {
       if (*iter != REJECT) tmp_set.insert(replace_map[*iter]);
@@ -337,9 +324,6 @@ DFA::Complement()
         }
         state[i] = reject;
       }
-    }
-    if (state.default_next == REJECT) {
-      state.default_next = reject;
     }
     if (to_reject) {
       state.dst_states.insert(reject);
@@ -421,7 +405,7 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
     // can transition without table lookup ?
     
     const DFA::AlterTrans &at = dfa[i].alter_transition;
-    if (dfa.olevel() >= O2 && at.next1 != DFA::NONE) {
+    if (dfa.olevel() >= O2 && at.next1 != DFA::UNDEF) {
       std::size_t state = i;
       std::size_t inline_level = dfa.olevel() == O3 ? dfa[i].inline_level : 0;
       bool inlining = inline_level != 0;
@@ -439,12 +423,12 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
       const DFA::AlterTrans &at = dfa.GetAlterTrans(state);
       bool jn_flag = false;
       transition_depth++;
-      assert(at.next1 != DFA::NONE);
+      assert(at.next1 != DFA::UNDEF);
       dfa.state2label(at.next1, labelbuf);
       if (at.next1 != DFA::REJECT) {
         jn_flag = true;  
       }
-      if (at.next2 == DFA::NONE) {
+      if (at.next2 == DFA::UNDEF) {
         if (!inlining) {
           inc(arg1);
           jmp(labelbuf, T_NEAR);
@@ -553,7 +537,7 @@ bool DFA::EliminateBranch()
 {
   for (iterator state_iter = begin(); state_iter != end(); ++state_iter) {
     State &state = *state_iter;
-    state_t next1 = state[0], next2 = DFA::NONE;
+    state_t next1 = state[0], next2 = DFA::UNDEF;
     unsigned int begin = 0, end = 256;
     int c;
     for (c = 1; c < 256 && next1 == state[c]; c++);
@@ -568,7 +552,7 @@ bool DFA::EliminateBranch()
       for (++c; c < 256 && next2 == state[c]; c++);
     }
     if (c < 256) {
-      next1 = next2 = DFA::NONE;
+      next1 = next2 = DFA::UNDEF;
     }
     state.alter_transition.next1 = next1;
     state.alter_transition.next2 = next2;
@@ -581,7 +565,7 @@ bool DFA::EliminateBranch()
 
 bool DFA::Reduce()
 {
-  states_[0].src_states.insert(DFA::NONE);
+  states_[0].src_states.insert(DFA::UNDEF);
   std::vector<bool> inlined(size());
   const std::size_t MAX_REDUCE = 10;
 
@@ -599,7 +583,7 @@ bool DFA::Reduce()
       if (current.dst_states.size() == 1 &&
           current.dst_states.count(DFA::REJECT) == 1) break;
       State &next = states_[*(current.dst_states.lower_bound(0))];
-      if (next.alter_transition.next1 == DFA::NONE) break;
+      if (next.alter_transition.next1 == DFA::UNDEF) break;
       if (next.src_states.size() != 1 ||
           next.accept) break;
       if (inlined[next.id]) break;
@@ -609,7 +593,7 @@ bool DFA::Reduce()
       if(++(state_iter->inline_level) >= MAX_REDUCE) break;
     }
   }
-  states_[0].src_states.erase(DFA::NONE);
+  states_[0].src_states.erase(DFA::UNDEF);
 
   return true;
 }

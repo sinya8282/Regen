@@ -37,8 +37,7 @@ public:
   typedef uint32_t state_t;
   enum StateType {
     REJECT = (state_t)-1,
-    ACCEPT = (state_t)-2,
-    NONE   = (state_t)-3
+    UNDEF  = (state_t)-2
   };
   struct Transition {
     state_t t[256];
@@ -52,10 +51,9 @@ public:
     state_t next2;
   };
   struct State {
-   State(): transitions(NULL), accept(false), default_next(REJECT), id(NONE), inline_level(0) {}
+   State(): transitions(NULL), accept(false), id(UNDEF), inline_level(0) {}
     std::vector<Transition> *transitions;
     bool accept;
-    state_t default_next;
     state_t id;
     std::set<state_t> dst_states;
     std::set<state_t> src_states;
@@ -90,11 +88,12 @@ public:
   const std::set<state_t> &dst_states(std::size_t i) const { return states_[i].dst_states; }
   const AlterTrans &GetAlterTrans(std::size_t state) const { return states_[state].alter_transition; }
   const Transition &GetTransition(std::size_t state) const { return transition_[state]; }
-  state_t GetDefaultNext(std::size_t state) const { return states_[state].default_next; }
   bool IsAcceptState(std::size_t state) const { return states_[state].accept; }
 
   bool Construct(Expr *expr_root, std::size_t limit = std::numeric_limits<size_t>::max(), std::size_t neop = 1);
   bool Construct(const NFA &nfa, std::size_t limit = std::numeric_limits<size_t>::max());
+  state_t OnlineConstruct(state_t state, unsigned char input);
+  state_t OnlineConstruct(state_t state);
   void Complement();
   virtual bool Minimize();
   bool Compile(CompileFlag olevel = O2);
@@ -111,8 +110,9 @@ public:
   const State &operator[](std::size_t index) const { return states_[index]; }
   
 protected:
-  std::vector<Transition> transition_;
-  std::deque<State> states_;
+  mutable std::vector<Transition> transition_;
+  mutable std::deque<State> states_;
+  mutable std::map<std::set<StateExpr*>, state_t> state_map_;
   bool complete_;
   bool minimum_;
   void Finalize();
