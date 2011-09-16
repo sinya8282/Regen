@@ -41,7 +41,7 @@ public:
   };
   struct Transition {
     state_t t[256];
-    Transition(state_t fill = REJECT) { std::fill(t, t+256, fill); }
+    Transition(state_t fill = UNDEF) { std::fill(t, t+256, fill); }
     state_t &operator[](std::size_t index) { return t[index]; }
     const state_t &operator[](std::size_t index) const { return t[index]; }
   };
@@ -82,7 +82,9 @@ public:
   CompileFlag olevel() const { return olevel_; };
   bool Complete() const { return complete_; }
 
-  State& get_new_state();
+  State& get_new_state() const;
+  const Expr* expr_root() const { return expr_root_; }
+  void set_expr_root(Expr* expr_root) { expr_root_ = expr_root; }
   std::size_t inline_level(std::size_t i) const { return states_[i].inline_level; }
   const std::set<state_t> &src_states(std::size_t i) const { return states_[i].src_states; }
   const std::set<state_t> &dst_states(std::size_t i) const { return states_[i].dst_states; }
@@ -92,11 +94,13 @@ public:
 
   bool Construct(Expr *expr_root, std::size_t limit = std::numeric_limits<size_t>::max(), std::size_t neop = 1);
   bool Construct(const NFA &nfa, std::size_t limit = std::numeric_limits<size_t>::max());
-  state_t OnlineConstruct(state_t state, unsigned char input);
-  state_t OnlineConstruct(state_t state);
+  state_t OnTheFlyConstructWithChar(state_t state, unsigned char input) const;
+  std::pair<state_t, const unsigned char *> OnTheFlyConstructWithString(state_t state, const unsigned char *begin, const unsigned char *end) const;
   void Complement();
   virtual bool Minimize();
   bool Compile(CompileFlag olevel = O2);
+  virtual bool OnTheFlyFullMatch(const std::string &str) const { return OnTheFlyFullMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
+  virtual bool OnTheFlyFullMatch(const unsigned char *, const unsigned char*) const;
   virtual bool FullMatch(const std::string &str) const { return FullMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
   virtual bool FullMatch(const unsigned char *str, const unsigned char *end) const;
   void state2label(state_t state, char* labelbuf) const;
@@ -112,7 +116,9 @@ public:
 protected:
   mutable std::vector<Transition> transition_;
   mutable std::deque<State> states_;
-  mutable std::map<std::set<StateExpr*>, state_t> state_map_;
+  mutable std::map<std::set<StateExpr*>, state_t> dfa_map_;
+  mutable std::map<state_t, std::set<StateExpr*> > nfa_map_;
+  Expr* expr_root_;
   bool complete_;
   bool minimum_;
   void Finalize();

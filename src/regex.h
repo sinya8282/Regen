@@ -39,7 +39,7 @@ public:
   const std::vector<StateExpr*> &state_exprs() const { return state_exprs_; }  
 
 private:
-  void Parse(Lexer *);  
+  Expr* Parse(Lexer *);  
   Expr* e0(Lexer *);
   Expr* e1(Lexer *);
   Expr* e2(Lexer *);

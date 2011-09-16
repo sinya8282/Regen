@@ -185,6 +185,8 @@ SSFA::SSFA(const DFA &dfa, std::size_t thread_num):
     dfa_size_(dfa.size()),
     thread_num_(thread_num)
 {
+  if (!dfa.Complete()) return;
+  
   fa_accepts_.resize(dfa.size());
   for (DFA::const_iterator s = dfa.begin(); s != dfa.end(); ++s) {
     fa_accepts_[s->id] = s->accept;
@@ -276,6 +278,8 @@ SSFA::FullMatchTask(TaskArg targ) const
 bool
 SSFA::FullMatch(const unsigned char *str, const unsigned char *end) const
 {
+  if (!complete_) return false;
+
   std::size_t thread_num = thread_num_;
   if (end-str <= 2)  {
     thread_num = 1;

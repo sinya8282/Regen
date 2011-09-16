@@ -3,7 +3,7 @@
 namespace regen{
 
 DFA::DFA(Expr *expr_root, std::size_t limit, std::size_t neop):
-    complete_(false), minimum_(false), olevel_(O0)
+    expr_root_(expr_root), complete_(false), minimum_(false), olevel_(O0)
 #ifdef REGEN_ENABLE_XBYAK
     , xgen_(NULL)
 #endif
@@ -12,7 +12,7 @@ DFA::DFA(Expr *expr_root, std::size_t limit, std::size_t neop):
 }
 
 DFA::DFA(const NFA &nfa, std::size_t limit):
-    complete_(false), minimum_(false), olevel_(O0)
+    expr_root_(NULL), complete_(false), minimum_(false), olevel_(O0)
 #ifdef REGEN_ENABLE_XBYAK
     , xgen_(NULL)
 #endif
@@ -22,14 +22,15 @@ DFA::DFA(const NFA &nfa, std::size_t limit):
 
 bool DFA::Construct(Expr *expr_root, std::size_t limit, std::size_t neop)
 {
-  state_t dfa_id = 0;
-
   typedef std::set<StateExpr*> NFA;
+  expr_root_ = expr_root;
   
-  std::map<NFA, state_t> dfa_map;
   std::queue<NFA> queue;
+  state_t dfa_id = 0;
+  bool limit_over = false;
 
-  dfa_map[expr_root->transition().first] = dfa_id++;
+  nfa_map_[0] = expr_root->transition().first;
+  dfa_map_[expr_root->transition().first] = dfa_id++;
   queue.push(expr_root->transition().first);
 
   while (!queue.empty()) {
@@ -87,33 +88,36 @@ bool DFA::Construct(Expr *expr_root, std::size_t limit, std::size_t neop)
 
     State &state = get_new_state();
     Transition &trans = transition_[state.id];
-    // only Leftmost-Shortest matching
-    //if (is_accept) goto settransition;
     
     for (state_t i = 0; i < 256; i++) {
       NFA &next = transition[i];
-      if (dfa_map.find(next) == dfa_map.end()) {
-        if (next.empty()) {
-          dfa_map[next] = REJECT;
+      if (next.empty()) {
+        trans[i] = REJECT;
+        state.dst_states.insert(REJECT);
+        continue;
+      }
+      if (dfa_map_.find(next) == dfa_map_.end()) {
+        if (dfa_id < limit) {
+          nfa_map_[dfa_id] = next;
+          dfa_map_[next] = dfa_id++;
+          queue.push(next);          
         } else {
-          dfa_map[next] = dfa_id++;
-          if (dfa_id > (state_t)limit) {
-            return false;
-          }
-          queue.push(next);
+          limit_over = true;
+          continue;
         }
       }
-      trans[i] = dfa_map[next];
-      state.dst_states.insert(dfa_map[next]);
+      trans[i] = dfa_map_[next];
+      state.dst_states.insert(dfa_map_[next]);
     }
-    //settransition:
     state.accept = is_accept;
   }
 
-  Finalize();
-  
-  complete_ = true;
-  return true;
+  if (limit_over) {
+    return false;
+  } else {
+    Finalize();
+    return true;
+  }
 }
 
 bool DFA::Construct(const NFA &nfa, size_t limit)
@@ -150,13 +154,14 @@ bool DFA::Construct(const NFA &nfa, size_t limit)
     
     for (state_t i = 0; i < 256; i++) {
       NFA_ &next = transition[i];
+      if (next.empty()) {
+        trans[i] = REJECT;
+        state.dst_states.insert(REJECT);
+        continue;
+      }
       if (dfa_map.find(next) == dfa_map.end()) {
-        if (next.empty()) {
-          dfa_map[next] = REJECT;
-        } else {
-          dfa_map[next] = dfa_id++;
-          queue.push(next);
-        }
+        dfa_map[next] = dfa_id++;
+        queue.push(next);
       }
       trans[i] = dfa_map[next];
       state.dst_states.insert(dfa_map[next]);
@@ -167,8 +172,62 @@ bool DFA::Construct(const NFA &nfa, size_t limit)
 
   Finalize();
 
-  complete_ = true;
   return true;
+}
+
+DFA::state_t DFA::OnTheFlyConstructWithChar(state_t state, unsigned char input) const
+{
+  typedef std::set<StateExpr*> NFA_;
+  NFA_::iterator iter, next_iter;
+  NFA_ &nfa = nfa_map_[state], next;
+  bool accept = false;
+
+  for (iter = nfa.begin(); iter != nfa.end(); ++iter) {
+    StateExpr *s = *iter;
+    if (s->Match(input)) {
+      for (next_iter = s->transition().follow.begin();
+           next_iter != s->transition().follow.end();
+           ++next_iter) {
+        next.insert(*next_iter);
+        if ((*next_iter)->type() == Expr::kEOP) accept = true;
+      }
+    }
+  }
+
+  if (next.empty()) {
+    transition_[state][input] = REJECT;
+    return REJECT;
+  }
+
+  if (dfa_map_.find(next) == dfa_map_.end()) {
+    State& s = get_new_state();
+    dfa_map_[next] = s.id;
+    nfa_map_[s.id] = next;
+    s.accept = accept;
+    transition_[state][input] = s.id;
+    return s.id;
+  }
+
+  transition_[state][input] = dfa_map_[next];
+  return dfa_map_[next];
+}
+
+std::pair<DFA::state_t, const unsigned char *> DFA::OnTheFlyConstructWithString(state_t state, const unsigned char *begin, const unsigned char *end) const
+{
+  state_t next;
+  const unsigned char *ptr;
+  for (ptr = begin; ptr < end; ptr++) {
+    if (transition_[state][*ptr] == UNDEF) {
+      next = OnTheFlyConstructWithChar(state, *ptr);
+      if (next == REJECT) break;
+      state = next;
+    } else {
+      break;
+    }
+  }
+
+  std::pair<state_t, const unsigned char *> ret(state, ptr);
+  return ret;
 }
 
 void DFA::Finalize()
@@ -181,9 +240,11 @@ void DFA::Finalize()
       }
     }
   }
+
+  complete_ = true;
 }
 
-DFA::State& DFA::get_new_state() {
+DFA::State& DFA::get_new_state() const {
   transition_.resize(states_.size()+1);
   states_.resize(states_.size()+1);
   State &new_state = states_.back();
@@ -600,6 +661,7 @@ bool DFA::Reduce()
 
 bool DFA::Compile(CompileFlag olevel)
 {
+  if (!complete_) return false;
   if (olevel <= olevel_) return true;
   if (olevel >= O2) {
     if (EliminateBranch()) {
@@ -622,14 +684,51 @@ bool DFA::Compile(CompileFlag) { return false; }
 
 bool DFA::FullMatch(const unsigned char *str, const unsigned char *end) const
 {
+  if (!complete_) return OnTheFlyFullMatch(str, end);
+  
   state_t state = 0;
 
-  if (complete_ && olevel_ >= O1) {
+  if (olevel_ >= O1) {
     state = CompiledFullMatch(str, end);
     return state != DFA::REJECT ? states_[state].accept : false;
   }
 
   while (str < end && (state = transition_[state][*str++]) != DFA::REJECT);
+
+  return state != DFA::REJECT ? states_[state].accept : false;
+}
+
+bool DFA::OnTheFlyFullMatch(const unsigned char *str, const unsigned char *end) const
+{
+  state_t state = 0, next = UNDEF;
+  if (empty()) {
+    std::set<StateExpr*> &first_states = expr_root_->transition().first;
+    std::set<StateExpr*>::iterator iter;
+    bool accept = false;
+    for (iter = first_states.begin(); iter != first_states.end(); ++iter) {
+      if ((*iter)->type() == Expr::kEOP) accept = true;
+    }
+    State& s = get_new_state();
+    dfa_map_[first_states] = s.id;
+    nfa_map_[s.id] = first_states;
+    s.accept = accept;
+  }
+
+  while (str < end) {
+    next = transition_[state][*str++];
+    if (next >= UNDEF) {
+      if (next == REJECT) return false;
+      std::pair<state_t, const unsigned char *> context = OnTheFlyConstructWithString(state, str-1, end);
+      if (context.second >= end) {
+        state = context.first;
+        break;
+      } else if ((next = transition_[context.first][*(context.second)]) == DFA::REJECT) {
+        return false;
+      }
+      str = context.second+1;
+    }
+    state = next;
+  }
 
   return state != DFA::REJECT ? states_[state].accept : false;
 }

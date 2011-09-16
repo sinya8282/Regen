@@ -69,11 +69,11 @@ int main(int argc, char *argv[]) {
       compile_time -= rdtsc();
       regen::Regex r = regen::Regex(regex);
       r.Compile(regen::O0);
-      regen::SSFA pdfa(r.expr_root(), r.state_exprs(), thread_num);
-      pdfa.Compile(olevel);
+      regen::SSFA ssfa(r.expr_root(), r.state_exprs(), thread_num);
+      ssfa.Compile(olevel);
       compile_time += rdtsc();
       matching_time -= rdtsc();
-      match = pdfa.FullMatch(mm.ptr, mm.ptr+mm.size);
+      match = ssfa.FullMatch(mm.ptr, mm.ptr+mm.size);
       matching_time += rdtsc();
     }
 

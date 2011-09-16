@@ -14,8 +14,9 @@ Regex::Regex(const std::string &regex, std::size_t recursive_limit):
   const unsigned char *begin = (const unsigned char*)regex.c_str(),
       *end = begin + regex.length();
   Lexer lexer(begin, end);
-  Parse(&lexer);
+  expr_root_ = Parse(&lexer);
   NumberingStateExprVisitor::Numbering(expr_root_, &state_exprs_);
+  dfa_.set_expr_root(expr_root_);
 }
 
 StateExpr*
@@ -45,7 +46,7 @@ Regex::CombineStateExpr(StateExpr *e1, StateExpr *e2)
   return s;
 }
 
-void Regex::Parse(Lexer *lexer)
+Expr* Regex::Parse(Lexer *lexer)
 {
   Expr* e;
   StateExpr *eop;
@@ -73,8 +74,8 @@ void Regex::Parse(Lexer *lexer)
   e = new Concat(e, eop);
   e->set_expr_id(++expr_id_);
 
-  expr_root_ = e;
-  expr_root_->FillTransition();
+  e->FillTransition();
+  return e;
 }
 
 /* Regen parsing rules
@@ -576,9 +577,9 @@ bool Regex::Compile(CompileFlag olevel) {
   if (olevel == Onone || olevel_ >= olevel) return true;
   if (!dfa_failure_ && !dfa_.Complete()) {
     /* try create DFA.  */
-    int limit = state_exprs_.size();
-    limit = limit * limit * limit;
-    dfa_.Construct(expr_root_, limit);
+    std::size_t limit = state_exprs_.size();
+    limit = 1000; // default limitation is 1000 (it's may finish within a second).
+    dfa_failure_ = !dfa_.Construct(expr_root_, limit);
   }
   if (dfa_failure_) {
     /* can not create DFA. (too many states) */
@@ -599,11 +600,7 @@ bool Regex::FullMatch(const std::string &string)  const {
 }
 
 bool Regex::FullMatch(const unsigned char *begin, const unsigned char * end) const {
-  if (dfa_.Complete()) {
-    return dfa_.FullMatch(begin, end);
-  } else {
-    return FullMatchNFA(begin, end);
-  }
+  return dfa_.FullMatch(begin, end);
 }
 
 /* Thompson-NFA based matching */
@@ -612,30 +609,13 @@ bool Regex::FullMatchNFA(const unsigned char *begin, const unsigned char *end) c
   typedef std::vector<StateExpr*> NFA;
   std::size_t nfa_size = state_exprs_.size();
   std::vector<uint32_t> next_states_flag(nfa_size);
-  NFA states, next_states;
+  uint32_t step = 1;
   NFA::iterator iter;
   std::set<StateExpr*>::iterator next_iter;
-  std::vector<DFA::Transition> transition_cache;
-  std::map<NFA, std::size_t> dfa_cache;
-  std::map<std::size_t, NFA> nfa_cache;
-  std::map<NFA, std::size_t>::iterator dfa_iter;
-  DFA::state_t dfa_id = 0, step = 1, dfa_state = 0, dfa_next = DFA::UNDEF;
-
+  NFA states, next_states;
   states.insert(states.begin(), expr_root_->transition().first.begin(), expr_root_->transition().first.end());
-  nfa_cache[dfa_id] = states;
-  dfa_cache[states] = dfa_id++;
-  transition_cache.resize(dfa_id);
 
   for (const unsigned char *p = begin; p < end; p++, step++) {
-    /* on cache transition. */
-    while (p < end && (dfa_next = transition_cache[dfa_state][*p++]) != DFA::REJECT) {
-      dfa_state = dfa_next;
-    }
-    if (dfa_next == DFA::REJECT) p--;
-    states = nfa_cache[dfa_state];
-    if (p >= end) break;
-
-    /* trying to construct 1-DFA(cache missed) state. */
     for (iter = states.begin(); iter != states.end(); ++iter) {
       StateExpr *s = *iter;
       if (s->Match(*p)) {
@@ -649,17 +629,6 @@ bool Regex::FullMatchNFA(const unsigned char *begin, const unsigned char *end) c
         }
       }
     }
-    dfa_iter = dfa_cache.find(next_states);
-    if (dfa_iter == dfa_cache.end()) {
-      nfa_cache[dfa_id] = next_states;
-      dfa_cache[next_states] = dfa_id++;
-      transition_cache.resize(dfa_id);
-    }
-
-    /* cache state, and retry transition on cache. */
-    dfa_next = dfa_cache[next_states];
-    transition_cache[dfa_state][*p] = dfa_next;
-    dfa_state = dfa_next;
     states.swap(next_states);
     if (states.empty()) break;
     next_states.clear();
