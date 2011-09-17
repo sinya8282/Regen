@@ -1,6 +1,6 @@
-#ifdef REGEN_ENABLE_PARALLEL
 #ifndef REGEN_SSFA_H_
 #define  REGEN_SSFA_H_
+#ifdef REGEN_ENABLE_PARALLEL
 #include "regex.h"
 #include "util.h"
 #include "expr.h"
@@ -40,5 +40,16 @@ private:
 };
 
 } // namespace regen
+#else
+#include "expr.h"
+#include "dfa.h"
+namespace regen {
+class SSFA: public DFA {
+ public:
+    SSFA(Expr* expr_root, const std::vector<StateExpr*> &state_exprs, std::size_t thread_num = 2) { exitmsg("SSFA not available. (recompile with REGEN_ENABLE_PARALLEL=yes)"); }
+  SSFA(const NFA &nfa, std::size_t thread_num = 2) { exitmsg("SSFA not available. (recompile with REGEN_ENABLE_PARALLEL=yes)"); }
+  SSFA(const DFA &dfa, std::size_t thread_num = 2) { exitmsg("SSFA not available. (recompile with REGEN_ENABLE_PARALLEL=yes)"); }
+};
+}
+#endif
 #endif // REGEN_SSFA_H_
-#endif // REGEN_ENABLE_PARALLEL

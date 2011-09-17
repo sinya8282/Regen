@@ -95,12 +95,12 @@ SSFA::SSFA(Expr *expr_root, const std::vector<StateExpr*> &state_exprs, std::siz
     }
 
     State &state = get_new_state();
-    bool has_reject = false;
     
     for (std::size_t c = 0; c < 256; c++) {
       SSTransition &next = transition[c];
       if (next.empty()) {
-        has_reject = true;
+        state[c] = REJECT;
+        state.dst_states.insert(REJECT);
         continue;
       }
       if (ssfa_map.find(next) == ssfa_map.end()) {
@@ -110,7 +110,6 @@ SSFA::SSFA(Expr *expr_root, const std::vector<StateExpr*> &state_exprs, std::siz
       state[c] = ssfa_map[next];
       state.dst_states.insert(ssfa_map[next]);
     }
-    if (has_reject) state.dst_states.insert(DFA::REJECT);
   }
 
   complete_ = true;
@@ -159,13 +158,12 @@ SSFA::SSFA(const NFA &nfa, std::size_t thread_num):
     }
 
     State &state = get_new_state();
-    bool has_reject = false;
     
     for (std::size_t c = 0; c < 256; c++) {
       SSTransition &next = transition[c];
       if (next.empty()) {
-        has_reject = true;
-        continue;
+        state[c] = REJECT;
+        state.dst_states.insert(REJECT);
       }
       if (ssfa_map.find(next) == ssfa_map.end()) {
         ssfa_map[next] = ssfa_id++;
@@ -174,7 +172,6 @@ SSFA::SSFA(const NFA &nfa, std::size_t thread_num):
       state[c] = ssfa_map[next];
       state.dst_states.insert(ssfa_map[next]);
     }
-    if (has_reject) state.dst_states.insert(DFA::REJECT);
   }
 
   complete_ = true;
@@ -234,12 +231,12 @@ SSFA::SSFA(const DFA &dfa, std::size_t thread_num):
     }
 
     State &state = get_new_state();
-    bool has_reject = false;
     
     for (std::size_t c = 0; c < 256; c++) {
       SSDTransition &next = transition[c];
       if (next.empty()) {
-        has_reject = true;
+        state[c] = REJECT;
+        state.dst_states.insert(REJECT);
         continue;
       }
 
@@ -250,7 +247,6 @@ SSFA::SSFA(const DFA &dfa, std::size_t thread_num):
       state[c] = ssfa_map[next];
       state.dst_states.insert(ssfa_map[next]);
     }
-    if (has_reject) state.dst_states.insert(DFA::REJECT);
   }
 
   complete_ = true;

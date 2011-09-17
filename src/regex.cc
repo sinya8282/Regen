@@ -421,6 +421,7 @@ void Regex::Capture(Expr* e)
 }
 
 // Converte DFA to Regular Expression using GNFA.
+// see http://en.wikipedia.org/wiki/Generalized_nondeterministic_finite-state_machine
 Expr* Regex::CreateRegexFromDFA(DFA &dfa)
 {
   int GSTART  = dfa.size();
@@ -564,7 +565,7 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa)
 
 /*
  *         - slower -
- * Onone: NFA based matching (Thompson NFA, Cached)
+ * Onone: On-The-Fly DFA based matching
  *    O0: DFA based matching
  *      ~ Xbyak(JIT library) required ~
  *    O1: JIT-ed DFA based matching
