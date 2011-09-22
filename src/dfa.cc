@@ -672,7 +672,7 @@ bool DFA::Compile(CompileFlag olevel)
     }
   }
   xgen_ = new JITCompiler(*this);
-  CompiledFullMatch = (state_t (*)(const unsigned char *, const unsigned char *))xgen_->getCode();
+  CompiledMatch = (state_t (*)(const unsigned char *, const unsigned char *))xgen_->getCode();
   if (olevel_ < O1) olevel_ = O1;
   return olevel == olevel_;
 }
@@ -682,14 +682,14 @@ bool DFA::Reduce() { return false; }
 bool DFA::Compile(CompileFlag) { return false; }
 #endif
 
-bool DFA::FullMatch(const unsigned char *str, const unsigned char *end) const
+bool DFA::Match(const unsigned char *str, const unsigned char *end) const
 {
-  if (!complete_) return OnTheFlyFullMatch(str, end);
+  if (!complete_) return OnTheFlyMatch(str, end);
   
   state_t state = 0;
 
   if (olevel_ >= O1) {
-    state = CompiledFullMatch(str, end);
+    state = CompiledMatch(str, end);
     return state != DFA::REJECT ? states_[state].accept : false;
   }
 
@@ -698,7 +698,7 @@ bool DFA::FullMatch(const unsigned char *str, const unsigned char *end) const
   return state != DFA::REJECT ? states_[state].accept : false;
 }
 
-bool DFA::OnTheFlyFullMatch(const unsigned char *str, const unsigned char *end) const
+bool DFA::OnTheFlyMatch(const unsigned char *str, const unsigned char *end) const
 {
   state_t state = 0, next = UNDEF;
   if (empty()) {

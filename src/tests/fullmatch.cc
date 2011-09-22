@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
       r.Compile(olevel);
       compile_time += rdtsc();
       matching_time -= rdtsc();
-      match = r.FullMatch(mm.ptr, mm.ptr+mm.size);
+      match = r.Match(mm.ptr, mm.ptr+mm.size);
       matching_time += rdtsc();
     } else {
       compile_time -= rdtsc();
@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
       ssfa.Compile(olevel);
       compile_time += rdtsc();
       matching_time -= rdtsc();
-      match = ssfa.FullMatch(mm.ptr, mm.ptr+mm.size);
+      match = ssfa.Match(mm.ptr, mm.ptr+mm.size);
       matching_time += rdtsc();
     }
 

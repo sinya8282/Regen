@@ -24,9 +24,9 @@ public:
   void DumpExprTree() const;
   bool Compile(CompileFlag olevel = O3);
   bool MinimizeDFA() { if (dfa_.Complete()) { dfa_.Minimize(); return true; } else return false; }
-  bool FullMatch(const std::string &string) const;
-  bool FullMatch(const unsigned char *begin, const unsigned char *end) const;
-  bool FullMatchNFA(const unsigned char *begin, const unsigned char *end) const;
+  bool Match(const std::string &string) const;
+  bool Match(const unsigned char *begin, const unsigned char *end) const;
+  bool MatchNFA(const unsigned char *begin, const unsigned char *end) const;
   const std::string& regex() const { return regex_; }
   const Must& must() const { return must_; }
   std::size_t max_lenlgth() const { return expr_root_->max_length(); }
@@ -36,7 +36,7 @@ public:
   const DFA& dfa() const { return dfa_; }
   CompileFlag olevel() const { return olevel_; }
   Expr* expr_root() const { return expr_root_; }
-  const std::vector<StateExpr*> &state_exprs() const { return state_exprs_; }  
+  const std::vector<StateExpr*> &state_exprs() const { return state_exprs_; }
 
 private:
   Expr* Parse(Lexer *);  
@@ -46,8 +46,6 @@ private:
   Expr* e3(Lexer *);
   Expr* e4(Lexer *);
   void Capture(Expr* e);
-  //bool MakeDFA(Expr* e, DFA &dfa, int limit = -1, std::size_t neop = 1);
-  //bool MakeDFA(NFA &nfa, DFA &dfa);
   CharClass* BuildCharClass(Lexer *);
   StateExpr* CombineStateExpr(StateExpr* e1, StateExpr* e2);
 

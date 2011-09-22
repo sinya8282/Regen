@@ -591,17 +591,17 @@ bool Regex::Compile(CompileFlag olevel) {
   return olevel_ == olevel;
 }
 
-bool Regex::FullMatch(const std::string &string)  const {
+bool Regex::Match(const std::string &string)  const {
   const unsigned char* begin = (const unsigned char *)string.c_str();
-  return FullMatch(begin, begin+string.length());
+  return Match(begin, begin+string.length());
 }
 
-bool Regex::FullMatch(const unsigned char *begin, const unsigned char * end) const {
-  return dfa_.FullMatch(begin, end);
+bool Regex::Match(const unsigned char *begin, const unsigned char * end) const {
+  return dfa_.Match(begin, end);
 }
 
 /* Thompson-NFA based matching */
-bool Regex::FullMatchNFA(const unsigned char *begin, const unsigned char *end) const
+bool Regex::MatchNFA(const unsigned char *begin, const unsigned char *end) const
 {
   typedef std::vector<StateExpr*> NFA;
   std::size_t nfa_size = state_exprs_.size();

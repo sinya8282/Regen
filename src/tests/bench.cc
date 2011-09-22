@@ -71,7 +71,7 @@ int main(int argc, char *argv[]) {
     end   = rdtsc();
     result[i].compile_time = end - start;
     start = rdtsc();
-    result[i].result = r.FullMatch(bench[i].text) == bench[i].result;
+    result[i].result = r.Match(bench[i].text) == bench[i].result;
     end   = rdtsc();
     result[i].matching_time = end - start;
   }

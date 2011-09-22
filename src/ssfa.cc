@@ -253,13 +253,13 @@ SSFA::SSFA(const DFA &dfa, std::size_t thread_num):
 }
 
 void
-SSFA::FullMatchTask(TaskArg targ) const
+SSFA::MatchTask(TaskArg targ) const
 {
   const unsigned char *str = targ.str;
   const unsigned char *end = targ.end;
 
   if (olevel_ >= O1) {
-    partial_results_[targ.task_id] = CompiledFullMatch(str, end);
+    partial_results_[targ.task_id] = CompiledMatch(str, end);
     return;
   }
   
@@ -272,7 +272,7 @@ SSFA::FullMatchTask(TaskArg targ) const
 }
 
 bool
-SSFA::FullMatch(const unsigned char *str, const unsigned char *end) const
+SSFA::Match(const unsigned char *str, const unsigned char *end) const
 {
   if (!complete_) return false;
 
@@ -297,7 +297,7 @@ SSFA::FullMatch(const unsigned char *str, const unsigned char *end) const
     targ.task_id = i;
     threads[i] = new boost::thread(
         boost::bind(
-            boost::bind(&regen::SSFA::FullMatchTask, this, _1),
+            boost::bind(&regen::SSFA::MatchTask, this, _1),
             targ));
     str_ = end_;
   }

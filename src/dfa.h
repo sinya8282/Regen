@@ -99,10 +99,10 @@ public:
   void Complement();
   virtual bool Minimize();
   bool Compile(CompileFlag olevel = O2);
-  virtual bool OnTheFlyFullMatch(const std::string &str) const { return OnTheFlyFullMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
-  virtual bool OnTheFlyFullMatch(const unsigned char *, const unsigned char*) const;
-  virtual bool FullMatch(const std::string &str) const { return FullMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
-  virtual bool FullMatch(const unsigned char *str, const unsigned char *end) const;
+  virtual bool OnTheFlyMatch(const std::string &str) const { return OnTheFlyMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
+  virtual bool OnTheFlyMatch(const unsigned char *, const unsigned char*) const;
+  virtual bool Match(const std::string &str) const { return Match((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
+  virtual bool Match(const unsigned char *str, const unsigned char *end) const;
   void state2label(state_t state, char* labelbuf) const;
 
   iterator begin() { return states_.begin(); }
@@ -122,7 +122,7 @@ protected:
   bool complete_;
   bool minimum_;
   void Finalize();
-  state_t (*CompiledFullMatch)(const unsigned char *, const unsigned char *);
+  state_t (*CompiledMatch)(const unsigned char *, const unsigned char *);
   bool EliminateBranch();
   bool Reduce();
   CompileFlag olevel_;

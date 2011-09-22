@@ -21,15 +21,15 @@ public:
   typedef std::map<state_t, std::set<state_t> > SSTransition;
   typedef std::map<state_t, state_t> SSDTransition;
   bool Minimize() { return true; }
-  bool FullMatch(const std::string &str) const { return FullMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
-  bool FullMatch(const unsigned char *str, const unsigned char *end) const;
+  bool Match(const std::string &str) const { return Match((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
+  bool Match(const unsigned char *str, const unsigned char *end) const;
   struct TaskArg {
     const unsigned char *str;
     const unsigned char *end;
     std::size_t task_id;
   };
 private:
-  void FullMatchTask(TaskArg targ) const;
+  void MatchTask(TaskArg targ) const;
   mutable std::vector<state_t> partial_results_;
   std::size_t nfa_size_;
   std::size_t dfa_size_;
