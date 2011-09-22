@@ -45,7 +45,6 @@ private:
   Expr* e2(Lexer *);
   Expr* e3(Lexer *);
   Expr* e4(Lexer *);
-  void Capture(Expr* e);
   CharClass* BuildCharClass(Lexer *);
   StateExpr* CombineStateExpr(StateExpr* e1, StateExpr* e2);
 

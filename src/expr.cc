@@ -23,17 +23,6 @@ Expr::SuperTypeString(Expr::SuperType stype)
   return stype_strings[stype];
 }
 
-void Expr::Capture(std::set<StateExpr*> &src, std::set<StateExpr*> &dst) {
-  std::set<StateExpr*>::iterator iter = src.begin();
-  Tag::iterator tag_iter;
-  while (iter != src.end()) {
-    for (tag_iter = (*iter)->tag().leave.begin(); tag_iter != (*iter)->tag().leave.end(); ++tag_iter) {
-      tag_iter->second.insert(dst.begin(), dst.end());
-    }
-    ++iter;
-  }
-}
-
 void Expr::Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst) {
   std::set<StateExpr*>::iterator iter = src.begin();
   while (iter != src.end()) {
@@ -117,7 +106,6 @@ Concat::Concat(Expr *lhs, Expr *rhs):
 
 void Concat::FillTransition()
 {
-  Capture(lhs_->transition().last, rhs_->transition().first);
   Connect(lhs_->transition().last, rhs_->transition().first);
   rhs_->FillTransition();
   lhs_->FillTransition();

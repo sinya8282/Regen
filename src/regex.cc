@@ -301,7 +301,6 @@ Regex::e4(Lexer *lexer)
       lexer->Consume();
       e = e0(lexer);
       if (lexer->token() != Lexer::kRpar) exitmsg("expected a ')'");
-      Capture(e);
       break;
     case Lexer::kComplement: {
       bool complement = false;
@@ -401,23 +400,6 @@ Regex::BuildCharClass(Lexer *lexer) {
     cc->flip();
   }
   return cc;
-}
-
-void Regex::Capture(Expr* e)
-{
-  std::set<StateExpr*>& first = e->transition().first;
-  std::set<StateExpr*>& last = e->transition().last;
-
-  std::set<StateExpr*>::iterator iter;
-  for (iter = first.begin(); iter != first.end(); ++iter) {
-    (*iter)->tag().enter.insert(capture_num_);
-  }
-  for (iter = last.begin(); iter != last.end(); ++iter) {
-    (*iter)->tag().leave[capture_num_];
-  }
-  
-  capture_num_++;
-  return;
 }
 
 // Converte DFA to Regular Expression using GNFA.

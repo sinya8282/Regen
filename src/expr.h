@@ -100,7 +100,6 @@ public:
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 protected:
   static void Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst);
-  static void Capture(std::set<StateExpr*> &src, std::set<StateExpr*> &dst);
   std::size_t expr_id_;
   std::size_t max_length_;
   std::size_t min_length_;
