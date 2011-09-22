@@ -73,7 +73,7 @@ public:
   DFA(Expr *expr_root, std::size_t limit = std::numeric_limits<size_t>::max(), std::size_t neop = 1);
   DFA(const NFA &nfa, std::size_t limit = std::numeric_limits<size_t>::max());
   #if REGEN_ENABLE_XBYAK
-  ~DFA() { if (xgen_ != NULL) delete xgen_; }
+  ~DFA() { delete xgen_; }
   #endif
   
   bool empty() const { return transition_.empty(); }

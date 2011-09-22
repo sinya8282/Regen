@@ -1,6 +1,6 @@
 #include "dfa.h"
 
-namespace regen{
+namespace regen {
 
 DFA::DFA(Expr *expr_root, std::size_t limit, std::size_t neop):
     expr_root_(expr_root), complete_(false), minimum_(false), olevel_(O0)

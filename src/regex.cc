@@ -546,14 +546,10 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa)
     GNFATrans::iterator iter = gtransition.begin();
     iter = gtransition.begin();
     while (iter != gtransition.end()) {
-      if ((*iter).second != NULL) {
-        delete (*iter).second;
-      }
+      delete (*iter).second;
       ++iter;
     }
-    if (loop != NULL) {
-      delete loop;
-    }
+    delete loop;
   }
 
   if(gnfa_transition[GSTART][GACCEPT] == NULL) {
