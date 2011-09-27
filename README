@@ -24,3 +24,9 @@ or enable neither.
 or try manually
 % make test.o && ./test.o -t THREAD_NUM {-O olevel}
 % make bench.o && ./bench.o {-O olevel}
+
+* caluculate number of NFA/DFA/SSFA's states.
+% make state_num
+% ./state_num [-m -n -d -s] (REGEX | -f REGEX_FILE)
+minimization option: DFA minimization(-m).
+target option: NFA(-n), DFA(-d), SSFA(-s)
