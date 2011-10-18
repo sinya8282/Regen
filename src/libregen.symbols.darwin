@@ -1,0 +1,14 @@
+# regen::Regex*
+__ZN5regen5Regex*
+__ZNK5regen5Regex*
+# regen::NFA*
+__ZN5regen3NFA*
+__ZNK5regen3NFA*
+# regen::DFA*
+__ZN5regen3DFA*
+__ZNK5regen3DFA*
+__ZTVN5regen3DFA*
+# regen::SSFA*
+__ZN5regen4SSFA*
+__ZNK5regen4SSFA*
+__ZTVN5regen4SSFA*

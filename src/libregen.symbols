@@ -1,0 +1,13 @@
+{
+        global:
+                # regen::Regex*
+				__ZN5regen5Regex*;
+                # regen::NFA*
+				__ZNK5regen3NFA*;
+                # regen::DFA*
+				__ZNK5regen3DFA*;
+				# regen::SSFA*
+				__ZNK5regen3SSFA*;
+        local:
+                *;
+};

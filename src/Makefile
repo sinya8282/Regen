@@ -9,21 +9,30 @@ REGENFLAGS+=-DREGEN_ENABLE_PARALLEL
 LIBTHREAD=-lboost_thread-mt
 endif
 
+ifeq ($(shell uname),Darwin)
+MAKE_SHARED_LIBRARY=-dynamiclib -exported_symbols_list libregen.symbols.darwin
+else
+MAKE_SHARED_LIBRARY=-shared -Wl,-soname,libregen.so,--version-script=libregen.symbols
+endif
+
 CC=g++
 CFLAGS=-O3 -Wall -g3 -fno-operator-names $(REGENFLAGS)
 SRC=regex.cc lexer.cc expr.cc exprutil.cc nfa.cc dfa.cc ssfa.cc generator.cc 
 OBJS=$(SRC:.cc=.o)
 
-all: regen fullmatch state_num test.o bench.o
+all: libregen regen fullmatch state_num test.o bench.o
+
+libregen: $(OBJS)
+	$(CC) $(OBJS) $(MAKE_SHARED_LIBRARY) -o libregen.so $(CFLAGS) $(LIBTHREAD)
 
 regen: regen.cc $(OBJS)
 	$(CC) regen.cc $(OBJS) -o $@ $(CFLAGS) $(LIBTHREAD)
 
-fullmatch: tests/fullmatch.cc $(OBJS)
-	$(CC) tests/fullmatch.cc $(OBJS) -o $@ $(CFLAGS) $(LIBTHREAD)
+fullmatch: tests/fullmatch.cc libregen
+	$(CC) tests/fullmatch.cc -o $@ $(CFLAGS) $(LIBTHREAD) -L$(PWD) -lregen
 
-state_num: tests/state_num.cc $(OBJS)
-	$(CC) tests/state_num.cc $(OBJS) -o $@ $(CFLAGS) $(LIBTHREAD)
+state_num: tests/state_num.cc libregen
+	$(CC) tests/state_num.cc -o $@ $(CFLAGS) $(LIBTHREAD) -L$(PWD) -lregen
 
 test: test.o
 	@./test.o
@@ -41,7 +50,7 @@ bench.o: tests/bench.cc $(OBJS)
 	$(CC) -c $< $(CFLAGS)
 
 clean:
-	rm -rf $(OBJS) test.o bench.o ssfa.h.gch regen test bench fullmatch state_num *.dSYM
+	rm -rf $(OBJS) test.o bench.o ssfa.h.gch regen test bench fullmatch state_num *.dSYM libregen.so
 
 depend:
 	sed '/^# DO NOT DELETE THIS LINE/q' Makefile > tmp
