@@ -10,14 +10,17 @@ Lexer::Type Lexer::Consume()
   }
 
   switch (literal_ = *ptr_++) {
+    // Regen Extension
+    case '!': token_ = kComplement;  break;
+    case '&': token_ = kIntersection;  break;
+    case '@': token_ = kRecursive; break;
+    // Normal Symbols
     case '.': token_ = kDot;       break;
     case '[': token_ = kCharClass; break;
     case '|': token_ = kUnion;     break;
     case '?': token_ = kQmark;     break;
     case '+': token_ = kPlus;      break;
     case '*': token_ = kStar;      break;
-    case '!': token_ = kComplement;  break;
-    case '&': token_ = kIntersection;  break;
     case ')': token_ = kRpar;      break;
     case '^': token_ = kBegLine;   break;
     case '$': token_ = kEndLine;   break;
@@ -25,9 +28,6 @@ Lexer::Type Lexer::Consume()
       if (*ptr_ == ')') {
         ptr_++;
         token_ = kNone;
-      } else if (*ptr_ == '?' && *(ptr_+1) == 'R' && *(ptr_+2) == ')') {
-        ptr_ += 3;
-        token_ = kRecursive;
       } else {
         token_ = kLpar;
       }
