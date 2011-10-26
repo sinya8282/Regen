@@ -30,6 +30,16 @@ class JITCompiler: public Xbyak::CodeGenerator {
     return state_num * 256 * sizeof(void *);
   }
 };
+class Jitter: public Xbyak::CodeGenerator {
+  friend class DFA;
+  struct Transition {
+    void* t[256];
+    Transition(void* fill = NULL) { std::fill(t, t+256, fill); }
+    void* &operator[](std::size_t index) { return t[index]; }
+  };
+public:
+  Jitter(): CodeGenerator(4096) {}
+};
 #endif
   
 class DFA {
