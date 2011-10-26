@@ -379,10 +379,13 @@ DFA::Complement()
         if (reject == REJECT) {
           State &reject_state = get_new_state();
           reject = reject_state.id;
+          for (std::size_t j = 0; j < 256; j++) {
+            reject_state[j] = reject;
+          }
           reject_state.dst_states.insert(reject);
           reject_state.accept = true;
-          to_reject = true;
         }
+        to_reject = true;
         state[i] = reject;
       }
     }

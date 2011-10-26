@@ -318,7 +318,7 @@ Regex::e4(Lexer *lexer)
         e = CreateRegexFromDFA(dfa);
         delete e_;
       }
-      break;
+      return e;
     }
     case Lexer::kRecursive: {
       if (recursive_depth_ < recursive_limit_) {
