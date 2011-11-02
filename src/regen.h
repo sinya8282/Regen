@@ -28,7 +28,7 @@ public:
   bool Match(const char *, const char *);
   static bool Match(const std::string & str, const Regex &reg, std::size_t) { return Match(str.c_str(), str.c_str()+str.length(), reg); }
   static bool Match(const char *, const char *, const Regex &);
-  static bool FullMatch(const char *, const char *, const std::string &);
+  static bool FullMatch(const char *, const char *);
   static bool PartialMatch(const char *, const char *, const std::string &);
 private:
   Regex *regex_;
