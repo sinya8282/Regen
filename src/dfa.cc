@@ -3,7 +3,7 @@
 namespace regen {
 
 DFA::DFA(Expr *expr_root, std::size_t limit, std::size_t neop):
-    expr_root_(expr_root), complete_(false), minimum_(false), olevel_(O0)
+    expr_root_(expr_root), complete_(false), minimum_(false), olevel_(Regen::Options::O0)
 #ifdef REGEN_ENABLE_XBYAK
     , xgen_(NULL)
 #endif
@@ -12,7 +12,7 @@ DFA::DFA(Expr *expr_root, std::size_t limit, std::size_t neop):
 }
 
 DFA::DFA(const NFA &nfa, std::size_t limit):
-    expr_root_(NULL), complete_(false), minimum_(false), olevel_(O0)
+    expr_root_(NULL), complete_(false), minimum_(false), olevel_(Regen::Options::O0)
 #ifdef REGEN_ENABLE_XBYAK
     , xgen_(NULL)
 #endif
@@ -469,9 +469,9 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
     // can transition without table lookup ?
     
     const DFA::AlterTrans &at = dfa[i].alter_transition;
-    if (dfa.olevel() >= O2 && at.next1 != DFA::UNDEF) {
+    if (dfa.olevel() >= Regen::Options::O2 && at.next1 != DFA::UNDEF) {
       std::size_t state = i;
-      std::size_t inline_level = dfa.olevel() == O3 ? dfa[i].inline_level : 0;
+      std::size_t inline_level = dfa.olevel() == Regen::Options::O3 ? dfa[i].inline_level : 0;
       bool inlining = inline_level != 0;
       std::size_t transition_depth = -1;
       inLocalLabel();
@@ -662,27 +662,27 @@ bool DFA::Reduce()
   return true;
 }
 
-bool DFA::Compile(CompileFlag olevel)
+bool DFA::Compile(Regen::Options::CompileFlag olevel)
 {
   if (!complete_) return false;
   if (olevel <= olevel_) return true;
-  if (olevel >= O2) {
+  if (olevel >= Regen::Options::O2) {
     if (EliminateBranch()) {
-      olevel_ = O2;
+      olevel_ = Regen::Options::O2;
     }
-    if (olevel == O3 && Reduce()) {
-      olevel_ = O3;
+    if (olevel == Regen::Options::O3 && Reduce()) {
+      olevel_ = Regen::Options::O3;
     }
   }
   xgen_ = new JITCompiler(*this);
   CompiledMatch = (state_t (*)(const unsigned char *, const unsigned char *))xgen_->getCode();
-  if (olevel_ < O1) olevel_ = O1;
+  if (olevel_ < Regen::Options::O1) olevel_ = Regen::Options::O1;
   return olevel == olevel_;
 }
 #else
 bool DFA::EliminateBranch() { return false; }
 bool DFA::Reduce() { return false; }
-bool DFA::Compile(CompileFlag) { return false; }
+bool DFA::Compile(Regen::Options::CompileFlag) { return false; }
 #endif
 
 bool DFA::Match(const unsigned char *str, const unsigned char *end) const
@@ -691,7 +691,7 @@ bool DFA::Match(const unsigned char *str, const unsigned char *end) const
   
   state_t state = 0;
 
-  if (olevel_ >= O1) {
+  if (olevel_ >= Regen::Options::O1) {
     state = CompiledMatch(str, end);
     return state != DFA::REJECT ? states_[state].accept : false;
   }

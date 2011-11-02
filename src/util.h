@@ -59,14 +59,6 @@ typedef unsigned char uint8_t;
 
 namespace regen {
 
-enum CompileFlag {
-  Onone = -1,
-  O0 = 0,
-  O1 = 1,
-  O2 = 2,
-  O3 = 3
-};
-
 namespace Util {
 
 #ifdef _WIN32
