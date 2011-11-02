@@ -15,7 +15,7 @@ namespace regen {
   
 class Regex {
 public:
-  Regex(const std::string &regex, std::size_t recursive_limit = 2);
+  Regex(const std::string &regex);
   ~Regex() { delete expr_root_; };
   void PrintRegex();
   void PrintExtendedRegex() const;
@@ -51,7 +51,6 @@ private:
   const std::string regex_;
   Expr *expr_root_;
   std::size_t recursive_depth_;
-  std::size_t recursive_limit_;
   std::vector<StateExpr*> state_exprs_;
   std::size_t capture_num_;
 

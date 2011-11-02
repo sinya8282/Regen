@@ -2,10 +2,9 @@
 
 namespace regen {
 
-Regex::Regex(const std::string &regex, std::size_t recursive_limit):
+Regex::Regex(const std::string &regex):
     regex_(regex),
     recursive_depth_(0),
-    recursive_limit_(recursive_limit),
     capture_num_(0),
     involved_char_(std::bitset<256>()),
     olevel_(Onone),
@@ -321,18 +320,31 @@ Regex::e4(Lexer *lexer)
       return e;
     }
     case Lexer::kRecursive: {
-      if (recursive_depth_ < recursive_limit_) {
+      lexer->Consume();
+      std::pair<int, int> recursive_limit;
+      recursive_limit.first = recursive_limit.second = 1;
+      if (lexer->token() == Lexer::kRepetition) {
+        recursive_limit = lexer->repetition();
+        lexer->Consume();
+      }
+      if (recursive_limit.second == -1) {
+        exitmsg("disallow infinite recursive.");
+      }
+      if (recursive_depth_ < static_cast<std::size_t>(recursive_limit.second)) {
         recursive_depth_++;
         const unsigned char *begin = (const unsigned char*)regex_.c_str(),
             *end = begin + regex_.length();
         Lexer l(begin, end);
         l.Consume();
         e = e0(&l);
+        if (recursive_depth_ > static_cast<std::size_t>(recursive_limit.first)) {
+          e = new Qmark(e);
+        }
         recursive_depth_--;
       } else {
         e = new None();
       }
-      break;
+      return e;
     }
     case Lexer::kRpar:
       exitmsg("expected a '('!");

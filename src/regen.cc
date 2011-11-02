@@ -7,10 +7,9 @@ int main(int argc, char *argv[]) {
   enum Generate { DOTGEN, REGEN, CGEN};
   std::string regex;
   int opt;
-  int recursive_limit = 2;
   Generate generate = REGEN;
 
-  while ((opt = getopt(argc, argv, "dcxef:r:")) != -1) {
+  while ((opt = getopt(argc, argv, "dcxef:")) != -1) {
     switch(opt) {
       case 'f': {
         std::ifstream ifs(optarg);
@@ -25,10 +24,6 @@ int main(int argc, char *argv[]) {
         generate = CGEN;
         break;
       }
-      case 'r': {
-       recursive_limit = atoi(optarg);
-       break;
-      }
       default: exitmsg("USAGE: regen [options] regexp\n");
     }
   }
@@ -41,7 +36,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  regen::Regex r = regen::Regex(regex, recursive_limit);
+  regen::Regex r = regen::Regex(regex);
   r.Compile(regen::O0);
 
   switch (generate) {

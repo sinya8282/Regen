@@ -30,19 +30,23 @@ class JITCompiler: public Xbyak::CodeGenerator {
     return state_num * 256 * sizeof(void *);
   }
 };
-class Jitter: public Xbyak::CodeGenerator {
-  friend class DFA;
-  struct Transition {
-    void* t[256];
-    Transition(void* fill = NULL) { std::fill(t, t+256, fill); }
-    void* &operator[](std::size_t index) { return t[index]; }
-  };
-public:
-  Jitter(): CodeGenerator(4096) {}
-};
 #endif
-  
 class DFA {
+#ifdef REGEN_ENABLE_XBYAK
+  class Jitter: public Xbyak::CodeGenerator {
+    friend class DFA;
+    struct Transition {
+      void* t[256];
+      Transition(void* fill = NULL) { std::fill(t, t+256, fill); }
+      void* &operator[](std::size_t index) { return t[index]; }
+    };
+ public:
+    Jitter(std::size_t code_size = 4096): CodeGenerator(code_size), state_num_(0) {}
+ private:
+    std::deque<Transition> data_segment_;
+    std::size_t state_num_;
+};
+#endif  
 public:
   typedef uint32_t state_t;
   enum StateType {
@@ -68,7 +72,7 @@ public:
     std::set<state_t> dst_states;
     std::set<state_t> src_states;
     AlterTrans alter_transition;
-    std::size_t inline_level;    
+    std::size_t inline_level;
     state_t &operator[](std::size_t index) { return (*transitions)[id][index]; }
     const state_t &operator[](std::size_t index) const { return (*transitions)[id][index]; }
   };
@@ -138,9 +142,9 @@ protected:
   bool EliminateBranch();
   bool Reduce();
   CompileFlag olevel_;
-  #if REGEN_ENABLE_XBYAK
+#if REGEN_ENABLE_XBYAK
   JITCompiler *xgen_;
-  #endif
+#endif
   std::vector<AlterTrans> alter_trans_;
   std::vector<std::size_t> inline_level_;
 };

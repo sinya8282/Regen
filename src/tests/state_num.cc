@@ -4,16 +4,11 @@
 int main(int argc, char *argv[]) {
   std::string regex;
   int opt;
-  unsigned int recursive_limit = 2;
   bool n,d,s,m;
   n = d = s = m = false;
 
-  while ((opt = getopt(argc, argv, "r:f:ndsm")) != -1) {
+  while ((opt = getopt(argc, argv, "f:ndsm")) != -1) {
     switch(opt) {
-      case 'r': {
-        recursive_limit = atoi(optarg);
-        break;
-      }
       case 'f': {
         std::ifstream ifs(optarg);
         ifs >> regex;
@@ -44,7 +39,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  regen::Regex r = regen::Regex(regex, recursive_limit);
+  regen::Regex r = regen::Regex(regex);
 
   if (n) {
     printf("NFA state num:  %"PRIuS"\n", r.state_exprs().size());
