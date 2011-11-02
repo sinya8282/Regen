@@ -7,7 +7,7 @@ Regex::Regex(const std::string &regex):
     recursive_depth_(0),
     capture_num_(0),
     involved_char_(std::bitset<256>()),
-    olevel_(Onone),
+    olevel_(Regen::Options::Onone),
     dfa_failure_(false)
 {
   const unsigned char *begin = (const unsigned char*)regex.c_str(),
@@ -564,8 +564,8 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa)
  *         - faster -
  */
 
-bool Regex::Compile(CompileFlag olevel) {
-  if (olevel == Onone || olevel_ >= olevel) return true;
+bool Regex::Compile(Regen::Options::CompileFlag olevel) {
+  if (olevel == Regen::Options::Onone || olevel_ >= olevel) return true;
   if (!dfa_failure_ && !dfa_.Complete()) {
     /* try create DFA.  */
     std::size_t limit = state_exprs_.size();
@@ -588,6 +588,10 @@ bool Regex::Compile(CompileFlag olevel) {
 bool Regex::Match(const std::string &string)  const {
   const unsigned char* begin = (const unsigned char *)string.c_str();
   return Match(begin, begin+string.length());
+}
+
+bool Regex::Match(const char *begin, const char * end) const {
+  return Match((const unsigned char*)begin, (const unsigned char*)end);
 }
 
 bool Regex::Match(const unsigned char *begin, const unsigned char * end) const {

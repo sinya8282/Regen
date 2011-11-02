@@ -1,3 +1,4 @@
+#include "../regen.h"
 #include "../regex.h"
 #include "../ssfa.h"
 
@@ -45,12 +46,12 @@ int main(int argc, char *argv[]) {
     printf("NFA state num:  %"PRIuS"\n", r.state_exprs().size());
   }
   if (d) {
-    r.Compile(regen::O0);
+    r.Compile(Regen::Options::O0);
     if (m) r.MinimizeDFA();
     printf("DFA state num: %"PRIuS"\n", r.dfa().size());
   }
   if (s) {
-    r.Compile(regen::O0);
+    r.Compile(Regen::Options::O0);
     if (m) r.MinimizeDFA();
     regen::SSFA ssfa(r.dfa());
     printf("SSFA(from DFA) state num: %"PRIuS"\n", ssfa.size());

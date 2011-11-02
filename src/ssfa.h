@@ -1,6 +1,7 @@
 #ifndef REGEN_SSFA_H_
 #define  REGEN_SSFA_H_
 #ifdef REGEN_ENABLE_PARALLEL
+#include "regen.h"
 #include "regex.h"
 #include "util.h"
 #include "expr.h"

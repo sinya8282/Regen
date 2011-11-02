@@ -1,3 +1,4 @@
+#include "../regen.h"
 #include "../regex.h"
 
 struct testcase {
@@ -10,12 +11,12 @@ struct testcase {
 int main(int argc, char *argv[]) {
   int opt;
   std::size_t thread_num = 1;
-  regen::CompileFlag olevel = regen::O3;
+  Regen::Options::CompileFlag olevel = Regen::Options::O3;
 
   while ((opt = getopt(argc, argv, "nf:t:O:t:")) != -1) {
     switch(opt) {
       case 'O': {
-        olevel = regen::CompileFlag(atoi(optarg));
+        olevel = Regen::Options::CompileFlag(atoi(optarg));
         break;
       }
       case 't': {

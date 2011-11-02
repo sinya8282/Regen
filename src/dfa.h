@@ -1,5 +1,6 @@
 #ifndef REGEN_DFA_H_
 #define  REGEN_DFA_H_
+#include "regen.h"
 #include "util.h"
 #include "nfa.h"
 #include "expr.h"
@@ -79,7 +80,7 @@ public:
   typedef std::deque<State>::iterator iterator;
   typedef std::deque<State>::const_iterator const_iterator;  
   
-  DFA(): complete_(false), minimum_(false), olevel_(O0)
+  DFA(): complete_(false), minimum_(false), olevel_(Regen::Options::O0)
 #ifdef REGEN_ENABLE_XBYAK
   , xgen_(NULL)
 #endif
@@ -95,7 +96,7 @@ public:
   bool empty() const { return transition_.empty(); }
   std::size_t size() const { return transition_.size(); }
   state_t start_state() const { return 0; }
-  CompileFlag olevel() const { return olevel_; };
+  Regen::Options::CompileFlag olevel() const { return olevel_; };
   bool Complete() const { return complete_; }
 
   State& get_new_state() const;
@@ -114,7 +115,7 @@ public:
   std::pair<state_t, const unsigned char *> OnTheFlyConstructWithString(state_t state, const unsigned char *begin, const unsigned char *end) const;
   void Complement();
   virtual bool Minimize();
-  bool Compile(CompileFlag olevel = O2);
+  bool Compile(Regen::Options::CompileFlag olevel = Regen::Options::O2);
   virtual bool OnTheFlyMatch(const std::string &str) const { return OnTheFlyMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
   virtual bool OnTheFlyMatch(const unsigned char *, const unsigned char*) const;
   virtual bool Match(const std::string &str) const { return Match((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
@@ -141,7 +142,7 @@ protected:
   state_t (*CompiledMatch)(const unsigned char *, const unsigned char *);
   bool EliminateBranch();
   bool Reduce();
-  CompileFlag olevel_;
+  Regen::Options::CompileFlag olevel_;
 #if REGEN_ENABLE_XBYAK
   JITCompiler *xgen_;
 #endif

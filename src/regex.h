@@ -1,6 +1,7 @@
 #ifndef REGEN_REGEX_H_
 #define REGEN_REGEX_H_
 
+#include "regen.h"
 #include "util.h"
 #include "lexer.h"
 #include "expr.h"
@@ -12,7 +13,7 @@
 #endif
 
 namespace regen {
-  
+
 class Regex {
 public:
   Regex(const std::string &regex);
@@ -22,9 +23,10 @@ public:
   void PrintParseTree() const;
   Expr* CreateRegexFromDFA(DFA &dfa);
   void DumpExprTree() const;
-  bool Compile(CompileFlag olevel = O3);
+  bool Compile(Regen::Options::CompileFlag olevel = Regen::Options::O3);
   bool MinimizeDFA() { if (dfa_.Complete()) { dfa_.Minimize(); return true; } else return false; }
   bool Match(const std::string &string) const;
+  bool Match(const char *begin, const char *end) const;
   bool Match(const unsigned char *begin, const unsigned char *end) const;
   bool MatchNFA(const unsigned char *begin, const unsigned char *end) const;
   const std::string& regex() const { return regex_; }
@@ -34,7 +36,7 @@ public:
   std::size_t must_max_length() const { return must_max_length_; }
   const std::string& must_max_word() const { return must_max_word_; }
   const DFA& dfa() const { return dfa_; }
-  CompileFlag olevel() const { return olevel_; }
+  Regen::Options::CompileFlag olevel() const { return olevel_; }
   Expr* expr_root() const { return expr_root_; }
   const std::vector<StateExpr*> &state_exprs() const { return state_exprs_; }
 
@@ -63,7 +65,7 @@ private:
   std::size_t expr_id_;
   std::size_t state_id_;
 
-  CompileFlag olevel_;
+  Regen::Options::CompileFlag olevel_;
   bool dfa_failure_;
   DFA dfa_;
 };

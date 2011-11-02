@@ -1,3 +1,4 @@
+#include "regen.h"
 #include "regex.h"
 #include "exprutil.h"
 #include "dfa.h"
@@ -37,7 +38,7 @@ int main(int argc, char *argv[]) {
   }
 
   regen::Regex r = regen::Regex(regex);
-  r.Compile(regen::O0);
+  r.Compile(Regen::Options::O0);
 
   switch (generate) {
     r.MinimizeDFA();

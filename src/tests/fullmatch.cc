@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
   int opt;
   std::size_t thread_num = 1;
   std::size_t count = 1;
-  regen::CompileFlag olevel = regen::Onone;
+  Regen::Options::CompileFlag olevel = Regen::Options::Onone;
 
   while ((opt = getopt(argc, argv, "c:f:O:t:")) != -1) {
     switch(opt) {
@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
         break;
       }
       case 'O': {
-        olevel = regen::CompileFlag(atoi(optarg));
+        olevel = Regen::Options::CompileFlag(atoi(optarg));
         break;
       }
       case 't': {
@@ -68,7 +68,7 @@ int main(int argc, char *argv[]) {
     } else {
       compile_time -= rdtsc();
       regen::Regex r = regen::Regex(regex);
-      r.Compile(regen::O0);
+      r.Compile(Regen::Options::O0);
       regen::SSFA ssfa(r.expr_root(), r.state_exprs(), thread_num);
       ssfa.Compile(olevel);
       compile_time += rdtsc();
