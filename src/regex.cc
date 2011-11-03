@@ -2,8 +2,9 @@
 
 namespace regen {
 
-Regex::Regex(const std::string &regex):
+Regex::Regex(const std::string &regex, const Regen::Options::ParseFlag flags):
     regex_(regex),
+    parse_flag_(flags),
     recursive_depth_(0),
     capture_num_(0),
     involved_char_(std::bitset<256>()),
