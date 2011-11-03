@@ -58,12 +58,6 @@ struct Transition {
   std::set<StateExpr*> follow;
 };
 
-struct Tag {
-  typedef std::map<std::size_t, std::set<StateExpr*> >::iterator iterator;
-  std::set<std::size_t> enter;
-  std::map<std::size_t, std::set<StateExpr*> > leave;
-};
-
 class Expr {
 public:
   enum Type {
@@ -116,13 +110,11 @@ public:
   void FillTransition() {}
   std::size_t state_id() { return state_id_; }
   void set_state_id(std::size_t id) { state_id_ = id; }
-  Tag& tag() { return tag_; }  
   Expr::SuperType stype() { return Expr::kStateExpr; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   virtual bool Match(const unsigned char c) = 0;
 private:
   std::size_t state_id_;
-  Tag tag_;
   DISALLOW_COPY_AND_ASSIGN(StateExpr);
 };
 
