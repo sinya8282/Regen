@@ -189,73 +189,70 @@ Regex::e3(Lexer *lexer)
 {
   Expr *e;
   e = e4(lexer);
-  bool infinity = false, nullable = false;
 
-looptop:
-  switch (lexer->token()) {
-    case Lexer::kStar:
-      infinity = true;
-      nullable = true;
-      goto loop;
-    case Lexer::kPlus:
-      infinity = true;
-      goto loop;
-    case Lexer::kQmark:
-      nullable = true;
-      goto loop;
-    default: goto loopend;
+  if (e->type() == Expr::kNone) {
+    while (lexer->Quantifier()) {
+      lexer->Consume();
+    }
+    return e;
   }
-loop:
-  lexer->Consume();
-  goto looptop;
-loopend:
-
-  if (e->type() != Expr::kNone &&
-      (infinity || nullable)) {
-    if (infinity && nullable) {
-      e = new Star(e);
-    } else if (infinity) {
-      e = new Plus(e);
-    } else { //nullable
-      e = new Qmark(e);
+  
+  while (lexer->Quantifier()) {
+    bool non_greedy = false;
+    Lexer::Type token = lexer->token();
+    lexer->Consume();
+    if (lexer->token() == Lexer::kQmark) {
+      non_greedy = true;
+      lexer->Consume();
+    }
+    switch (token) {
+      case Lexer::kStar:
+        e = new Star(e, non_greedy);
+        break;
+      case Lexer::kPlus:
+        e = new Plus(e, non_greedy);
+        break;
+      case Lexer::kQmark: {
+        e = new Qmark(e, non_greedy);
+        break;
+      }
+      case Lexer::kRepetition: {
+        std::pair<int, int> r = lexer->repetition();
+        int lower_repetition = r.first, upper_repetition = r.second;
+        if (lower_repetition == 0 && upper_repetition == 0) {
+          delete e;
+          e = new None();
+        } else if (upper_repetition == -1) {
+          Expr* f = e;
+          for (int i = 0; i < lower_repetition - 2; i++) {
+            e = new Concat(e, f->Clone());
+          }
+          e = new Concat(e, new Plus(f->Clone(), non_greedy));
+        } else if (upper_repetition == lower_repetition) {
+          Expr* f = e;
+          for (int i = 0; i < lower_repetition - 1; i++) {
+            e = new Concat(e, f->Clone());
+          }
+        } else {
+          Expr *f = e;
+          for (int i = 0; i < lower_repetition - 1; i++) {
+            e = new Concat(e, f->Clone());
+          }
+          if (lower_repetition == 0) {
+            e = new Qmark(e, non_greedy);
+            lower_repetition = 1;
+          }
+          for (int i = 0; i < (upper_repetition - lower_repetition); i++) {
+            e = new Concat(e, new Qmark(f->Clone(), non_greedy));
+          }
+        }
+        break;
+      }
+      default:
+        break;        
     }
   }
   
-  if (lexer->token() == Lexer::kRepetition) {
-    std::pair<int, int> r = lexer->repetition();
-    int lower_repetition = r.first, upper_repetition = r.second;
-    if (e->type() == Expr::kNone) goto loop;
-    if (lower_repetition == 0 && upper_repetition == 0) {
-      delete e;
-      e = new None();
-    } else if (upper_repetition == -1) {
-      Expr* f = e;
-      for (int i = 0; i < lower_repetition - 2; i++) {
-        e = new Concat(e, f->Clone());
-      }
-      e = new Concat(e, new Plus(f->Clone()));
-    } else if (upper_repetition == lower_repetition) {
-      Expr* f = e;
-      for (int i = 0; i < lower_repetition - 1; i++) {
-        e = new Concat(e, f->Clone());
-      }
-    } else {
-      Expr *f = e;
-      for (int i = 0; i < lower_repetition - 1; i++) {
-        e = new Concat(e, f->Clone());
-      }
-      if (lower_repetition == 0) {
-        e = new Qmark(e);
-        lower_repetition = 1;
-      }
-      for (int i = 0; i < (upper_repetition - lower_repetition); i++) {
-        e = new Concat(e, new Qmark(f->Clone()));
-      }
-    }
-    infinity = false, nullable = false;
-    goto loop;
-  }
-
   return e;
 }
 

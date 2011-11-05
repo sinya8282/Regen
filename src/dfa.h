@@ -78,7 +78,7 @@ public:
     const state_t &operator[](std::size_t index) const { return (*transitions)[id][index]; }
   };
   typedef std::deque<State>::iterator iterator;
-  typedef std::deque<State>::const_iterator const_iterator;  
+  typedef std::deque<State>::const_iterator const_iterator;
   
   DFA(): complete_(false), minimum_(false), olevel_(Regen::Options::O0)
 #ifdef REGEN_ENABLE_XBYAK
@@ -148,6 +148,7 @@ protected:
 #endif
   std::vector<AlterTrans> alter_trans_;
   std::vector<std::size_t> inline_level_;
+private:
 };
 
 } // namespace regen

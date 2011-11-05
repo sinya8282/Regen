@@ -213,6 +213,17 @@ bool Lexer::Concatenated()
   }
 }
 
+bool Lexer::Quantifier()
+{
+  switch (token_) {
+    case kStar: case kPlus: case kQmark:
+    case kRepetition:
+      return true;
+    default:
+      return false;
+  }
+}
+
 const char* Lexer::TokenToString(Lexer::Type token)
 {
   static const char* str[] = {

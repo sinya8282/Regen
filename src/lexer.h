@@ -18,6 +18,7 @@ public:
   const unsigned char *ptr() { return ptr_; }
   Type Consume();
   bool Concatenated();
+  bool Quantifier();
   Type token() { return token_; }
   const char * TokenToString(Type token);
   const char * TokenToString() { return TokenToString(token_); }

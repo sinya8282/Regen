@@ -23,16 +23,11 @@ Expr::SuperTypeString(Expr::SuperType stype)
   return stype_strings[stype];
 }
 
-void Expr::Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst) {
+void Expr::Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst)
+{
   std::set<StateExpr*>::iterator iter = src.begin();
   while (iter != src.end()) {
     (*iter)->transition().follow.insert(dst.begin(), dst.end());
-    ++iter;
-  }
-
-  iter = dst.begin();
-  while (iter != dst.end()) {
-    (*iter)->transition().before.insert(src.begin(), src.end());
     ++iter;
   }
 }
@@ -73,7 +68,7 @@ top:
 }
 
 StateExpr::StateExpr():
-    state_id_(0)
+    state_id_(0), non_greedy_(false)
 {
   min_length_ = max_length_ = 1;
   transition_.first.insert(this);
@@ -92,12 +87,14 @@ Concat::Concat(Expr *lhs, Expr *rhs):
   min_length_ = lhs->min_length() + rhs->min_length();
 
   transition_.first = lhs->transition().first;
+
   if (lhs->min_length() == 0) {
     transition_.first.insert(rhs->transition().first.begin(),
                              rhs->transition().first.end());
   }
 
   transition_.last = rhs->transition().last;
+
   if (rhs->min_length() == 0) {
     transition_.last.insert(lhs->transition().last.begin(),
                             lhs->transition().last.end());
@@ -137,13 +134,14 @@ void Union::FillTransition()
   lhs_->FillTransition();
 }
 
-Qmark::Qmark(Expr* lhs):
+Qmark::Qmark(Expr* lhs, bool non_greedy):
     UnaryExpr(lhs)
 {
   max_length_ = lhs->min_length();
   min_length_ = 0;
   transition_.first = lhs->transition().first;
   transition_.last = lhs->transition().last;
+  if (non_greedy) NonGreedify();
 }
 
 void Qmark::FillTransition()
@@ -151,13 +149,14 @@ void Qmark::FillTransition()
   lhs_->FillTransition();
 }
 
-Plus::Plus(Expr* lhs):
+Plus::Plus(Expr* lhs, bool non_greedy):
     UnaryExpr(lhs)
 {
   max_length_ = std::numeric_limits<size_t>::max();
   min_length_ = lhs->min_length();
   transition_.first = lhs->transition().first;
   transition_.last = lhs->transition().last;
+  if (non_greedy) NonGreedify();
 }
 
 void Plus::FillTransition()
@@ -166,13 +165,14 @@ void Plus::FillTransition()
   lhs_->FillTransition();
 }
 
-Star::Star(Expr* lhs):
+Star::Star(Expr* lhs, bool non_greedy):
     UnaryExpr(lhs)
 {
   max_length_ = std::numeric_limits<size_t>::max();
   min_length_ = 0;
   transition_.first = lhs->transition().first;
   transition_.last = lhs->transition().last;
+  if (non_greedy) NonGreedify();
 }
 
 void Star::FillTransition()

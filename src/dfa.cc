@@ -23,14 +23,16 @@ DFA::DFA(const NFA &nfa, std::size_t limit):
 bool DFA::Construct(Expr *expr_root, std::size_t limit, std::size_t neop)
 {
   typedef std::set<StateExpr*> NFA;
+  std::queue<NFA> queue;
+
   expr_root_ = expr_root;
   
-  std::queue<NFA> queue;
   state_t dfa_id = 0;
   bool limit_over = false;
 
   nfa_map_[0] = expr_root->transition().first;
   dfa_map_[expr_root->transition().first] = dfa_id++;
+
   queue.push(expr_root->transition().first);
 
   while (!queue.empty()) {

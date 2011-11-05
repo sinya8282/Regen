@@ -54,7 +54,6 @@ struct Must {
 struct Transition {
   std::set<StateExpr*> first;
   std::set<StateExpr*> last;
-  std::set<StateExpr*> before;
   std::set<StateExpr*> follow;
 };
 
@@ -90,6 +89,7 @@ public:
   virtual Expr::SuperType stype() = 0;
   virtual void FillTransition() = 0;
   virtual Expr* Clone() = 0;
+  virtual void NonGreedify() = 0;
   
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 protected:
@@ -110,11 +110,15 @@ public:
   void FillTransition() {}
   std::size_t state_id() { return state_id_; }
   void set_state_id(std::size_t id) { state_id_ = id; }
+  bool non_greedy() { return non_greedy_; }
+  void set_non_greedy(bool non_greedy = true) { non_greedy_ = non_greedy; }
   Expr::SuperType stype() { return Expr::kStateExpr; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  void NonGreedify()  { non_greedy_ = true; }
   virtual bool Match(const unsigned char c) = 0;
 private:
   std::size_t state_id_;
+  bool non_greedy_;
   DISALLOW_COPY_AND_ASSIGN(StateExpr);
 };
 
@@ -237,6 +241,7 @@ public:
   void  set_rhs(Expr *rhs) { rhs_ = rhs; }
   Expr::SuperType stype() { return Expr::kBinaryExpr; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  void NonGreedify()  { lhs_->NonGreedify(); rhs_->NonGreedify(); }
 protected:
   Expr *lhs_;
   Expr *rhs_;
@@ -276,6 +281,7 @@ public:
   void  set_lhs(Expr *lhs) { lhs_ = lhs; }
   Expr::SuperType stype() { return Expr::kUnaryExpr; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  void NonGreedify()  { lhs_->NonGreedify(); }
 protected:
   Expr *lhs_;
 private:
@@ -284,7 +290,7 @@ private:
 
 class Qmark: public UnaryExpr {
 public:
-  Qmark(Expr *lhs);
+  Qmark(Expr *lhs, bool non_greedy = false);
   ~Qmark() {}
   void FillTransition();
   Expr::Type type() { return Expr::kQmark; }
@@ -296,7 +302,7 @@ private:
 
 class Star: public UnaryExpr {
 public:
-  Star(Expr *lhs);
+  Star(Expr *lhs, bool non_greedy = false);
   ~Star() {}
   void FillTransition();
   Expr::Type type() { return Expr::kStar; }
@@ -308,7 +314,7 @@ private:
 
 class Plus: public UnaryExpr {
 public:
-  Plus(Expr *lhs);
+  Plus(Expr *lhs, bool non_greedy = false);
   ~Plus() {}
   void FillTransition();
   Expr::Type type() { return Expr::kPlus; }
