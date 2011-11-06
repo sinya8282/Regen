@@ -90,6 +90,7 @@ public:
   virtual void FillTransition() = 0;
   virtual Expr* Clone() = 0;
   virtual void NonGreedify() = 0;
+  virtual void TransmitNonGreedy() = 0;
   
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 protected:
@@ -111,14 +112,18 @@ public:
   std::size_t state_id() { return state_id_; }
   void set_state_id(std::size_t id) { state_id_ = id; }
   bool non_greedy() { return non_greedy_; }
+  StateExpr* non_greedy_pair() { return non_greedy_pair_; }
+  void set_non_greedy_pair(StateExpr* p) { non_greedy_pair_ = p; }
   void set_non_greedy(bool non_greedy = true) { non_greedy_ = non_greedy; }
   Expr::SuperType stype() { return Expr::kStateExpr; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   void NonGreedify()  { non_greedy_ = true; }
+  void TransmitNonGreedy();
   virtual bool Match(const unsigned char c) = 0;
 private:
   std::size_t state_id_;
   bool non_greedy_;
+  StateExpr* non_greedy_pair_;
   DISALLOW_COPY_AND_ASSIGN(StateExpr);
 };
 
@@ -242,6 +247,7 @@ public:
   Expr::SuperType stype() { return Expr::kBinaryExpr; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   void NonGreedify()  { lhs_->NonGreedify(); rhs_->NonGreedify(); }
+  void TransmitNonGreedy() { lhs_->TransmitNonGreedy(); rhs_->TransmitNonGreedy(); }
 protected:
   Expr *lhs_;
   Expr *rhs_;
@@ -282,6 +288,7 @@ public:
   Expr::SuperType stype() { return Expr::kUnaryExpr; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   void NonGreedify()  { lhs_->NonGreedify(); }
+  void TransmitNonGreedy() { lhs_->TransmitNonGreedy(); }
 protected:
   Expr *lhs_;
 private:

@@ -44,7 +44,32 @@ bool DFA::Construct(Expr *expr_root, std::size_t limit, std::size_t neop)
     std::set<EOP*> eops;
 
     while (iter != nfa_states.end()) {
-      NFA &next = (*iter)->transition().follow;
+      if ((*iter)->type() == Expr::kEOP) {
+        eops.insert((EOP*)(*iter));
+        if (eops.size() == neop) {
+          is_accept = true;
+        }
+      }
+      iter++;
+    }
+
+    iter = nfa_states.begin();
+    while (iter != nfa_states.end()) {
+      if (is_accept && (*iter)->non_greedy()) {
+        iter++;
+        continue;
+      }
+      NFA next = (*iter)->transition().follow;
+      if (is_accept) {
+        NFA::iterator iter_ = next.begin();
+        while (iter_ != next.end()) {
+          if ((*iter_)->non_greedy()) {
+            next.erase(iter_++);
+          } else {
+            iter_++;
+          }
+        }
+      }
       switch ((*iter)->type()) {
         case Expr::kLiteral: {
           Literal* literal = static_cast<Literal*>(*iter);
@@ -75,13 +100,8 @@ bool DFA::Construct(Expr *expr_root, std::size_t limit, std::size_t neop)
           transition['\n'].insert(next.begin(), next.end());
           break;
         }
-        case Expr::kEOP: {
-          eops.insert((EOP*)(*iter));
-          if (eops.size() == neop) {
-            is_accept = true;
-          }
+        case Expr::kEOP:
           break;
-        }
         case Expr::kNone: break;
         default: exitmsg("notype");
       }
@@ -151,8 +171,8 @@ bool DFA::Construct(const NFA &nfa, size_t limit)
 
     State &state = get_new_state();
     Transition &trans = transition_[state.id];
-    // only Leftmost-Shortest matching
-    //if (is_accept) goto settransition;
+    //only Leftmost-Shortest matching
+    if (shortest_ && is_accept) goto shortest;
     
     for (state_t i = 0; i < 256; i++) {
       NFA_ &next = transition[i];
@@ -168,7 +188,7 @@ bool DFA::Construct(const NFA &nfa, size_t limit)
       trans[i] = dfa_map[next];
       state.dst_states.insert(dfa_map[next]);
     }
-    //settransition:
+ shortest:
     state.accept = is_accept;
   }
 

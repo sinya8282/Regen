@@ -68,11 +68,34 @@ top:
 }
 
 StateExpr::StateExpr():
-    state_id_(0), non_greedy_(false)
+    state_id_(0), non_greedy_(false), non_greedy_pair_(NULL)
 {
   min_length_ = max_length_ = 1;
   transition_.first.insert(this);
   transition_.last.insert(this);
+}
+
+void StateExpr::TransmitNonGreedy()
+{
+  if (non_greedy_) {
+    std::set<StateExpr*>::iterator iter = transition_.follow.begin();
+    while (iter != transition_.follow.end()) {
+      if (!((*iter)->non_greedy())) {
+        StateExpr* np = (*iter)->non_greedy_pair();
+        if (np == NULL) {
+          np = static_cast<StateExpr*>((*iter)->Clone());
+          (*iter)->set_non_greedy_pair(np);
+          np->set_non_greedy();
+          np->transition().follow = (*iter)->transition().follow;
+          np->TransmitNonGreedy();
+        }
+        transition_.follow.insert(np);
+        transition_.follow.erase(iter++);
+        continue;
+      }
+      iter++;
+    }
+  }
 }
 
 Concat::Concat(Expr *lhs, Expr *rhs):
@@ -156,7 +179,14 @@ Plus::Plus(Expr* lhs, bool non_greedy):
   min_length_ = lhs->min_length();
   transition_.first = lhs->transition().first;
   transition_.last = lhs->transition().last;
-  if (non_greedy) NonGreedify();
+  if (non_greedy) {
+    NonGreedify();
+    std::set<StateExpr*>::iterator iter = transition_.first.begin();
+    while (iter != transition_.first.end()) {
+      (*iter)->set_non_greedy(false);
+      iter++;
+    }
+  }
 }
 
 void Plus::FillTransition()

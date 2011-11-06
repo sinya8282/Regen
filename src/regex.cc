@@ -17,6 +17,7 @@ Regex::Regex(const std::string &regex, const Regen::Options::ParseFlag flags):
   expr_root_ = Parse(&lexer);
   NumberingStateExprVisitor::Numbering(expr_root_, &state_exprs_);
   dfa_.set_expr_root(expr_root_);
+  dfa_.set_shortest(flags & Regen::Options::Shortest);
 }
 
 StateExpr*
@@ -59,22 +60,25 @@ Expr* Regex::Parse(Lexer *lexer)
 
   if (lexer->token() != Lexer::kEOP) exitmsg("expected end of pattern.");
 
-  // add '.*' to top of regular expression.
-  // Expr *dotstar;
-  // StateExpr *dot;
-  // dot = new Dot();
-  // dot->set_expr_id(++expr_id_);
-  // dot->set_state_id(++state_id_);
-  // dotstar = new Star(dot);
-  // dotstar->set_expr_id(++expr_id_);
-  // e = new Concat(dotstar, e);
-  // e->set_expr_id(++expr_id_);
+  if (parse_flag_ & Regen::Options::PartialMatch) {
+    //add '.*?' to top of regular expression for Partial Match.
+    Expr *dotstar;
+    StateExpr *dot;
+    dot = new Dot();
+    dot->set_expr_id(++expr_id_);
+    dot->set_state_id(++state_id_);
+    dotstar = new Star(dot);
+    dotstar->set_expr_id(++expr_id_);
+    e = new Concat(dotstar, e);
+    e->set_expr_id(++expr_id_);
+  }
 
   eop = new EOP();
   e = new Concat(e, eop);
   e->set_expr_id(++expr_id_);
 
   e->FillTransition();
+  e->TransmitNonGreedy();
   return e;
 }
 

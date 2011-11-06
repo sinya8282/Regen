@@ -3,9 +3,16 @@
 
 namespace regen {
 
-Regen::Regen(const std::string &regex, const Regen::Options::ParseFlag options = Regen::Options::NoParseFlags)
+Regen::Regen(const std::string &regex, const Regen::Options::ParseFlag options = Regen::Options::NoParseFlags):
+    regex_(NULL), reverse_regex_(NULL)
 {
   regex_ = new Regex(regex, options);
+}
+
+Regen::~Regen()
+{
+  delete regex_;
+  delete reverse_regex_;
 }
 
 bool Regen::Match(const char *beg, const char *end)
