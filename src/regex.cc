@@ -60,7 +60,7 @@ Expr* Regex::Parse(Lexer *lexer)
 
   if (lexer->token() != Lexer::kEOP) exitmsg("expected end of pattern.");
 
-  if (parse_flag_ & Regen::Options::PartialMatch) {
+  if (parse_flag_ & Regen::Options::Partial) {
     //add '.*?' to top of regular expression for Partial Match.
     Expr *dotstar;
     StateExpr *dot;

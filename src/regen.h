@@ -1,7 +1,7 @@
 #ifndef REGEN_H_
 #define REGEN_H_
 
-#include "util.h"
+#include <string>
 
 namespace regen {
 
@@ -19,9 +19,10 @@ public:
       MatchNL = ClassNL | DotNL,
       OneLine = 1 << 2,
       Shortest = 1 << 3,
-      PartialMatch = 1 << 4,
-      ParallelMatch = 1 << 5, // Enable Parallel Matching (SSFA)
-      RegenExtended = 1 << 6  // Extended syntax support (!,&,@)
+      Reversed = 1 << 4,
+      Partial = 1 << 5,
+      Parallel = 1 << 6, // Enable Parallel Matching (SSFA)
+      RegenExtended = 1 << 7  // Extended syntax support (!,&,@)
     };
     enum CompileFlag {
       Onone = 0, O0, O1, O2, O3
