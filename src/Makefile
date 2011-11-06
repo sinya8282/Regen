@@ -58,14 +58,16 @@ depend:
 	mv tmp Makefile
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
-regex.o: regex.cc regex.h util.h lexer.h expr.h exprutil.h nfa.h dfa.h \
-  ssfa.h
+regen.o: regen.cc regen.h util.h regex.h lexer.h expr.h exprutil.h nfa.h \
+  dfa.h ssfa.h
+regex.o: regex.cc regex.h regen.h util.h lexer.h expr.h exprutil.h nfa.h \
+  dfa.h ssfa.h
 lexer.o: lexer.cc lexer.h util.h
 expr.o: expr.cc expr.h util.h
 exprutil.o: exprutil.cc exprutil.h expr.h util.h
 nfa.o: nfa.cc nfa.h util.h
-dfa.o: dfa.cc dfa.h util.h nfa.h expr.h
-ssfa.o: ssfa.cc ssfa.h regex.h util.h lexer.h expr.h exprutil.h nfa.h \
-  dfa.h
-generator.o: generator.cc generator.h regex.h util.h lexer.h expr.h \
-  exprutil.h nfa.h dfa.h ssfa.h
+dfa.o: dfa.cc dfa.h regen.h util.h nfa.h expr.h
+ssfa.o: ssfa.cc ssfa.h regen.h util.h regex.h lexer.h expr.h exprutil.h \
+  nfa.h dfa.h
+generator.o: generator.cc generator.h regex.h regen.h util.h lexer.h \
+  expr.h exprutil.h nfa.h dfa.h ssfa.h
