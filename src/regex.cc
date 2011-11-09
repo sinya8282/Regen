@@ -2,7 +2,7 @@
 
 namespace regen {
 
-Regex::Regex(const std::string &regex, const Regen::Options::ParseFlag flags):
+Regex::Regex(const std::string &regex, const Regen::Options flags):
     regex_(regex),
     parse_flag_(flags),
     recursive_depth_(0),
@@ -13,11 +13,11 @@ Regex::Regex(const std::string &regex, const Regen::Options::ParseFlag flags):
 {
   const unsigned char *begin = (const unsigned char*)regex.c_str(),
       *end = begin + regex.length();
-  Lexer lexer(begin, end);
+  Lexer lexer(begin, end, flags);
   expr_root_ = Parse(&lexer);
   NumberingStateExprVisitor::Numbering(expr_root_, &state_exprs_);
   dfa_.set_expr_root(expr_root_);
-  dfa_.set_shortest(flags & Regen::Options::Shortest);
+  dfa_.set_shortest(flags.shortest());
 }
 
 StateExpr*
@@ -60,7 +60,7 @@ Expr* Regex::Parse(Lexer *lexer)
 
   if (lexer->token() != Lexer::kEOP) exitmsg("expected end of pattern.");
 
-  if (parse_flag_ & Regen::Options::Partial) {
+  if (parse_flag_.partial_match()) {
     //add '.*?' to top of regular expression for Partial Match.
     Expr *dotstar;
     StateExpr *dot;
@@ -213,9 +213,15 @@ Regex::e3(Lexer *lexer)
       case Lexer::kStar:
         e = new Star(e, non_greedy);
         break;
-      case Lexer::kPlus:
-        e = new Plus(e, non_greedy);
+      case Lexer::kPlus: {
+        if (non_greedy) {
+          Expr* e_ = e->Clone();
+          e = new Concat(e_, new Star(e, non_greedy));
+        } else {
+          e = new Plus(e);
+        }
         break;
+      }
       case Lexer::kQmark: {
         e = new Qmark(e, non_greedy);
         break;
@@ -228,10 +234,10 @@ Regex::e3(Lexer *lexer)
           e = new None();
         } else if (upper_repetition == -1) {
           Expr* f = e;
-          for (int i = 0; i < lower_repetition - 2; i++) {
+          for (int i = 0; i < lower_repetition - 1; i++) {
             e = new Concat(e, f->Clone());
           }
-          e = new Concat(e, new Plus(f->Clone(), non_greedy));
+          e = new Concat(e, new Star(f->Clone(), non_greedy));
         } else if (upper_repetition == lower_repetition) {
           Expr* f = e;
           for (int i = 0; i < lower_repetition - 1; i++) {

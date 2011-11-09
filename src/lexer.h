@@ -2,6 +2,7 @@
 #define REGEN_LEXER_H_
 
 #include "util.h"
+#include "regen.h"
 
 namespace regen {
 
@@ -14,7 +15,7 @@ public:
     kQmark, kStar, kPlus, kRepetition,
     kRpar, kLpar, kEpsilon, kNone, kComplement
   };
-  Lexer(const unsigned char *begin, const unsigned char *end): ptr_(begin), begin_(begin), end_(end) {}
+Lexer(const unsigned char *begin, const unsigned char *end, Regen::Options flag = Regen::Options::NoParseFlags): ptr_(begin), begin_(begin), end_(end), flag_(flag) {}
   const unsigned char *ptr() { return ptr_; }
   Type Consume();
   bool Concatenated();
@@ -36,6 +37,7 @@ private:
   Type token_;
   std::bitset<256> table_;
   unsigned char literal_;
+  Regen::Options flag_;
 };
 
 } // namespace regen

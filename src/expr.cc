@@ -13,6 +13,7 @@ Expr::TypeString(Expr::Type type)
 
   return type_strings[type];
 }
+
 const char*
 Expr::SuperTypeString(Expr::SuperType stype)
 {
@@ -172,21 +173,13 @@ void Qmark::FillTransition()
   lhs_->FillTransition();
 }
 
-Plus::Plus(Expr* lhs, bool non_greedy):
+Plus::Plus(Expr* lhs):
     UnaryExpr(lhs)
 {
   max_length_ = std::numeric_limits<size_t>::max();
   min_length_ = lhs->min_length();
   transition_.first = lhs->transition().first;
   transition_.last = lhs->transition().last;
-  if (non_greedy) {
-    NonGreedify();
-    std::set<StateExpr*>::iterator iter = transition_.first.begin();
-    while (iter != transition_.first.end()) {
-      (*iter)->set_non_greedy(false);
-      iter++;
-    }
-  }
 }
 
 void Plus::FillTransition()

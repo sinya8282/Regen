@@ -321,7 +321,7 @@ private:
 
 class Plus: public UnaryExpr {
 public:
-  Plus(Expr *lhs, bool non_greedy = false);
+  Plus(Expr *lhs);
   ~Plus() {}
   void FillTransition();
   Expr::Type type() { return Expr::kPlus; }

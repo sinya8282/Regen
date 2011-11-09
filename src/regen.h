@@ -19,14 +19,28 @@ public:
       MatchNL = ClassNL | DotNL,
       OneLine = 1 << 2,
       Shortest = 1 << 3,
-      Reversed = 1 << 4,
-      Partial = 1 << 5,
-      Parallel = 1 << 6, // Enable Parallel Matching (SSFA)
-      RegenExtended = 1 << 7  // Extended syntax support (!,&,@)
+      ReverseMatch = 1 << 4,
+      PartialMatch = 1 << 5,
+      ParallelMatch = 1 << 6, // Enable Parallel Matching (SSFA)
+      Extended = 1 << 7  // Regen-Extended syntax support (!,&,@)
     };
     enum CompileFlag {
       Onone = 0, O0, O1, O2, O3
     };
+    Options(): flag_(NoParseFlags) {}
+    Options(ParseFlag flag): flag_(flag) {}
+    bool shortest() const { return flag_ & Shortest; }
+    bool longest() const { return !shortest(); }
+    bool dot_nl() const { return flag_ & DotNL; }
+    bool match_nl() const { return flag_ & MatchNL; }
+    bool one_line() const { return flag_ & MatchNL; }
+    bool reverse_match() const { return flag_ & ReverseMatch; }
+    bool partial_match() const { return flag_ & PartialMatch; }
+    bool full_match() const { return !partial_match(); }
+    bool parallel_match() const { return flag_ & ParallelMatch; }
+    bool extended() const { return flag_ & Extended; }
+ private:
+    ParseFlag flag_;
   };
   Regen(const std::string &, const Regen::Options::ParseFlag);
   ~Regen();
@@ -44,6 +58,10 @@ inline Regen::Options::ParseFlag operator|(Regen::Options::ParseFlag a, Regen::O
 { return static_cast<Regen::Options::ParseFlag>(static_cast<int>(a) | static_cast<int>(b)); }
 inline Regen::Options::ParseFlag operator&(Regen::Options::ParseFlag a, Regen::Options::ParseFlag b)
 { return static_cast<Regen::Options::ParseFlag>(static_cast<int>(a) & static_cast<int>(b)); }
+inline Regen::Options::ParseFlag& operator|=(Regen::Options::ParseFlag &a, Regen::Options::ParseFlag b)
+{ return a = static_cast<Regen::Options::ParseFlag>(static_cast<int>(a) | static_cast<int>(b)); }
+inline Regen::Options::ParseFlag& operator&=(Regen::Options::ParseFlag &a, Regen::Options::ParseFlag b)
+{ return a = static_cast<Regen::Options::ParseFlag>(static_cast<int>(a) & static_cast<int>(b)); }
 
 } // namespace regen
 

@@ -16,7 +16,7 @@ namespace regen {
 
 class Regex {
 public:
-  Regex(const std::string &regex, const Regen::Options::ParseFlag = Regen::Options::NoParseFlags);
+  Regex(const std::string &regex, const Regen::Options = Regen::Options::NoParseFlags);
   ~Regex() { delete expr_root_; };
   void PrintRegex();
   void PrintExtendedRegex() const;
@@ -51,7 +51,7 @@ private:
   StateExpr* CombineStateExpr(StateExpr* e1, StateExpr* e2);
 
   const std::string regex_;
-  Regen::Options::ParseFlag parse_flag_;
+  Regen::Options parse_flag_;
   Expr *expr_root_;
   std::size_t recursive_depth_;
   std::vector<StateExpr*> state_exprs_;
