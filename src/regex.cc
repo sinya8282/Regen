@@ -4,7 +4,7 @@ namespace regen {
 
 Regex::Regex(const std::string &regex, const Regen::Options flags):
     regex_(regex),
-    parse_flag_(flags),
+    flag_(flags),
     recursive_depth_(0),
     capture_num_(0),
     involved_char_(std::bitset<256>()),
@@ -17,7 +17,7 @@ Regex::Regex(const std::string &regex, const Regen::Options flags):
   expr_root_ = Parse(&lexer);
   NumberingStateExprVisitor::Numbering(expr_root_, &state_exprs_);
   dfa_.set_expr_root(expr_root_);
-  dfa_.set_shortest(flags.shortest());
+  dfa_.set_shortest(flag_.shortest());
 }
 
 StateExpr*
@@ -60,7 +60,7 @@ Expr* Regex::Parse(Lexer *lexer)
 
   if (lexer->token() != Lexer::kEOP) exitmsg("expected end of pattern.");
 
-  if (parse_flag_.partial_match()) {
+  if (flag_.partial_match()) {
     //add '.*?' to top of regular expression for Partial Match.
     Expr *dotstar;
     StateExpr *dot;

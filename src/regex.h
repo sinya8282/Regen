@@ -51,7 +51,7 @@ private:
   StateExpr* CombineStateExpr(StateExpr* e1, StateExpr* e2);
 
   const std::string regex_;
-  Regen::Options parse_flag_;
+  Regen::Options flag_;
   Expr *expr_root_;
   std::size_t recursive_depth_;
   std::vector<StateExpr*> state_exprs_;
