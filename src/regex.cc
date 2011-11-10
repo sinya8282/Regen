@@ -9,7 +9,8 @@ Regex::Regex(const std::string &regex, const Regen::Options flags):
     capture_num_(0),
     involved_char_(std::bitset<256>()),
     olevel_(Regen::Options::Onone),
-    dfa_failure_(false)
+    dfa_failure_(false),
+    dfa_(flags)
 {
   const unsigned char *begin = (const unsigned char*)regex.c_str(),
       *end = begin + regex.length();
@@ -17,7 +18,6 @@ Regex::Regex(const std::string &regex, const Regen::Options flags):
   expr_root_ = Parse(&lexer);
   NumberingStateExprVisitor::Numbering(expr_root_, &state_exprs_);
   dfa_.set_expr_root(expr_root_);
-  dfa_.set_shortest(flag_.shortest());
 }
 
 StateExpr*
@@ -50,7 +50,6 @@ Regex::CombineStateExpr(StateExpr *e1, StateExpr *e2)
 Expr* Regex::Parse(Lexer *lexer)
 {
   Expr* e;
-  StateExpr *eop;
 
   lexer->Consume();
 
@@ -65,20 +64,21 @@ Expr* Regex::Parse(Lexer *lexer)
     Expr *dotstar;
     StateExpr *dot;
     dot = new Dot();
-    dot->set_expr_id(++expr_id_);
     dot->set_state_id(++state_id_);
     dotstar = new Star(dot);
-    dotstar->set_expr_id(++expr_id_);
     e = new Concat(dotstar, e);
-    e->set_expr_id(++expr_id_);
   }
 
-  eop = new EOP();
-  e = new Concat(e, eop);
-  e->set_expr_id(++expr_id_);
-
-  e->FillTransition();
+  StateExpr *eop = new EOP();
+  if (flag_.reverse_match()) { 
+    e = new Concat(eop, e);
+    e->FillReverseTransition();
+  } else {
+    e = new Concat(e, eop);
+    e->FillTransition();
+  }
   e->TransmitNonGreedy();
+
   return e;
 }
 

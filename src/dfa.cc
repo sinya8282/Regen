@@ -111,7 +111,7 @@ bool DFA::Construct(Expr *expr_root, std::size_t limit, std::size_t neop)
     State &state = get_new_state();
     Transition &trans = transition_[state.id];
     //only Leftmost-Shortest matching
-    if (shortest_ && is_accept) goto shortest;
+    if (flag_.shortest_match() && is_accept) goto shortest;
 
     for (state_t i = 0; i < 256; i++) {
       NFA &next = transition[i];
@@ -175,7 +175,7 @@ bool DFA::Construct(const NFA &nfa, size_t limit)
     State &state = get_new_state();
     Transition &trans = transition_[state.id];
     //only Leftmost-Shortest matching
-    if (shortest_ && is_accept) goto shortest;
+    if (flag_.shortest_match() && is_accept) goto shortest;
     
     for (state_t i = 0; i < 256; i++) {
       NFA_ &next = transition[i];

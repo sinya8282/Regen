@@ -24,12 +24,20 @@ Expr::SuperTypeString(Expr::SuperType stype)
   return stype_strings[stype];
 }
 
-void Expr::Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst)
+void Expr::Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst, bool reverse)
 {
-  std::set<StateExpr*>::iterator iter = src.begin();
-  while (iter != src.end()) {
-    (*iter)->transition().follow.insert(dst.begin(), dst.end());
-    ++iter;
+  if (reverse) {
+    std::set<StateExpr*>::iterator iter = dst.begin();
+    while (iter != dst.end()) {
+      (*iter)->transition().follow.insert(src.begin(), src.end());
+      ++iter;
+    }
+  } else {
+    std::set<StateExpr*>::iterator iter = src.begin();
+    while (iter != src.end()) {
+      (*iter)->transition().follow.insert(dst.begin(), dst.end());
+      ++iter;
+    }
   }
 }
 
@@ -125,11 +133,11 @@ Concat::Concat(Expr *lhs, Expr *rhs):
   }
 }
 
-void Concat::FillTransition()
+void Concat::FillTransition(bool reverse)
 {
-  Connect(lhs_->transition().last, rhs_->transition().first);
-  rhs_->FillTransition();
-  lhs_->FillTransition();
+  Connect(lhs_->transition().last, rhs_->transition().first, reverse);
+  rhs_->FillTransition(reverse);
+  lhs_->FillTransition(reverse);
 }
 
 Union::Union(Expr *lhs, Expr *rhs):
@@ -152,10 +160,10 @@ Union::Union(Expr *lhs, Expr *rhs):
                           rhs->transition().last.end());
 }
 
-void Union::FillTransition()
+void Union::FillTransition(bool reverse)
 {
-  rhs_->FillTransition();
-  lhs_->FillTransition();
+  rhs_->FillTransition(reverse);
+  lhs_->FillTransition(reverse);
 }
 
 Qmark::Qmark(Expr* lhs, bool non_greedy):
@@ -168,9 +176,9 @@ Qmark::Qmark(Expr* lhs, bool non_greedy):
   if (non_greedy) NonGreedify();
 }
 
-void Qmark::FillTransition()
+void Qmark::FillTransition(bool reverse)
 {
-  lhs_->FillTransition();
+  lhs_->FillTransition(reverse);
 }
 
 Plus::Plus(Expr* lhs):
@@ -182,10 +190,10 @@ Plus::Plus(Expr* lhs):
   transition_.last = lhs->transition().last;
 }
 
-void Plus::FillTransition()
+void Plus::FillTransition(bool reverse)
 {
-  Connect(lhs_->transition().last, lhs_->transition().first);
-  lhs_->FillTransition();
+  Connect(lhs_->transition().last, lhs_->transition().first, reverse);
+  lhs_->FillTransition(reverse);
 }
 
 Star::Star(Expr* lhs, bool non_greedy):
@@ -198,10 +206,10 @@ Star::Star(Expr* lhs, bool non_greedy):
   if (non_greedy) NonGreedify();
 }
 
-void Star::FillTransition()
+void Star::FillTransition(bool reverse)
 {
-  Connect(lhs_->transition().last, lhs_->transition().first);
-  lhs_->FillTransition();
+  Connect(lhs_->transition().last, lhs_->transition().first, reverse);
+  lhs_->FillTransition(reverse);
 }
 
 } // namespace regen

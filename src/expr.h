@@ -87,14 +87,15 @@ public:
 
   virtual Expr::Type type() = 0;
   virtual Expr::SuperType stype() = 0;
-  virtual void FillTransition() = 0;
   virtual Expr* Clone() = 0;
   virtual void NonGreedify() = 0;
   virtual void TransmitNonGreedy() = 0;
+  virtual void FillTransition(bool reverse = false) = 0;
+  void FillReverseTransition() { FillTransition(true); transition_.first.swap(transition_.last); }
   
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 protected:
-  static void Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst);
+  static void Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst, bool reverse = false);
   std::size_t expr_id_;
   std::size_t max_length_;
   std::size_t min_length_;
@@ -108,7 +109,7 @@ class StateExpr: public Expr {
 public:
   StateExpr();
   ~StateExpr() {}
-  void FillTransition() {}
+  void FillTransition(bool reverse = false) {}
   std::size_t state_id() { return state_id_; }
   void set_state_id(std::size_t id) { state_id_ = id; }
   bool non_greedy() { return non_greedy_; }
@@ -259,7 +260,7 @@ class Concat: public BinaryExpr {
 public:
   Concat(Expr *lhs, Expr *rhs);
   ~Concat() {}
-  void FillTransition();
+  void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kConcat; }  
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone() { return new Concat(lhs_->Clone(), rhs_->Clone()); };  
@@ -271,7 +272,7 @@ class Union: public BinaryExpr {
 public:
   Union(Expr *lhs, Expr *rhs);
   ~Union() {}
-  void FillTransition();
+  void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kUnion; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone() { return new Union(lhs_->Clone(), rhs_->Clone()); };  
@@ -299,7 +300,7 @@ class Qmark: public UnaryExpr {
 public:
   Qmark(Expr *lhs, bool non_greedy = false);
   ~Qmark() {}
-  void FillTransition();
+  void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kQmark; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone() { return new Qmark(lhs_->Clone()); };
@@ -311,7 +312,7 @@ class Star: public UnaryExpr {
 public:
   Star(Expr *lhs, bool non_greedy = false);
   ~Star() {}
-  void FillTransition();
+  void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kStar; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone() { return new Star(lhs_->Clone()); };
@@ -323,7 +324,7 @@ class Plus: public UnaryExpr {
 public:
   Plus(Expr *lhs);
   ~Plus() {}
-  void FillTransition();
+  void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kPlus; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone() { return new Plus(lhs_->Clone()); };

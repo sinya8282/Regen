@@ -18,7 +18,7 @@ public:
       ClassNL = 1 << 1,
       MatchNL = ClassNL | DotNL,
       OneLine = 1 << 2,
-      Shortest = 1 << 3,
+      ShortestMatch = 1 << 3,
       ReverseMatch = 1 << 4,
       PartialMatch = 1 << 5,
       ParallelMatch = 1 << 6, // Enable Parallel Matching (SSFA)
@@ -29,8 +29,8 @@ public:
     };
     Options(): flag_(NoParseFlags) {}
     Options(ParseFlag flag): flag_(flag) {}
-    bool shortest() const { return flag_ & Shortest; }
-    bool longest() const { return !shortest(); }
+    bool shortest_match() const { return flag_ & ShortestMatch; }
+    bool longest_match() const { return !shortest_match(); }
     bool dot_nl() const { return flag_ & DotNL; }
     bool match_nl() const { return flag_ & MatchNL; }
     bool one_line() const { return flag_ & MatchNL; }
@@ -38,7 +38,7 @@ public:
     bool partial_match() const { return flag_ & PartialMatch; }
     bool full_match() const { return !partial_match(); }
     bool parallel_match() const { return flag_ & ParallelMatch; }
-    bool extended() const { return flag_ & Extended; }
+    bool extended() { return flag_ & Extended; }
  private:
     ParseFlag flag_;
   };

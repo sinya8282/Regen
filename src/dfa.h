@@ -80,7 +80,7 @@ public:
   typedef std::deque<State>::iterator iterator;
   typedef std::deque<State>::const_iterator const_iterator;
   
-  DFA(): complete_(false), minimum_(false), shortest_(false), olevel_(Regen::Options::O0)
+DFA(const Regen::Options flag = Regen::Options::NoParseFlags): complete_(false), minimum_(false), flag_(flag), olevel_(Regen::Options::O0)
 #ifdef REGEN_ENABLE_XBYAK
   , xgen_(NULL)
 #endif
@@ -102,7 +102,6 @@ public:
   State& get_new_state() const;
   const Expr* expr_root() const { return expr_root_; }
   void set_expr_root(Expr* expr_root) { expr_root_ = expr_root; }
-  void set_shortest(bool shortest) { shortest_ = shortest; }
   std::size_t inline_level(std::size_t i) const { return states_[i].inline_level; }
   const std::set<state_t> &src_states(std::size_t i) const { return states_[i].src_states; }
   const std::set<state_t> &dst_states(std::size_t i) const { return states_[i].dst_states; }
@@ -139,7 +138,7 @@ protected:
   Expr* expr_root_;
   bool complete_;
   bool minimum_;
-  bool shortest_;
+  Regen::Options flag_;
   void Finalize();
   state_t (*CompiledMatch)(const unsigned char *, const unsigned char *);
   bool EliminateBranch();
