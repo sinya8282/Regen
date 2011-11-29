@@ -22,8 +22,8 @@ public:
   typedef std::map<state_t, std::set<state_t> > SSTransition;
   typedef std::map<state_t, state_t> SSDTransition;
   bool Minimize() { return true; }
-  bool Match(const std::string &str) const { return Match((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
-  bool Match(const unsigned char *str, const unsigned char *end) const;
+  bool Match(const std::string &str, Regen::Context *context = NULL) const { return Match((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
+  bool Match(const unsigned char *str, const unsigned char *end, Regen::Context *context = NULL) const;
   struct TaskArg {
     const unsigned char *str;
     const unsigned char *end;

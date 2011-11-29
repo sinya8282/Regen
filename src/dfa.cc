@@ -200,7 +200,7 @@ bool DFA::Construct(const NFA &nfa, size_t limit)
   return true;
 }
 
-DFA::state_t DFA::OnTheFlyConstructWithChar(state_t state, unsigned char input) const
+DFA::state_t DFA::OnTheFlyConstructWithChar(state_t state, unsigned char input, Regen::Context *context) const
 {
   typedef std::set<StateExpr*> NFA_;
   NFA_::iterator iter, next_iter;
@@ -237,13 +237,13 @@ DFA::state_t DFA::OnTheFlyConstructWithChar(state_t state, unsigned char input) 
   return dfa_map_[next];
 }
 
-std::pair<DFA::state_t, const unsigned char *> DFA::OnTheFlyConstructWithString(state_t state, const unsigned char *begin, const unsigned char *end) const
+std::pair<DFA::state_t, const unsigned char *> DFA::OnTheFlyConstructWithString(state_t state, const unsigned char *begin, const unsigned char *end, Regen::Context *context) const
 {
   state_t next;
   const unsigned char *ptr;
   for (ptr = begin; ptr < end; ptr++) {
     if (transition_[state][*ptr] == UNDEF) {
-      next = OnTheFlyConstructWithChar(state, *ptr);
+      next = OnTheFlyConstructWithChar(state, *ptr, context);
       if (next == REJECT) break;
       state = next;
     } else {
@@ -700,7 +700,7 @@ bool DFA::Compile(Regen::Options::CompileFlag olevel)
     }
   }
   xgen_ = new JITCompiler(*this);
-  CompiledMatch = (state_t (*)(const unsigned char *, const unsigned char *))xgen_->getCode();
+  CompiledMatch = (state_t (*)(const unsigned char *, const unsigned char *, Regen::Context *))xgen_->getCode();
   if (olevel_ < Regen::Options::O1) olevel_ = Regen::Options::O1;
   return olevel == olevel_;
 }
@@ -710,23 +710,26 @@ bool DFA::Reduce() { return false; }
 bool DFA::Compile(Regen::Options::CompileFlag) { return false; }
 #endif
 
-bool DFA::Match(const unsigned char *str, const unsigned char *end) const
+bool DFA::Match(const unsigned char *str, const unsigned char *end, Regen::Context *context) const
 {
-  if (!complete_) return OnTheFlyMatch(str, end);
+  if (!complete_) return OnTheFlyMatch(str, end, context);
   
   state_t state = 0;
 
   if (olevel_ >= Regen::Options::O1) {
-    state = CompiledMatch(str, end);
+    state = CompiledMatch(str, end, context);
     return state != DFA::REJECT ? states_[state].accept : false;
   }
 
-  while (str < end && (state = transition_[state][*str++]) != DFA::REJECT);
+  char dir = str < end ? 1 : -1;
+  while (str != end && (state = transition_[state][*str]) != DFA::REJECT) {
+    str += dir;
+  }
 
   return state != DFA::REJECT ? states_[state].accept : false;
 }
 
-bool DFA::OnTheFlyMatch(const unsigned char *str, const unsigned char *end) const
+bool DFA::OnTheFlyMatch(const unsigned char *str, const unsigned char *end, Regen::Context *context) const
 {
   state_t state = 0, next = UNDEF;
   if (empty()) {
@@ -746,14 +749,14 @@ bool DFA::OnTheFlyMatch(const unsigned char *str, const unsigned char *end) cons
     next = transition_[state][*str++];
     if (next >= UNDEF) {
       if (next == REJECT) return false;
-      std::pair<state_t, const unsigned char *> context = OnTheFlyConstructWithString(state, str-1, end);
-      if (context.second >= end) {
-        state = context.first;
+      std::pair<state_t, const unsigned char *> config = OnTheFlyConstructWithString(state, str-1, end, context);
+      if (config.second >= end) {
+        state = config.first;
         break;
-      } else if ((next = transition_[context.first][*(context.second)]) == DFA::REJECT) {
+      } else if ((next = transition_[config.first][*(config.second)]) == DFA::REJECT) {
         return false;
       }
-      str = context.second+1;
+      str = config.second+1;
     }
     state = next;
   }

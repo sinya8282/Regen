@@ -259,7 +259,7 @@ SSFA::MatchTask(TaskArg targ) const
   const unsigned char *end = targ.end;
 
   if (olevel_ >= Regen::Options::O1) {
-    partial_results_[targ.task_id] = CompiledMatch(str, end);
+    partial_results_[targ.task_id] = CompiledMatch(str, end, NULL);
     return;
   }
   
@@ -272,7 +272,7 @@ SSFA::MatchTask(TaskArg targ) const
 }
 
 bool
-SSFA::Match(const unsigned char *str, const unsigned char *end) const
+SSFA::Match(const unsigned char *str, const unsigned char *end, Regen::Context *context) const
 {
   if (!complete_) return false;
 

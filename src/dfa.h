@@ -111,15 +111,15 @@ DFA(const Regen::Options flag = Regen::Options::NoParseFlags): complete_(false),
 
   bool Construct(Expr *expr_root, std::size_t limit = std::numeric_limits<size_t>::max(), std::size_t neop = 1);
   bool Construct(const NFA &nfa, std::size_t limit = std::numeric_limits<size_t>::max());
-  state_t OnTheFlyConstructWithChar(state_t state, unsigned char input) const;
-  std::pair<state_t, const unsigned char *> OnTheFlyConstructWithString(state_t state, const unsigned char *begin, const unsigned char *end) const;
+  state_t OnTheFlyConstructWithChar(state_t state, unsigned char input, Regen::Context *context) const;
+  std::pair<state_t, const unsigned char *> OnTheFlyConstructWithString(state_t state, const unsigned char *begin, const unsigned char *end, Regen::Context *context) const;
   void Complement();
   virtual bool Minimize();
   bool Compile(Regen::Options::CompileFlag olevel = Regen::Options::O2);
-  virtual bool OnTheFlyMatch(const std::string &str) const { return OnTheFlyMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
-  virtual bool OnTheFlyMatch(const unsigned char *, const unsigned char*) const;
-  virtual bool Match(const std::string &str) const { return Match((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length()); }
-  virtual bool Match(const unsigned char *str, const unsigned char *end) const;
+  virtual bool OnTheFlyMatch(const std::string &str, Regen::Context *context) const { return OnTheFlyMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length(), context); }
+  virtual bool OnTheFlyMatch(const unsigned char *, const unsigned char*, Regen::Context *context) const;
+  virtual bool Match(const std::string &str, Regen::Context *context = NULL) const { return Match((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length(), context); }
+  virtual bool Match(const unsigned char *str, const unsigned char *end, Regen::Context *context = NULL) const;
   void state2label(state_t state, char* labelbuf) const;
 
   iterator begin() { return states_.begin(); }
@@ -140,7 +140,7 @@ protected:
   bool minimum_;
   Regen::Options flag_;
   void Finalize();
-  state_t (*CompiledMatch)(const unsigned char *, const unsigned char *);
+  state_t (*CompiledMatch)(const unsigned char *, const unsigned char *, Regen::Context *context);
   bool EliminateBranch();
   bool Reduce();
   Regen::Options::CompileFlag olevel_;

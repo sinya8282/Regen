@@ -25,7 +25,7 @@ public:
       Extended = 1 << 7  // Regen-Extended syntax support (!,&,@)
     };
     enum CompileFlag {
-      Onone = 0, O0, O1, O2, O3
+      Onone = -1, O0 = 0, O1 = 1, O2 = 2, O3 = 3
     };
     Options(): flag_(NoParseFlags) {}
     Options(ParseFlag flag): flag_(flag) {}
@@ -41,6 +41,12 @@ public:
     bool extended() { return flag_ & Extended; }
  private:
     ParseFlag flag_;
+  };
+  struct Context {
+    const char *begin;
+    const char *end;
+    uint64_t state;
+    bool contenuation;
   };
   Regen(const std::string &, const Regen::Options::ParseFlag);
   ~Regen();
