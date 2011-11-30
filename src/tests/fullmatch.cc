@@ -17,9 +17,10 @@ int main(int argc, char *argv[]) {
   int opt;
   std::size_t thread_num = 1;
   std::size_t count = 1;
+  bool print = false;
   Regen::Options::CompileFlag olevel = Regen::Options::Onone;
 
-  while ((opt = getopt(argc, argv, "c:f:O:t:")) != -1) {
+  while ((opt = getopt(argc, argv, "pc:f:O:t:")) != -1) {
     switch(opt) {
       case 'c': {
         count = atoi(optarg);
@@ -36,6 +37,10 @@ int main(int argc, char *argv[]) {
       }
       case 't': {
         thread_num = atoi(optarg);
+        break;
+      }
+      case 'p': {
+        print = true;
         break;
       }
     }
@@ -56,14 +61,18 @@ int main(int argc, char *argv[]) {
   for (std::size_t i = 0; i < count; i++) {
     uint64_t compile_time = 0, matching_time = 0;
     bool match = false;
-
+    Regen::Options opt;
+    opt.captured_match(print);
+    opt.partial_match(print);    
     if (thread_num <= 1) {
       compile_time -= rdtsc();
-      regen::Regex r = regen::Regex(regex);
+      Regen r(regex, opt);
       r.Compile(olevel);
       compile_time += rdtsc();
       matching_time -= rdtsc();
-      match = r.Match(mm.ptr, mm.ptr+mm.size);
+      Regen::Context context;
+      match = r.Match((const char*)mm.ptr, (const char*)mm.ptr+mm.size, &context);
+      if (print) printf("%s\n", std::string(context.begin, context.end-context.begin).c_str());
       matching_time += rdtsc();
     } else {
       compile_time -= rdtsc();

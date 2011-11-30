@@ -25,10 +25,10 @@ public:
   void DumpExprTree() const;
   bool Compile(Regen::Options::CompileFlag olevel = Regen::Options::O3);
   bool MinimizeDFA() { if (dfa_.Complete()) { dfa_.Minimize(); return true; } else return false; }
-  bool Match(const std::string &string) const;
-  bool Match(const char *begin, const char *end) const;
-  bool Match(const unsigned char *begin, const unsigned char *end) const;
-  bool MatchNFA(const unsigned char *begin, const unsigned char *end) const;
+  bool Match(const std::string &string, Regen::Context *context = NULL) const;
+  bool Match(const char *begin, const char *end, Regen::Context *context = NULL) const;
+  bool Match(const unsigned char *begin, const unsigned char *end, Regen::Context *context = NULL) const;
+  bool MatchNFA(const unsigned char *begin, const unsigned char *end, Regen::Context *context = NULL) const;
   const std::string& regex() const { return regex_; }
   const Must& must() const { return must_; }
   std::size_t max_lenlgth() const { return expr_root_->max_length(); }

@@ -65,8 +65,9 @@ Expr* Regex::Parse(Lexer *lexer)
     StateExpr *dot;
     dot = new Dot();
     dot->set_state_id(++state_id_);
-    dotstar = new Star(dot);
-    e = new Concat(dotstar, e);
+    dotstar = new Star(dot, true);
+    dotstar = new Concat(dotstar, e);
+    e = new Union(e, dotstar);
   }
 
   StateExpr *eop = new EOP();
@@ -593,21 +594,21 @@ bool Regex::Compile(Regen::Options::CompileFlag olevel) {
   return olevel_ == olevel;
 }
 
-bool Regex::Match(const std::string &string)  const {
+bool Regex::Match(const std::string &string, Regen::Context *context)  const {
   const unsigned char* begin = (const unsigned char *)string.c_str();
-  return Match(begin, begin+string.length());
+  return Match(begin, begin+string.length(), context);
 }
 
-bool Regex::Match(const char *begin, const char * end) const {
-  return Match((const unsigned char*)begin, (const unsigned char*)end);
+bool Regex::Match(const char *begin, const char * end, Regen::Context *context) const {
+  return Match((const unsigned char*)begin, (const unsigned char*)end, context);
 }
 
-bool Regex::Match(const unsigned char *begin, const unsigned char * end) const {
-  return dfa_.Match(begin, end);
+bool Regex::Match(const unsigned char *begin, const unsigned char * end, Regen::Context *context) const {
+  return dfa_.Match(begin, end, context);
 }
 
 /* Thompson-NFA based matching */
-bool Regex::MatchNFA(const unsigned char *begin, const unsigned char *end) const
+bool Regex::MatchNFA(const unsigned char *begin, const unsigned char *end, Regen::Context *context) const
 {
   typedef std::vector<StateExpr*> NFA;
   std::size_t nfa_size = state_exprs_.size();
