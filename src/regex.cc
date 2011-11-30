@@ -66,8 +66,7 @@ Expr* Regex::Parse(Lexer *lexer)
     dot = new Dot();
     dot->set_state_id(++state_id_);
     dotstar = new Star(dot, true);
-    dotstar = new Concat(dotstar, e);
-    e = new Union(e, dotstar);
+    e = new Concat(dotstar, e);
   }
 
   StateExpr *eop = new EOP();
