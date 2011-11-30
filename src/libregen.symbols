@@ -2,6 +2,7 @@
         global:
 				# Regen*, regen::Regen*
 				_ZN5regen5Regen*;
+				_ZNK5regen5Regen*;
                 # regen::Regex*
 				_ZN5regen5Regex*;
 				_ZNK5regen5Regex*;
