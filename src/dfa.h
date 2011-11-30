@@ -102,6 +102,7 @@ DFA(const Regen::Options flag = Regen::Options::NoParseFlags): complete_(false),
   State& get_new_state() const;
   const Expr* expr_root() const { return expr_root_; }
   void set_expr_root(Expr* expr_root) { expr_root_ = expr_root; }
+  const Regen::Options &flag() const { return flag_; }
   std::size_t inline_level(std::size_t i) const { return states_[i].inline_level; }
   const std::set<state_t> &src_states(std::size_t i) const { return states_[i].src_states; }
   const std::set<state_t> &dst_states(std::size_t i) const { return states_[i].dst_states; }
@@ -140,7 +141,7 @@ protected:
   bool minimum_;
   Regen::Options flag_;
   void Finalize();
-  state_t (*CompiledMatch)(const unsigned char *, const unsigned char *, Regen::Context *context);
+  state_t (*CompiledMatch)(const unsigned char *, const unsigned char *, const char **);
   bool EliminateBranch();
   bool Reduce();
   Regen::Options::CompileFlag olevel_;

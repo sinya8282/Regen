@@ -279,6 +279,7 @@ DFA::State& DFA::get_new_state() const {
   return new_state;
 }
 
+
 void DFA::state2label(state_t state, char* labelbuf) const
 {
   if (state == REJECT) {
@@ -443,6 +444,7 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
 #ifdef XBYAK32
   const Xbyak::Reg32& arg1(ecx);
   const Xbyak::Reg32& arg2(edx);
+  const Xbyak::Reg32& arg3(ebx);
   const Xbyak::Reg32& tbl (ebp);
   const Xbyak::Reg32& tmp1(esi);
   const Xbyak::Reg32& tmp2(edi);  
@@ -450,33 +452,40 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
   push(esi);
   push(edi);
   push(ebp);
-  const int P_ = 4 * 3;
+  push(ebx);
+  const int P_ = 4 * 4;
   mov(arg1, ptr [esp + P_ + 4]);
   mov(arg2, ptr [esp + P_ + 8]);
+  mov(arg3, ptr [esp + P_ + 12]);
 #elif defined(XBYAK64_WIN)
-  const Xbyak::Reg64 arg1(rcx);
-  const Xbyak::Reg64 arg2(rdx);
-  const Xbyak::Reg64 tbl (r8);
-  const Xbyak::Reg64 tmp1(r10);
-  const Xbyak::Reg64 tmp2(r11);
+  const Xbyak::Reg64& arg1(rcx);
+  const Xbyak::Reg64& arg2(rdx);
+  const Xbyak::Reg64& arg3(r8);
+  const Xbyak::Reg64& tbl (r9);
+  const Xbyak::Reg64& tmp1(r10);
+  const Xbyak::Reg64& tmp2(r11);
   const Xbyak::Reg64& reg_a(rax);
 #else
-  const Xbyak::Reg64 arg1(rdi);
-  const Xbyak::Reg64 arg2(rsi);
-  const Xbyak::Reg64 tbl (rdx);
-  const Xbyak::Reg64 tmp1(r10);
-  const Xbyak::Reg64 tmp2(r11);
+  const Xbyak::Reg64& arg1(rdi);
+  const Xbyak::Reg64& arg2(rsi);
+  const Xbyak::Reg64& arg3(rdx);
+  const Xbyak::Reg64& tbl (r8);
+  const Xbyak::Reg64& tmp1(r10);
+  const Xbyak::Reg64& tmp2(r11);
   const Xbyak::Reg64& reg_a(rax);
 #endif
 
   // setup enviroment on register
-  mov(tbl,  (size_t)transition_table_ptr);
+  mov(tbl, (size_t)transition_table_ptr);
+  mov(tmp2, 0);
   jmp("s0");
-
   L("reject");
   const uint8_t *reject_state_addr = getCurr();
-  mov(reg_a, -1); // return false
+  mov(reg_a, DFA::REJECT); // return false
+  L("return");
+  mov(ptr[arg3], tmp2);
 #ifdef XBYAK32
+  pop(ebx);
   pop(ebp);
   pop(edi);
   pop(esi);
@@ -485,14 +494,23 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
 
   align(16);
 
-  // state code generation, and indexing every states address.
+#define INC(a) (dfa.flag().reverse_match() ? dec(a) : inc(a))
+#define ADD(a, b) (dfa.flag().reverse_match() ? sub(a, (b)) : add(a, (b)))
+#define INCPTR(a, b) (dfa.flag().reverse_match() ? ptr[a-(b)] : ptr[a+(b)])
+#define INCBYTE(a, b) (dfa.flag().reverse_match() ? byte[a-(b)] : byte[a+(b)])
+#define JGE(a, b) (dfa.flag().reverse_match() ? jle(a, b) : jge(a, b))
+  
   char labelbuf[100];
+  // state code generation, and indexing every states address.
   for (std::size_t i = 0; i < dfa.size(); i++) {
     dfa.state2label(i, labelbuf);
     L(labelbuf);
     states_addr[i] = getCurr();
+    if (dfa.IsAcceptState(i)) {
+      mov(tmp2, arg1);
+      if (dfa.flag().shortest_match()) jmp(".ret");
+    }
     // can transition without table lookup ?
-    
     const DFA::AlterTrans &at = dfa[i].alter_transition;
     if (dfa.olevel() >= Regen::Options::O2 && at.next1 != DFA::UNDEF) {
       std::size_t state = i;
@@ -501,9 +519,9 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
       std::size_t transition_depth = -1;
       inLocalLabel();
       if (inlining) {
-        lea(tmp1, ptr[arg1+inline_level]);
+        lea(tmp1, INCPTR(arg1, inline_level));
         cmp(tmp1, arg2);
-        jge(".ret", T_NEAR);
+        JGE(".ret", T_NEAR);
       } else {
         cmp(arg1, arg2);
         je(".ret", T_NEAR);        
@@ -519,10 +537,10 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
       }
       if (at.next2 == DFA::UNDEF) {
         if (!inlining) {
-          inc(arg1);
+          INC(arg1);
           jmp(labelbuf, T_NEAR);
         } else if (transition_depth == inline_level) {
-          add(arg1, transition_depth);
+          ADD(arg1, transition_depth);
           jmp(labelbuf, T_NEAR);
         } else {
           state = at.next1;
@@ -531,12 +549,12 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
       } else {
         if (!inlining) {
           movzx(tmp1, byte[arg1]);
-          inc(arg1);
+          INC(arg1);
         } else if (transition_depth == inline_level) {
-          movzx(tmp1, byte[arg1+transition_depth]);
-          add(arg1, transition_depth+1);
+          movzx(tmp1, INCBYTE(arg1, transition_depth));
+          ADD(arg1, transition_depth+1);
         } else {
-          movzx(tmp1, byte[arg1+transition_depth]);
+          movzx(tmp1, INCBYTE(arg1, transition_depth));
         }
         if (at.key.first == at.key.second) {
           cmp(tmp1, at.key.first);
@@ -572,45 +590,36 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
         cmp(arg1, arg2);
         je("@f", T_NEAR);
         movzx(tmp1, byte[arg1]);
-        inc(arg1);
+        INC(arg1);
         jmp(ptr[tbl+i*256*sizeof(uint8_t*)+tmp1*sizeof(uint8_t*)]);
         L("@@");
         mov(reg_a, i);
-#ifdef XBYAK32
-        pop(ebp);
-        pop(edi);
-        pop(esi);
-#endif
-        ret();
+        jmp("return");
       } else {
         L(".ret");
         mov(reg_a, i);
-#ifdef XBYAK32
-        pop(ebp);
-        pop(edi);
-        pop(esi);
-#endif
-        ret();
+        jmp("return");
       }
       outLocalLabel();
     } else {
       cmp(arg1, arg2);
       je("@f");
       movzx(tmp1, byte[arg1]);
-      inc(arg1);
+      INC(arg1);
       jmp(ptr[tbl+i*256*sizeof(uint8_t*)+tmp1*sizeof(uint8_t*)]);
       L("@@");
       mov(reg_a, i);
-#ifdef XBYAK32
-      pop(ebp);
-      pop(edi);
-      pop(esi);
-#endif
-      ret();
+      jmp("return");
     }
     align(16);
   }
 
+#undef INC
+#undef ADD
+#undef INCPTR
+#undef INCBYTE
+#undef JGE
+  
   // backpatching (each states address)
   for (std::size_t i = 0; i < dfa.size(); i++) {
     const DFA::Transition &trans = dfa.GetTransition(i);
@@ -700,7 +709,7 @@ bool DFA::Compile(Regen::Options::CompileFlag olevel)
     }
   }
   xgen_ = new JITCompiler(*this);
-  CompiledMatch = (state_t (*)(const unsigned char *, const unsigned char *, Regen::Context *))xgen_->getCode();
+  CompiledMatch = (state_t (*)(const unsigned char *, const unsigned char *, const char **))xgen_->getCode();
   if (olevel_ < Regen::Options::O1) olevel_ = Regen::Options::O1;
   return olevel == olevel_;
 }
@@ -717,11 +726,17 @@ bool DFA::Match(const unsigned char *str, const unsigned char *end, Regen::Conte
   state_t state = 0;
 
   if (olevel_ >= Regen::Options::O1) {
-    state = CompiledMatch(str, end, context);
+    const char *ptr = NULL;
+    state = CompiledMatch(str, end, &ptr);
+    if (context != NULL) {
+      if(ptr != NULL) context->begin =  static_cast<const char*>(static_cast<const void*>(str));
+      context->end = ptr;
+      context->state = state;
+    }
     return state != DFA::REJECT ? states_[state].accept : false;
   }
 
-  char dir = str < end ? 1 : -1;
+  int dir = str < end ? 1 : -1;
   while (str != end && (state = transition_[state][*str]) != DFA::REJECT) {
     str += dir;
   }
