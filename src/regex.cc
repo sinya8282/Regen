@@ -120,47 +120,25 @@ Expr* Regex::e0(Lexer *lexer)
 Expr *
 Regex::e1(Lexer *lexer)
 {
-  Expr *e;
+  Expr *e, *f;
   e = e2(lexer);
-
-  std::vector<Expr*> exprs;  
-  while (e->type() == Expr::kNone &&
-         lexer->token() == Lexer::kIntersection) {
-    lexer->Consume();
-    e = e2(lexer);
-  }
-
-  exprs.push_back(e);
+  bool null = e->type() == Expr::kNone;
 
   while (lexer->token() == Lexer::kIntersection) {
     lexer->Consume();
-    e = e2(lexer);
-    if (e->type() != Expr::kNone) {
-      exprs.push_back(e);
-    }
-  }
-
-  if (exprs.size() == 1) {
-    e = exprs[0];
-  } else {
-    std::vector<Expr*>::iterator iter = exprs.begin();
-    e = new Concat(*iter, new EOP());
-    *iter = e;
-    ++iter;
-    while (iter != exprs.end()) {
-      *iter = new Concat(*iter, new EOP());
-      e = new Union(e, *iter);
-      ++iter;
-    }
-    
-    e->FillTransition();
-    DFA dfa(e, std::numeric_limits<size_t>::max(), exprs.size());
-    e = CreateRegexFromDFA(dfa);
-
-    iter = exprs.begin();
-    while (iter != exprs.end()) {
-      delete *iter;
-      ++iter;
+    if (!null) {
+      f = e2(lexer);
+      if (f->type() == Expr::kNone) {
+        delete e;
+        e = f;
+        null = true;
+      } else {
+        Intersection *p1, *p2;
+        Intersection::NewPair(&p1, &p2);
+        e = new Concat(e, p1);
+        f = new Concat(f, p2);
+        e = new Union(e, f); // essentially, construct Intersection.
+      }
     }
   }
   

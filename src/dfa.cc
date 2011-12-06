@@ -2,13 +2,13 @@
 
 namespace regen {
 
-DFA::DFA(Expr *expr_root, std::size_t limit, std::size_t neop):
+DFA::DFA(Expr *expr_root, std::size_t limit):
     expr_root_(expr_root), complete_(false), minimum_(false), olevel_(Regen::Options::O0)
 #ifdef REGEN_ENABLE_XBYAK
     , xgen_(NULL)
 #endif
 {
-  complete_ = Construct(expr_root, limit, neop);
+  complete_ = Construct(expr_root, limit);
 }
 
 DFA::DFA(const NFA &nfa, std::size_t limit):
@@ -20,7 +20,7 @@ DFA::DFA(const NFA &nfa, std::size_t limit):
   complete_ = Construct(nfa, limit);
 }
 
-bool DFA::Construct(Expr *expr_root, std::size_t limit, std::size_t neop)
+bool DFA::Construct(Expr *expr_root, std::size_t limit)
 {
   typedef std::set<StateExpr*> NFA;
   std::queue<NFA> queue;
@@ -41,22 +41,28 @@ bool DFA::Construct(Expr *expr_root, std::size_t limit, std::size_t neop)
     std::vector<NFA> transition(256);
     NFA::iterator iter = nfa_states.begin();
     bool is_accept = false;
-    std::set<EOP*> eops;
+    std::set<Intersection*> intersections;
 
     while (iter != nfa_states.end()) {
-      if ((*iter)->type() == Expr::kEOP) {
-        eops.insert((EOP*)(*iter));
-        if (eops.size() == neop) {
-          is_accept = true;
+      if ((*iter)->type() == Expr::kIntersection) {
+        Intersection *inter = (Intersection*)*iter;
+        if (inter->active()) {
+          nfa_states.insert(inter->transition().follow.begin(),
+                            inter->transition().follow.end());
+        } else {
+          inter->pair()->set_active(true);
+          intersections.insert(inter->pair());
         }
+      } else if ((*iter)->type() == Expr::kEOP) {
+        is_accept = true;
       }
-      iter++;
+      ++iter;
     }
 
     iter = nfa_states.begin();
     while (iter != nfa_states.end()) {
       if (is_accept && (*iter)->non_greedy()) {
-        iter++;
+        ++iter;
         continue;
       }
       NFA next = (*iter)->transition().follow;
@@ -100,14 +106,18 @@ bool DFA::Construct(Expr *expr_root, std::size_t limit, std::size_t neop)
           transition['\n'].insert(next.begin(), next.end());
           break;
         }
-        case Expr::kEOP:
+        case Expr::kEOP: case Expr::kNone: case Expr::kIntersection:
           break;
-        case Expr::kNone: break;
         default: exitmsg("notype");
       }
       ++iter;
     }
 
+    for (std::set<Intersection*>::iterator iter = intersections.begin();
+         iter != intersections.end(); ++iter) {
+      (*iter)->set_active(false);
+    }
+    
     State &state = get_new_state();
     Transition &trans = transition_[state.id];
     //only Leftmost-Shortest matching
@@ -494,11 +504,7 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
 
   align(16);
 
-#define INC(a) (dfa.flag().reverse_match() ? dec(a) : inc(a))
-#define ADD(a, b) (dfa.flag().reverse_match() ? sub(a, (b)) : add(a, (b)))
-#define INCPTR(a, b) (dfa.flag().reverse_match() ? ptr[a-(b)] : ptr[a+(b)])
-#define INCBYTE(a, b) (dfa.flag().reverse_match() ? byte[a-(b)] : byte[a+(b)])
-#define JGE(a, b) (dfa.flag().reverse_match() ? jle(a, b) : jge(a, b))
+  const int sign = dfa.flag().reverse_match() ? -1 : 1;
   
   char labelbuf[100];
   // state code generation, and indexing every states address.
@@ -519,9 +525,13 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
       std::size_t transition_depth = -1;
       inLocalLabel();
       if (inlining) {
-        lea(tmp1, INCPTR(arg1, inline_level));
-        cmp(tmp1, arg2);
-        JGE(".ret", T_NEAR);
+        lea(tmp1, ptr[arg1 + inline_level * sign]);
+        if (dfa.flag().reverse_match()) {
+          cmp(arg2, tmp1);
+        } else { 
+          cmp(tmp1, arg2);
+        }
+        jge(".ret", T_NEAR);
       } else {
         cmp(arg1, arg2);
         je(".ret", T_NEAR);        
@@ -537,10 +547,10 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
       }
       if (at.next2 == DFA::UNDEF) {
         if (!inlining) {
-          INC(arg1);
+          add(arg1, sign);
           jmp(labelbuf, T_NEAR);
         } else if (transition_depth == inline_level) {
-          ADD(arg1, transition_depth);
+          add(arg1, transition_depth * sign);
           jmp(labelbuf, T_NEAR);
         } else {
           state = at.next1;
@@ -549,12 +559,12 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
       } else {
         if (!inlining) {
           movzx(tmp1, byte[arg1]);
-          INC(arg1);
+          add(arg1, sign);
         } else if (transition_depth == inline_level) {
-          movzx(tmp1, INCBYTE(arg1, transition_depth));
-          ADD(arg1, transition_depth+1);
+          movzx(tmp1, byte[arg1 + transition_depth * sign]);
+          add(arg1, (transition_depth+1) * sign);
         } else {
-          movzx(tmp1, INCBYTE(arg1, transition_depth));
+          movzx(tmp1, byte[arg1 + transition_depth * sign]);
         }
         if (at.key.first == at.key.second) {
           cmp(tmp1, at.key.first);
@@ -590,7 +600,7 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
         cmp(arg1, arg2);
         je("@f", T_NEAR);
         movzx(tmp1, byte[arg1]);
-        INC(arg1);
+        add(arg1, sign);
         jmp(ptr[tbl+i*256*sizeof(uint8_t*)+tmp1*sizeof(uint8_t*)]);
         L("@@");
         mov(reg_a, i);
@@ -605,7 +615,7 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
       cmp(arg1, arg2);
       je("@f");
       movzx(tmp1, byte[arg1]);
-      INC(arg1);
+      add(arg1, sign);
       jmp(ptr[tbl+i*256*sizeof(uint8_t*)+tmp1*sizeof(uint8_t*)]);
       L("@@");
       mov(reg_a, i);
@@ -614,12 +624,6 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
     align(16);
   }
 
-#undef INC
-#undef ADD
-#undef INCPTR
-#undef INCBYTE
-#undef JGE
-  
   // backpatching (each states address)
   for (std::size_t i = 0; i < dfa.size(); i++) {
     const DFA::Transition &trans = dfa.GetTransition(i);
@@ -722,8 +726,10 @@ bool DFA::Compile(Regen::Options::CompileFlag) { return false; }
 bool DFA::Match(const unsigned char *str, const unsigned char *end, Regen::Context *context) const
 {
   if (!complete_) return OnTheFlyMatch(str, end, context);
-  
+
   state_t state = 0;
+  Regen::Context context_;
+  if (context == NULL) context = &context_;
 
   if (olevel_ >= Regen::Options::O1) {
     state = CompiledMatch(str, end, context);

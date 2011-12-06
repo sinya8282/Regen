@@ -85,7 +85,7 @@ DFA(const Regen::Options flag = Regen::Options::NoParseFlags): complete_(false),
   , xgen_(NULL)
 #endif
   {}
-  DFA(Expr *expr_root, std::size_t limit = std::numeric_limits<size_t>::max(), std::size_t neop = 1);
+  DFA(Expr *expr_root, std::size_t limit = std::numeric_limits<size_t>::max());
   DFA(const NFA &nfa, std::size_t limit = std::numeric_limits<size_t>::max());
   #if REGEN_ENABLE_XBYAK
   virtual ~DFA() { delete xgen_; }
@@ -110,7 +110,7 @@ DFA(const Regen::Options flag = Regen::Options::NoParseFlags): complete_(false),
   const Transition &GetTransition(std::size_t state) const { return transition_[state]; }
   bool IsAcceptState(std::size_t state) const { return states_[state].accept; }
 
-  bool Construct(Expr *expr_root, std::size_t limit = std::numeric_limits<size_t>::max(), std::size_t neop = 1);
+  bool Construct(Expr *expr_root, std::size_t limit = std::numeric_limits<size_t>::max());
   bool Construct(const NFA &nfa, std::size_t limit = std::numeric_limits<size_t>::max());
   state_t OnTheFlyConstructWithChar(state_t state, unsigned char input, Regen::Context *context) const;
   std::pair<state_t, const unsigned char *> OnTheFlyConstructWithString(state_t state, const unsigned char *begin, const unsigned char *end, Regen::Context *context) const;

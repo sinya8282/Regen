@@ -127,7 +127,7 @@ Concat::Concat(Expr *lhs, Expr *rhs):
 
   transition_.last = rhs->transition().last;
 
-  if (rhs->min_length() == 0) {
+  if (rhs->min_length() == 0 && rhs->type() != Expr::kIntersection) {
     transition_.last.insert(lhs->transition().last.begin(),
                             lhs->transition().last.end());
   }

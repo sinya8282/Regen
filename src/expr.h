@@ -14,6 +14,8 @@ class BegLine;
 class EndLine;
 class None;
 class Epsilon;
+class Intersection;
+class Complement;
 class EOP;
 class BinaryExpr;
 class Concat;
@@ -34,6 +36,8 @@ public:
   virtual void Visit(EndLine *e) { Visit((StateExpr*)e); }
   virtual void Visit(None *e) { Visit((StateExpr*)e); }
   virtual void Visit(Epsilon *e) { Visit((StateExpr*)e); }
+  virtual void Visit(Intersection *e) { Visit((StateExpr*)e); }
+  virtual void Visit(Complement *e) { Visit((StateExpr*)e); }
   virtual void Visit(EOP *e) { Visit((StateExpr*)e); }
   virtual void Visit(BinaryExpr *e) { Visit((Expr*)e); }
   virtual void Visit(Concat *e) { Visit((BinaryExpr*)e); }
@@ -62,6 +66,7 @@ public:
   enum Type {
     kLiteral=0, kCharClass, kDot,
     kBegLine, kEndLine, kEOP,
+    kIntersection, kComplement,
     kConcat, kUnion, kQmark, kStar, kPlus,
     kEpsilon, kNone
   };
@@ -199,6 +204,26 @@ public:
   Expr* Clone() { return new EndLine(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(EndLine);
+};
+
+class Intersection: public StateExpr {
+public:
+  Intersection(): pair_(NULL), active_(false) { min_length_ = max_length_ = 0; }
+  ~Intersection() {}
+  Expr::Type type() { return Expr::kIntersection; }  
+  void Accept(ExprVisitor* visit) { visit->Visit(this); }
+  bool Match(const unsigned char c) { return false; }
+  Expr* Clone() { return new Intersection(); }
+  bool active() { return active_; }
+  void set_active(bool b = true) { active_ = b; }
+  Intersection *pair() { return pair_; }
+  void set_pair(Intersection *p) { pair_ = p; }
+  static void NewPair(Intersection **p1, Intersection **p2)
+  { *p1 = new Intersection(); *p2 = new Intersection(); (*p1)->set_pair(*p2); (*p2)->set_pair(*p1); }
+private:
+  Intersection *pair_;
+  bool active_;
+  DISALLOW_COPY_AND_ASSIGN(Intersection);
 };
 
 class EOP: public StateExpr {
