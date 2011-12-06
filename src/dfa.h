@@ -141,7 +141,7 @@ protected:
   bool minimum_;
   Regen::Options flag_;
   void Finalize();
-  state_t (*CompiledMatch)(const unsigned char *, const unsigned char *, const char **);
+  state_t (*CompiledMatch)(const unsigned char *, const unsigned char *, Regen::Context*);
   bool EliminateBranch();
   bool Reduce();
   Regen::Options::CompileFlag olevel_;

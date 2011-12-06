@@ -50,13 +50,13 @@ bool Regen::Match(const char *beg, const char *end, Context *context) const
 {
   if (context != NULL && flag_.captured_match()) {
     bool match = regex_->Match(beg, end, context);
-    if (context->end != NULL) {
+    if (context->end() != NULL) {
       if (flag_.full_match()) {
-        context->begin = beg;
+        context->set_begin(beg);
       } else {
         Regen::Context context_;
-        reverse_regex_->Match(context->end-1, beg-1, &context_);
-        context->begin = context_.end+1;
+        reverse_regex_->Match(context->end()-1, beg-1, &context_);
+        context->set_begin(context_.end()+1);
       }
     }
     return match;

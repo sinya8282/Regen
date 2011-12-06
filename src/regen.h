@@ -59,10 +59,13 @@ public:
     bool extended_;
   };
   struct Context {
-    Context(): begin(NULL), end(NULL), state(-1) {}
-    const char *begin;
-    const char *end;
-    uint64_t state;
+    Context() { ptr[0] = ptr[1] = NULL; }
+    const char *ptr[2];
+    const char * begin() const { return ptr[0]; }
+    void set_begin(const char* p) { ptr[0] = p; }
+    const char * end() const { return ptr[1]; }
+    void set_end(const char* p) { ptr[1] = p; }
+    const char * operator[](std::size_t index) const { return ptr[index]; }
   };
   Regen(const std::string &, Regen::Options);
   ~Regen();

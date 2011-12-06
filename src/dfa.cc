@@ -483,7 +483,7 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
   const uint8_t *reject_state_addr = getCurr();
   mov(reg_a, DFA::REJECT); // return false
   L("return");
-  mov(ptr[arg3], tmp2);
+  mov(ptr[arg3+sizeof(uint8_t*)], tmp2);
 #ifdef XBYAK32
   pop(ebx);
   pop(ebp);
@@ -709,7 +709,7 @@ bool DFA::Compile(Regen::Options::CompileFlag olevel)
     }
   }
   xgen_ = new JITCompiler(*this);
-  CompiledMatch = (state_t (*)(const unsigned char *, const unsigned char *, const char **))xgen_->getCode();
+  CompiledMatch = (state_t (*)(const unsigned char *, const unsigned char *, Regen::Context*))xgen_->getCode();
   if (olevel_ < Regen::Options::O1) olevel_ = Regen::Options::O1;
   return olevel == olevel_;
 }
@@ -726,13 +726,7 @@ bool DFA::Match(const unsigned char *str, const unsigned char *end, Regen::Conte
   state_t state = 0;
 
   if (olevel_ >= Regen::Options::O1) {
-    const char *ptr = NULL;
-    state = CompiledMatch(str, end, &ptr);
-    if (context != NULL) {
-      if(ptr != NULL) context->begin =  static_cast<const char*>(static_cast<const void*>(str));
-      context->end = ptr;
-      context->state = state;
-    }
+    state = CompiledMatch(str, end, context);
     return state != DFA::REJECT ? states_[state].accept : false;
   }
 
