@@ -69,11 +69,11 @@ int main(int argc, char *argv[]) {
       Regen r(regex, opt);
       r.Compile(olevel);
       compile_time += rdtsc();
-      matching_time -= rdtsc();
       Regen::Context context;
+      matching_time -= rdtsc();
       match = r.Match((const char*)mm.ptr, (const char*)mm.ptr+mm.size, &context);
-      if (print) printf("%s\n", std::string(context.begin, context.end-context.begin).c_str());
       matching_time += rdtsc();
+      if (print) printf("%s\n", std::string(context.begin(), context.end()-context.begin()).c_str());
     } else {
       compile_time -= rdtsc();
       regen::Regex r = regen::Regex(regex);
