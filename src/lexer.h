@@ -15,8 +15,12 @@ public:
     kQmark, kStar, kPlus, kRepetition,
     kRpar, kLpar, kEpsilon, kNone, kComplement
   };
-Lexer(const unsigned char *begin, const unsigned char *end, Regen::Options flag = Regen::Options::NoParseFlags): ptr_(begin), begin_(begin), end_(end), flag_(flag) {}
-  const unsigned char *ptr() { return ptr_; }
+  Lexer(const unsigned char *begin, const unsigned char *end, Regen::Options flag = Regen::Options::NoParseFlags): ptr_(begin), begin_(begin), end_(end), flag_(flag) {}
+  Lexer(const Lexer &l): ptr_(l.ptr()), begin_(l.begin()), end_(l.end()), flag_(flag()) {}  
+  const unsigned char *ptr() const { return ptr_; }
+  const unsigned char *begin() const { return begin_; }
+  const unsigned char *end() const { return end_; }
+  Regen::Options flag() const { return flag_; }
   Type Consume();
   bool Concatenated();
   bool Quantifier();
