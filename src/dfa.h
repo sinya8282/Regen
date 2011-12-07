@@ -114,7 +114,7 @@ DFA(const Regen::Options flag = Regen::Options::NoParseFlags): complete_(false),
   bool Construct(const NFA &nfa, std::size_t limit = std::numeric_limits<size_t>::max());
   state_t OnTheFlyConstructWithChar(state_t state, unsigned char input, Regen::Context *context) const;
   std::pair<state_t, const unsigned char *> OnTheFlyConstructWithString(state_t state, const unsigned char *begin, const unsigned char *end, Regen::Context *context) const;
-  void Complement();
+  void Complementify();
   virtual bool Minimize();
   bool Compile(Regen::Options::CompileFlag olevel = Regen::Options::O2);
   virtual bool OnTheFlyMatch(const std::string &str, Regen::Context *context) const { return OnTheFlyMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length(), context); }

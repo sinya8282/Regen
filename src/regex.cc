@@ -294,14 +294,8 @@ Regex::e4(Lexer *lexer)
         lexer->Consume();
       } while (lexer->token() == Lexer::kComplement);
       e = e4(lexer);
-      if (complement) {
-        e = new Concat(e, new EOP());
-        e->FillTransition();
-        Expr *e_ = e;
-        DFA dfa(e);
-        dfa.Complement();
-        e = CreateRegexFromDFA(dfa);
-        delete e_;
+      if (complement && e->type() != Expr::kNone) {
+        e = new Complement(e, true);
       }
       return e;
     }

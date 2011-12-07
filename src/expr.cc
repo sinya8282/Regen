@@ -127,7 +127,8 @@ Concat::Concat(Expr *lhs, Expr *rhs):
 
   transition_.last = rhs->transition().last;
 
-  if (rhs->min_length() == 0 && rhs->type() != Expr::kIntersection) {
+  if (rhs->min_length() == 0 &&
+      rhs->type() != Expr::kIntersection && rhs->type() != Expr::kExclusion) {
     transition_.last.insert(lhs->transition().last.begin(),
                             lhs->transition().last.end());
   }
@@ -210,6 +211,27 @@ void Star::FillTransition(bool reverse)
 {
   Connect(lhs_->transition().last, lhs_->transition().first, reverse);
   lhs_->FillTransition(reverse);
+}
+
+Complement::Complement(Expr* lhs, bool loop):
+    UnaryExpr(lhs),
+    loop_(loop),
+    master_(NULL), slave_(NULL)
+{
+  Exclusion::NewPair(&master_, &slave_);
+  lhs_->FillExpr(slave_);
+  lhs_ = new Concat(lhs_, master_);
+  slave_->set_loop(loop);
+  max_length_ = std::numeric_limits<size_t>::max();
+  min_length_ = lhs_->min_length() == 0 ? std::numeric_limits<size_t>::max() : 0;
+  transition_.first = lhs_->transition().first;
+  transition_.last = lhs_->transition().last;
+}
+
+void Complement::FillTransition(bool reverse)
+{
+  lhs_->FillTransition(reverse);
+  slave_->transition().follow = master_->transition().follow;
 }
 
 } // namespace regen

@@ -15,7 +15,7 @@ class EndLine;
 class None;
 class Epsilon;
 class Intersection;
-class Complement;
+class Exclusion;
 class EOP;
 class BinaryExpr;
 class Concat;
@@ -24,6 +24,7 @@ class UnaryExpr;
 class Qmark;
 class Plus;
 class Star;
+class Complement;
 
 class ExprVisitor {
 public:
@@ -37,7 +38,7 @@ public:
   virtual void Visit(None *e) { Visit((StateExpr*)e); }
   virtual void Visit(Epsilon *e) { Visit((StateExpr*)e); }
   virtual void Visit(Intersection *e) { Visit((StateExpr*)e); }
-  virtual void Visit(Complement *e) { Visit((StateExpr*)e); }
+  virtual void Visit(Exclusion *e) { Visit((StateExpr*)e); }
   virtual void Visit(EOP *e) { Visit((StateExpr*)e); }
   virtual void Visit(BinaryExpr *e) { Visit((Expr*)e); }
   virtual void Visit(Concat *e) { Visit((BinaryExpr*)e); }
@@ -46,6 +47,7 @@ public:
   virtual void Visit(Qmark *e) { Visit((UnaryExpr*)e); }
   virtual void Visit(Plus *e) { Visit((UnaryExpr*)e); }
   virtual void Visit(Star *e) { Visit((UnaryExpr*)e); }
+  virtual void Visit(Complement *e) { Visit((UnaryExpr*)e); }
 };
 
 struct Must {
@@ -66,9 +68,9 @@ public:
   enum Type {
     kLiteral=0, kCharClass, kDot,
     kBegLine, kEndLine, kEOP,
-    kIntersection, kComplement,
     kConcat, kUnion, kQmark, kStar, kPlus,
-    kEpsilon, kNone
+    kEpsilon, kNone,
+    kIntersection, kExclusion, kComplement,
   };
   enum SuperType {
     kStateExpr=0, kBinaryExpr, kUnaryExpr
@@ -95,6 +97,7 @@ public:
   virtual Expr* Clone() = 0;
   virtual void NonGreedify() = 0;
   virtual void TransmitNonGreedy() = 0;
+  virtual void FillExpr(StateExpr *) = 0;
   virtual void FillTransition(bool reverse = false) = 0;
   void FillReverseTransition() { FillTransition(true); transition_.first.swap(transition_.last); }
   
@@ -125,6 +128,7 @@ public:
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   void NonGreedify()  { non_greedy_ = true; }
   void TransmitNonGreedy();
+  void FillExpr(StateExpr *e) { transition_.first.insert(e); transition_.last.insert(e); }
   virtual bool Match(const unsigned char c) = 0;
 private:
   std::size_t state_id_;
@@ -226,6 +230,29 @@ private:
   DISALLOW_COPY_AND_ASSIGN(Intersection);
 };
 
+class Exclusion: public StateExpr {
+public:
+  Exclusion(): pair_(NULL), active_(false), loop_(0) {  min_length_ = max_length_ = 0; }
+  ~Exclusion() {}
+  Expr::Type type() { return Expr::kExclusion; }  
+  void Accept(ExprVisitor* visit) { visit->Visit(this); }
+  bool Match(const unsigned char c) { return false; }
+  Expr* Clone() { return new Exclusion(); }
+  bool loop() { return loop_; }
+  void set_loop(bool b = true) { loop_ = b; }
+  bool active() { return active_; }
+  void set_active(bool b = true) { active_ = b; }
+  Exclusion *pair() { return pair_; }
+  void set_pair(Exclusion *p) { pair_ = p; }
+  static void NewPair(Exclusion **p1, Exclusion **p2)
+  { *p1 = new Exclusion(); *p2 = new Exclusion(); (*p1)->set_pair(*p2); (*p2)->set_pair(*p1); }
+private:
+  Exclusion *pair_;
+  bool active_;
+  bool loop_;
+  DISALLOW_COPY_AND_ASSIGN(Exclusion);
+};
+
 class EOP: public StateExpr {
 public:
   EOP() { min_length_ = max_length_ = 0; }
@@ -274,6 +301,7 @@ public:
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   void NonGreedify()  { lhs_->NonGreedify(); rhs_->NonGreedify(); }
   void TransmitNonGreedy() { lhs_->TransmitNonGreedy(); rhs_->TransmitNonGreedy(); }
+  void FillExpr(StateExpr *e) { lhs_->FillExpr(e); rhs_->FillExpr(e); transition_.first.insert(e); transition_.last.insert(e); }
 protected:
   Expr *lhs_;
   Expr *rhs_;
@@ -286,9 +314,9 @@ public:
   Concat(Expr *lhs, Expr *rhs);
   ~Concat() {}
   void FillTransition(bool reverse = false);
-  Expr::Type type() { return Expr::kConcat; }  
+  Expr::Type type() { return Expr::kConcat; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  Expr* Clone() { return new Concat(lhs_->Clone(), rhs_->Clone()); };  
+  Expr* Clone() { return new Concat(lhs_->Clone(), rhs_->Clone()); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Concat);
 };
@@ -300,7 +328,7 @@ public:
   void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kUnion; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  Expr* Clone() { return new Union(lhs_->Clone(), rhs_->Clone()); };  
+  Expr* Clone() { return new Union(lhs_->Clone(), rhs_->Clone()); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Union);
 };
@@ -315,6 +343,7 @@ public:
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   void NonGreedify()  { lhs_->NonGreedify(); }
   void TransmitNonGreedy() { lhs_->TransmitNonGreedy(); }
+  void FillExpr(StateExpr *e) { lhs_->FillExpr(e); transition_.first.insert(e); transition_.last.insert(e); }
 protected:
   Expr *lhs_;
 private:
@@ -355,6 +384,20 @@ public:
   Expr* Clone() { return new Plus(lhs_->Clone()); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Plus);
+};
+
+class Complement: public UnaryExpr {
+public:
+  Complement(Expr *lhs, bool loop = false);
+  ~Complement() {}
+  void FillTransition(bool reverse = false);
+  Expr::Type type() { return Expr::kComplement; }
+  void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  Expr* Clone() { return new Complement(lhs_->Clone()); };
+private:
+  bool loop_;
+  Exclusion *master_, *slave_;
+  DISALLOW_COPY_AND_ASSIGN(Complement);
 };
 
 } // namespace regen
