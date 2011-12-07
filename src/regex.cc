@@ -621,7 +621,13 @@ bool Regex::MatchNFA(const unsigned char *begin, const unsigned char *end, Regen
 }
 
 void Regex::PrintRegex() {
-  PrintRegexVisitor::Print(expr_root_);
+  if (dfa_.Complete()) {
+    Expr* e = CreateRegexFromDFA(dfa_);
+    PrintRegexVisitor::Print(e);
+    delete e;
+  } else {
+    PrintRegexVisitor::Print(expr_root_);
+  }
 }
 
 void Regex::PrintParseTree() const {
