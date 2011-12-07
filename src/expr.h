@@ -14,12 +14,13 @@ class BegLine;
 class EndLine;
 class None;
 class Epsilon;
-class Intersection;
-class Exclusion;
+class Operator;
 class EOP;
 class BinaryExpr;
 class Concat;
 class Union;
+class Intersection;
+class XOR;
 class UnaryExpr;
 class Qmark;
 class Plus;
@@ -37,12 +38,13 @@ public:
   virtual void Visit(EndLine *e) { Visit((StateExpr*)e); }
   virtual void Visit(None *e) { Visit((StateExpr*)e); }
   virtual void Visit(Epsilon *e) { Visit((StateExpr*)e); }
-  virtual void Visit(Intersection *e) { Visit((StateExpr*)e); }
-  virtual void Visit(Exclusion *e) { Visit((StateExpr*)e); }
+  virtual void Visit(Operator *e) { Visit((StateExpr*)e); }
   virtual void Visit(EOP *e) { Visit((StateExpr*)e); }
   virtual void Visit(BinaryExpr *e) { Visit((Expr*)e); }
   virtual void Visit(Concat *e) { Visit((BinaryExpr*)e); }
   virtual void Visit(Union *e) { Visit((BinaryExpr*)e); }
+  virtual void Visit(Intersection *e) { Visit((BinaryExpr*)e); }
+  virtual void Visit(XOR *e) { Visit((BinaryExpr*)e); }
   virtual void Visit(UnaryExpr *e) { Visit((Expr*)e); }
   virtual void Visit(Qmark *e) { Visit((UnaryExpr*)e); }
   virtual void Visit(Plus *e) { Visit((UnaryExpr*)e); }
@@ -67,10 +69,10 @@ class Expr {
 public:
   enum Type {
     kLiteral=0, kCharClass, kDot,
-    kBegLine, kEndLine, kEOP,
-    kConcat, kUnion, kQmark, kStar, kPlus,
-    kEpsilon, kNone,
-    kIntersection, kExclusion, kComplement,
+    kBegLine, kEndLine, kEOP, kOperator,
+    kConcat, kUnion, kIntersection, kXOR,
+    kQmark, kStar, kPlus, kComplement,
+    kEpsilon, kNone
   };
   enum SuperType {
     kStateExpr=0, kBinaryExpr, kUnaryExpr
@@ -85,6 +87,8 @@ public:
   void set_max_length(int len) { max_length_ = len; }
   std::size_t min_length() { return min_length_; }
   void set_min_length(int len) { min_length_ = len; }
+  bool nullable() { return nullable_; }
+  void set_nullable(bool b = true) { nullable_ = b; }
   Transition& transition() { return transition_; }
 
   Expr* parent() { return parent_; }
@@ -107,6 +111,7 @@ protected:
   std::size_t expr_id_;
   std::size_t max_length_;
   std::size_t min_length_;
+  bool nullable_;
   Transition transition_;
 private:
   Expr *parent_;
@@ -115,7 +120,13 @@ private:
 
 class StateExpr: public Expr {
 public:
-  StateExpr();
+  StateExpr(): state_id_(0), non_greedy_(false), non_greedy_pair_(NULL)
+{
+  max_length_ = min_length_ = 1;
+  nullable_ = false;
+  transition_.first.insert(this);
+  transition_.last.insert(this);
+}
   ~StateExpr() {}
   void FillTransition(bool reverse = false) {}
   std::size_t state_id() { return state_id_; }
@@ -210,52 +221,35 @@ private:
   DISALLOW_COPY_AND_ASSIGN(EndLine);
 };
 
-class Intersection: public StateExpr {
+class Operator: public StateExpr {
 public:
-  Intersection(): pair_(NULL), active_(false) { min_length_ = max_length_ = 0; }
-  ~Intersection() {}
-  Expr::Type type() { return Expr::kIntersection; }  
+  Operator(): pair_(NULL), active_(false) { min_length_ = max_length_ = 0; }
+  ~Operator() {}
+  enum Type {
+    kIntersection, kXOR
+  };
+  Expr::Type type() { return Expr::kOperator; }  
   void Accept(ExprVisitor* visit) { visit->Visit(this); }
   bool Match(const unsigned char c) { return false; }
-  Expr* Clone() { return new Intersection(); }
+  Expr* Clone() { return new Operator(); }
+  Type optype() { return optype_; }
+  void set_optype(Type t) { optype_ = t; }
   bool active() { return active_; }
   void set_active(bool b = true) { active_ = b; }
-  Intersection *pair() { return pair_; }
-  void set_pair(Intersection *p) { pair_ = p; }
-  static void NewPair(Intersection **p1, Intersection **p2)
-  { *p1 = new Intersection(); *p2 = new Intersection(); (*p1)->set_pair(*p2); (*p2)->set_pair(*p1); }
+  Operator *pair() { return pair_; }
+  void set_pair(Operator *p) { pair_ = p; }
+  static void NewPair(Operator **e1, Operator **e2, Type t = kXOR)
+  { *e1 = new Operator(); *e2 = new Operator(); (*e1)->set_pair(*e2); (*e2)->set_pair(*e1); (*e1)->set_optype(t); (*e2)->set_optype(t); }
 private:
-  Intersection *pair_;
+  Operator *pair_;
+  Type optype_;
   bool active_;
-  DISALLOW_COPY_AND_ASSIGN(Intersection);
-};
-
-class Exclusion: public StateExpr {
-public:
-  Exclusion(): pair_(NULL), active_(false), loop_(0) {  min_length_ = max_length_ = 0; }
-  ~Exclusion() {}
-  Expr::Type type() { return Expr::kExclusion; }  
-  void Accept(ExprVisitor* visit) { visit->Visit(this); }
-  bool Match(const unsigned char c) { return false; }
-  Expr* Clone() { return new Exclusion(); }
-  bool loop() { return loop_; }
-  void set_loop(bool b = true) { loop_ = b; }
-  bool active() { return active_; }
-  void set_active(bool b = true) { active_ = b; }
-  Exclusion *pair() { return pair_; }
-  void set_pair(Exclusion *p) { pair_ = p; }
-  static void NewPair(Exclusion **p1, Exclusion **p2)
-  { *p1 = new Exclusion(); *p2 = new Exclusion(); (*p1)->set_pair(*p2); (*p2)->set_pair(*p1); }
-private:
-  Exclusion *pair_;
-  bool active_;
-  bool loop_;
-  DISALLOW_COPY_AND_ASSIGN(Exclusion);
+  DISALLOW_COPY_AND_ASSIGN(Operator);
 };
 
 class EOP: public StateExpr {
 public:
-  EOP() { min_length_ = max_length_ = 0; }
+  EOP() { min_length_ = max_length_ = 0; nullable_ = true; }
   ~EOP() {}
   Expr::Type type() { return Expr::kEOP; }  
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
@@ -267,7 +261,7 @@ private:
 
 class None: public StateExpr {
 public:
-  None() { min_length_ = max_length_ = 0; }
+  None() { min_length_ = max_length_ = 0; nullable_ = true; }
   ~None() {}
   Expr::Type type() { return Expr::kNone; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
@@ -279,7 +273,7 @@ private:
 
 class Epsilon: public StateExpr {
 public:
-  Epsilon() { min_length_ = max_length_ = 0; }
+  Epsilon() { min_length_ = max_length_ = 0; nullable_ = true; }
   ~Epsilon() {}
   Expr::Type type() { return Expr::kEpsilon; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
@@ -331,6 +325,32 @@ public:
   Expr* Clone() { return new Union(lhs_->Clone(), rhs_->Clone()); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Union);
+};
+
+class Intersection: public BinaryExpr {
+public:
+  Intersection(Expr *lhs, Expr *rhs);
+  ~Intersection() {}
+  void FillTransition(bool reverse = false);
+  Expr::Type type() { return Expr::kIntersection; }
+  void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  Expr* Clone() { return new Intersection(lhs_->Clone(), rhs_->Clone()); };
+private:
+  Operator *op1_, *op2_;
+  DISALLOW_COPY_AND_ASSIGN(Intersection);
+};
+
+class XOR: public BinaryExpr {
+public:
+  XOR(Expr *lhs, Expr *rhs);
+  ~XOR() {}
+  void FillTransition(bool reverse = false);
+  Expr::Type type() { return Expr::kXOR; }
+  void Accept(ExprVisitor* visit) { visit->Visit(this); };
+  Expr* Clone() { return new XOR(lhs_->Clone(), rhs_->Clone()); };
+private:
+  Operator *op1_, *op2_;
+  DISALLOW_COPY_AND_ASSIGN(XOR);
 };
 
 class UnaryExpr: public Expr {
@@ -396,7 +416,7 @@ public:
   Expr* Clone() { return new Complement(lhs_->Clone()); };
 private:
   bool loop_;
-  Exclusion *master_, *slave_;
+  Operator *master_, *slave_;
   DISALLOW_COPY_AND_ASSIGN(Complement);
 };
 

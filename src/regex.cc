@@ -60,13 +60,10 @@ Expr* Regex::Parse(Lexer *lexer)
   if (lexer->token() != Lexer::kEOP) exitmsg("expected end of pattern.");
 
   if (flag_.partial_match()) {
-    //add '.*?' to top of regular expression for Partial Match.
-    Expr *dotstar;
-    StateExpr *dot;
-    dot = new Dot();
-    dot->set_state_id(++state_id_);
-    dotstar = new Star(dot, true);
-    e = new Concat(dotstar, e);
+    //add '!(R)*' to top of regular expression for Partial Match
+    // R means whole regular experssion.
+    Expr* etop = new Star(new Complement(e->Clone(), true));
+    e = new Concat(etop, e);
   }
 
   StateExpr *eop = new EOP();
@@ -133,11 +130,7 @@ Regex::e1(Lexer *lexer)
         e = f;
         null = true;
       } else {
-        Intersection *p1, *p2;
-        Intersection::NewPair(&p1, &p2);
-        e = new Concat(e, p1);
-        f = new Concat(f, p2);
-        e = new Union(e, f); // essentially, construct Intersection.
+        e = new Intersection(e, f);
       }
     }
   }

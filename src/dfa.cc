@@ -36,38 +36,42 @@ bool DFA::Construct(Expr *expr_root, std::size_t limit)
   queue.push(expr_root->transition().first);
 
   std::vector<NFA> transition(256);
-  std::set<Intersection*> intersections;
-  std::set<Exclusion*> exclusions;
+  std::set<Operator*> intersects;
+  std::set<Operator*> exclusives;
   
   while (!queue.empty()) {
     NFA nfa_states = queue.front();
     queue.pop();
     std::fill(transition.begin(), transition.end(), NFA());
-    intersections.clear();
-    exclusions.clear();
+    intersects.clear();
+    exclusives.clear();
     bool is_accept = false;
 
  metatransition:
     NFA::iterator iter = nfa_states.begin();
     while (iter != nfa_states.end()) {
       switch ((*iter)->type()) {
-        case Expr::kIntersection: {
-          Intersection *inter = static_cast<Intersection*>(*iter);
-          if (inter->pair()->active()) {
-            nfa_states.insert(inter->transition().follow.begin(),
-                              inter->transition().follow.end());
-          } else {
-            inter->set_active(true);
-            intersections.insert(inter);
+        case Expr::kOperator: {
+          Operator *op = static_cast<Operator*>(*iter);
+          switch (op->optype()) {
+            case Operator::kIntersection:
+              if (op->pair()->active()) {
+                nfa_states.insert(op->transition().follow.begin(),
+                                  op->transition().follow.end());
+              } else {
+                op->set_active(true);
+                intersects.insert(op);
+              }
+              break;
+            case Operator::kXOR:
+              op->set_active(true);
+              exclusives.insert(op);
+              break;
+            default:
+              break;
           }
-          break;
         }
-        case Expr::kExclusion: {
-          Exclusion *exclusion = static_cast<Exclusion*>(*iter);
-          exclusion->set_active(true);
-          exclusions.insert(exclusion);
           break;
-        }
         case Expr::kEOP:
           is_accept = true;
           break;
@@ -77,8 +81,8 @@ bool DFA::Construct(Expr *expr_root, std::size_t limit)
       ++iter;
     }
     std::size_t presize = nfa_states.size();
-    for (std::set<Exclusion*>::iterator iter = exclusions.begin();
-         iter != exclusions.end(); ++iter) {
+    for (std::set<Operator*>::iterator iter = exclusives.begin();
+         iter != exclusives.end(); ++iter) {
       if (!(*iter)->pair()->active()) {
         nfa_states.insert((*iter)->transition().follow.begin(),
                           (*iter)->transition().follow.end());
@@ -133,28 +137,19 @@ bool DFA::Construct(Expr *expr_root, std::size_t limit)
           transition['\n'].insert(next.begin(), next.end());
           break;
         }
-        case Expr::kExclusion: {
-          Exclusion* exclusion = static_cast<Exclusion*>(*iter);
-          if (exclusion->loop()) {
-            for (int i = 0; i < 256; i++) {
-              transition[i].insert(exclusion);
-            }
-          }
-          break;
-        }
-        case Expr::kEOP: case Expr::kNone: case Expr::kIntersection:
+        case Expr::kEOP: case Expr::kNone: case Expr::kOperator:
           break;
         default: exitmsg("notype");
       }
       ++iter;
     }
 
-    for (std::set<Intersection*>::iterator iter = intersections.begin();
-         iter != intersections.end(); ++iter) {
+    for (std::set<Operator*>::iterator iter = intersects.begin();
+         iter != intersects.end(); ++iter) {
       (*iter)->set_active(false);
     }
-    for (std::set<Exclusion*>::iterator iter = exclusions.begin();
-         iter != exclusions.end(); ++iter) {
+    for (std::set<Operator*>::iterator iter = exclusives.begin();
+         iter != exclusives.end(); ++iter) {
       (*iter)->set_active(false);
     }
     
