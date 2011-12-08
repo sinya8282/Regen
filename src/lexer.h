@@ -6,11 +6,13 @@
 
 namespace regen {
 
+class Expr;
+  
 class Lexer {
 public:
   enum Type {
     kLiteral=0, kCharClass, kDot, kBegLine,
-    kEndLine, kRecursive, kByteRange, kEOP,
+    kEndLine, kRecursive, kByteRange, kBackRef, kEOP,
     kConcat, kUnion, kIntersection,
     kQmark, kStar, kPlus, kRepetition,
     kRpar, kLpar, kEpsilon, kNone, kComplement
@@ -21,6 +23,8 @@ public:
   const unsigned char *begin() const { return begin_; }
   const unsigned char *end() const { return end_; }
   Regen::Options flag() const { return flag_; }
+  std::size_t backref() const { return backref_; }
+  std::vector<Expr*> &groups() { return groups_; }
   Type Consume();
   bool Concatenated();
   bool Quantifier();
@@ -38,8 +42,10 @@ private:
   const unsigned char *begin_;
   const unsigned char *end_;
   int lower_repetition_, upper_repetition_;
+  std::size_t backref_;
   Type token_;
   std::bitset<256> table_;
+  std::vector<Expr*> groups_;
   unsigned char literal_;
   Regen::Options flag_;
 };

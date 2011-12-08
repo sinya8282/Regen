@@ -16,7 +16,7 @@ MAKE_SHARED_LIBRARY=-shared -Wl,-soname,libregen.so,--version-script=libregen.sy
 endif
 
 CC=g++
-CFLAGS=-fPIC -O3 -Wall -g3 -fno-operator-names $(REGENFLAGS)
+CFLAGS=-fPIC -O0 -Wall -g3 -fno-operator-names $(REGENFLAGS)
 SRC=regen.cc regex.cc lexer.cc expr.cc exprutil.cc nfa.cc dfa.cc ssfa.cc generator.cc 
 OBJS=$(SRC:.cc=.o)
 

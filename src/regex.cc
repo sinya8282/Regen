@@ -273,10 +273,15 @@ Regex::e4(Lexer *lexer)
     case Lexer::kNone:
       e = new None();
       break;
+    case Lexer::kBackRef:
+      if (lexer->backref() > lexer->groups().size()) exitmsg("Invalid back reference");
+      e = lexer->groups()[lexer->backref()-1]->Clone();
+      break;
     case Lexer::kLpar:
       lexer->Consume();
       e = e0(lexer);
       if (lexer->token() != Lexer::kRpar) exitmsg("expected a ')'");
+      lexer->groups().push_back(e);
       break;
     case Lexer::kComplement: {
       bool complement = false;

@@ -48,8 +48,17 @@ Lexer::Type Lexer::Consume()
 
 Lexer::Type Lexer::lex_metachar()
 {
-  literal_ = *ptr_++;
+  if ('0' <= *ptr_ && *ptr_ <= '9') {
+    backref_ = 0;
+    do {
+      backref_ *= 10;
+      backref_ += *ptr_++ - '0';
+    } while ('0' <= *ptr_ && *ptr_ <= '9');
+    return kBackRef;
+  }
+
   Type token;
+  literal_ = *ptr_++;
   switch (literal_) {
     case '\0': exitmsg("bad '\\'");
     case 'a': /* bell */
@@ -206,7 +215,7 @@ bool Lexer::Concatenated()
     case kLiteral: case kCharClass: case kDot:
     case kEndLine: case kBegLine: case kNone:
     case kLpar: case kComplement: case kRecursive:
-    case kByteRange:
+    case kByteRange: case kBackRef:
       return true;
     default:
       return false;
