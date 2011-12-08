@@ -76,29 +76,6 @@ top:
   }
 }
 
-void StateExpr::TransmitNonGreedy()
-{
-  if (non_greedy_) {
-    std::set<StateExpr*>::iterator iter = transition_.follow.begin();
-    while (iter != transition_.follow.end()) {
-      if (!((*iter)->non_greedy())) {
-        StateExpr* np = (*iter)->non_greedy_pair();
-        if (np == NULL) {
-          np = static_cast<StateExpr*>((*iter)->Clone());
-          (*iter)->set_non_greedy_pair(np);
-          np->set_non_greedy();
-          np->transition().follow = (*iter)->transition().follow;
-          np->TransmitNonGreedy();
-        }
-        transition_.follow.insert(np);
-        transition_.follow.erase(iter++);
-        continue;
-      }
-      iter++;
-    }
-  }
-}
-
 Concat::Concat(Expr *lhs, Expr *rhs):
     BinaryExpr(lhs, rhs)
 {

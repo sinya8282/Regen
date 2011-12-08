@@ -60,10 +60,9 @@ Expr* Regex::Parse(Lexer *lexer)
   if (lexer->token() != Lexer::kEOP) exitmsg("expected end of pattern.");
 
   if (flag_.partial_match()) {
-    //add '!(R)*' to top of regular expression for Partial Match
-    // R means whole regular experssion.
-    Expr* etop = new Star(new Complement(e->Clone(), true));
-    e = new Concat(etop, e);
+    //add '.*?' to top of regular expression for Partial Match
+    Expr* dotstar = new Star(new Dot(), true);
+    e = new Concat(dotstar, e);
   }
 
   StateExpr *eop = new EOP();
@@ -74,7 +73,6 @@ Expr* Regex::Parse(Lexer *lexer)
     e = new Concat(e, eop);
     e->FillTransition();
   }
-  e->TransmitNonGreedy();
 
   return e;
 }

@@ -100,7 +100,6 @@ public:
   virtual Expr::SuperType stype() = 0;
   virtual Expr* Clone() = 0;
   virtual void NonGreedify() = 0;
-  virtual void TransmitNonGreedy() = 0;
   virtual void FillExpr(StateExpr *) = 0;
   virtual void FillTransition(bool reverse = false) = 0;
   void FillReverseTransition() { FillTransition(true); transition_.first.swap(transition_.last); }
@@ -138,7 +137,6 @@ public:
   Expr::SuperType stype() { return Expr::kStateExpr; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   void NonGreedify()  { non_greedy_ = true; }
-  void TransmitNonGreedy();
   void FillExpr(StateExpr *e) { transition_.first.insert(e); transition_.last.insert(e); }
   virtual bool Match(const unsigned char c) = 0;
 private:
@@ -294,7 +292,6 @@ public:
   Expr::SuperType stype() { return Expr::kBinaryExpr; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   void NonGreedify()  { lhs_->NonGreedify(); rhs_->NonGreedify(); }
-  void TransmitNonGreedy() { lhs_->TransmitNonGreedy(); rhs_->TransmitNonGreedy(); }
   void FillExpr(StateExpr *e) { lhs_->FillExpr(e); rhs_->FillExpr(e); transition_.first.insert(e); transition_.last.insert(e); }
 protected:
   Expr *lhs_;
@@ -362,7 +359,6 @@ public:
   Expr::SuperType stype() { return Expr::kUnaryExpr; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   void NonGreedify()  { lhs_->NonGreedify(); }
-  void TransmitNonGreedy() { lhs_->TransmitNonGreedy(); }
   void FillExpr(StateExpr *e) { lhs_->FillExpr(e); transition_.first.insert(e); transition_.last.insert(e); }
 protected:
   Expr *lhs_;
