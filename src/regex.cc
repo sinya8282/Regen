@@ -68,9 +68,11 @@ Expr* Regex::Parse(Lexer *lexer)
   StateExpr *eop = new EOP();
   if (flag_.reverse_match()) { 
     e = new Concat(eop, e);
+    e->FillPosition();
     e->FillReverseTransition();
   } else {
     e = new Concat(e, eop);
+    e->FillPosition();
     e->FillTransition();
   }
 

@@ -76,30 +76,27 @@ top:
   }
 }
 
-Concat::Concat(Expr *lhs, Expr *rhs):
-    BinaryExpr(lhs, rhs)
+void Concat::FillPosition()
 {
-  if (lhs->max_length() == std::numeric_limits<size_t>::max() ||
-      rhs->max_length() == std::numeric_limits<size_t>::max()) {
-    max_length_ = std::numeric_limits<size_t>::max();
-  } else {
-    max_length_ = lhs->max_length() + rhs->max_length();
-  }
-  min_length_ = lhs->min_length() + rhs->min_length();
-  nullable_ = lhs->nullable() && rhs->nullable();
+  lhs_->FillPosition();
+  rhs_->FillPosition();
 
-  transition_.first = lhs->transition().first;
+  max_length_ = lhs_->max_length() + rhs_->max_length();
+  min_length_ = lhs_->min_length() + rhs_->min_length();
+  nullable_ = lhs_->nullable() && rhs_->nullable();
 
-  if (lhs->nullable()) {
-    transition_.first.insert(rhs->transition().first.begin(),
-                             rhs->transition().first.end());
+  transition_.first = lhs_->transition().first;
+
+  if (lhs_->nullable()) {
+    transition_.first.insert(rhs_->transition().first.begin(),
+                             rhs_->transition().first.end());
   }
 
-  transition_.last = rhs->transition().last;
+  transition_.last = rhs_->transition().last;
 
-  if (rhs->nullable()) {
-    transition_.last.insert(lhs->transition().last.begin(),
-                            lhs->transition().last.end());
+  if (rhs_->nullable()) {
+    transition_.last.insert(lhs_->transition().last.begin(),
+                            lhs_->transition().last.end());
   }
 }
 
@@ -110,20 +107,22 @@ void Concat::FillTransition(bool reverse)
   lhs_->FillTransition(reverse);
 }
 
-Union::Union(Expr *lhs, Expr *rhs):
-    BinaryExpr(lhs, rhs)
+void Union::FillPosition()
 {
-  max_length_ = std::max(lhs->max_length(), rhs->max_length());
-  min_length_ = std::min(lhs->min_length(), rhs->min_length());
-  nullable_ = lhs->nullable() || rhs->nullable();
+  lhs_->FillPosition();
+  rhs_->FillPosition();
+  
+  max_length_ = std::max(lhs_->max_length(), rhs_->max_length());
+  min_length_ = std::min(lhs_->min_length(), rhs_->min_length());
+  nullable_ = lhs_->nullable() || rhs_->nullable();
 
-  transition_.first = lhs->transition().first;
-  transition_.first.insert(rhs->transition().first.begin(),
-                           rhs->transition().first.end());
+  transition_.first = lhs_->transition().first;
+  transition_.first.insert(rhs_->transition().first.begin(),
+                           rhs_->transition().first.end());
 
-  transition_.last = lhs->transition().last;
-  transition_.last.insert(rhs->transition().last.begin(),
-                          rhs->transition().last.end());
+  transition_.last = lhs_->transition().last;
+  transition_.last.insert(rhs_->transition().last.begin(),
+                          rhs_->transition().last.end());
 }
 
 void Union::FillTransition(bool reverse)
@@ -132,16 +131,18 @@ void Union::FillTransition(bool reverse)
   lhs_->FillTransition(reverse);
 }
 
-Intersection::Intersection(Expr *lhs, Expr *rhs):
-    BinaryExpr(lhs, rhs)
+void Intersection::FillPosition()
 {
-  max_length_ = std::min(lhs->max_length(), rhs->max_length());
-  min_length_ = std::max(lhs->min_length(), rhs->min_length());
-  nullable_ = lhs->nullable() && rhs->nullable();
-
   Operator::NewPair(&op1_, &op2_, Operator::kIntersection);
   lhs_ = new Concat(lhs_, op1_);
   rhs_ = new Concat(rhs_, op2_);
+  
+  lhs_->FillPosition();
+  rhs_->FillPosition();
+
+  nullable_ = lhs_->nullable() && rhs_->nullable();
+  max_length_ = std::min(lhs_->max_length(), rhs_->max_length());
+  min_length_ = std::max(lhs_->min_length(), rhs_->min_length());
 
   transition_.first = lhs_->transition().first;
   transition_.first.insert(rhs_->transition().first.begin(),
@@ -158,17 +159,19 @@ void Intersection::FillTransition(bool reverse)
   lhs_->FillTransition(reverse);
 }
 
-XOR::XOR(Expr *lhs, Expr *rhs):
-    BinaryExpr(lhs, rhs)
+void XOR::FillPosition()
 {
-  max_length_ = std::numeric_limits<size_t>::max();
-  min_length_ = std::min(lhs->min_length(), rhs->min_length());
-  nullable_ = lhs->nullable() || rhs->nullable();
-
   Operator::NewPair(&op1_, &op2_, Operator::kXOR);
   lhs_ = new Concat(lhs_, op1_);
   rhs_ = new Concat(rhs_, op2_);
+  
+  lhs_->FillPosition();
+  rhs_->FillPosition();
 
+  nullable_ = lhs_->nullable() || rhs_->nullable();
+  max_length_ = std::numeric_limits<size_t>::max();
+  min_length_ = std::min(lhs_->min_length(), rhs_->min_length());
+  
   transition_.first = lhs_->transition().first;
   transition_.first.insert(rhs_->transition().first.begin(),
                            rhs_->transition().first.end());
@@ -184,15 +187,16 @@ void XOR::FillTransition(bool reverse)
   lhs_->FillTransition(reverse);
 }
 
-Qmark::Qmark(Expr* lhs, bool non_greedy):
-    UnaryExpr(lhs)
+void Qmark::FillPosition()
 {
-  max_length_ = lhs->min_length();
+  lhs_->FillPosition();
+  
+  max_length_ = lhs_->min_length();
   min_length_ = 0;
   nullable_ = true;
-  transition_.first = lhs->transition().first;
-  transition_.last = lhs->transition().last;
-  if (non_greedy) NonGreedify();
+  transition_.first = lhs_->transition().first;
+  transition_.last = lhs_->transition().last;
+  if (non_greedy_) NonGreedify();
 }
 
 void Qmark::FillTransition(bool reverse)
@@ -200,31 +204,17 @@ void Qmark::FillTransition(bool reverse)
   lhs_->FillTransition(reverse);
 }
 
-Plus::Plus(Expr* lhs):
-    UnaryExpr(lhs)
-{
-  max_length_ = std::numeric_limits<size_t>::max();
-  min_length_ = lhs->min_length();
-  nullable_ = lhs->nullable();
-  transition_.first = lhs->transition().first;
-  transition_.last = lhs->transition().last;
-}
 
-void Plus::FillTransition(bool reverse)
+void Star::FillPosition()
 {
-  Connect(lhs_->transition().last, lhs_->transition().first, reverse);
-  lhs_->FillTransition(reverse);
-}
+  lhs_->FillPosition();
 
-Star::Star(Expr* lhs, bool non_greedy):
-    UnaryExpr(lhs)
-{
   max_length_ = std::numeric_limits<size_t>::max();
   min_length_ = 0;
   nullable_ = true;
-  transition_.first = lhs->transition().first;
-  transition_.last = lhs->transition().last;
-  if (non_greedy) NonGreedify();
+  transition_.first = lhs_->transition().first;
+  transition_.last = lhs_->transition().last;
+  if (non_greedy_) NonGreedify();
 }
 
 void Star::FillTransition(bool reverse)
@@ -233,20 +223,36 @@ void Star::FillTransition(bool reverse)
   lhs_->FillTransition(reverse);
 }
 
-Complement::Complement(Expr* lhs, bool loop):
-    UnaryExpr(lhs),
-    loop_(loop),
-    master_(NULL), slave_(NULL)
+void Plus::FillPosition()
 {
+  lhs_->FillPosition();
+
   max_length_ = std::numeric_limits<size_t>::max();
-  min_length_ = lhs_->min_length() == 0 ? std::numeric_limits<size_t>::max() : 0;
-  nullable_ = !lhs->nullable();
+  min_length_ = lhs_->min_length();
+  nullable_ = lhs_->nullable();
+  transition_.first = lhs_->transition().first;
+  transition_.last = lhs_->transition().last;
+}
+
+void Plus::FillTransition(bool reverse)
+{
+  Connect(lhs_->transition().last, lhs_->transition().first, reverse);
+  lhs_->FillTransition(reverse);
+}
+
+void Complement::FillPosition()
+{
   Operator::NewPair(&master_, &slave_, Operator::kXOR);
   lhs_ = new Concat(lhs_, master_);
+  lhs_ = new Union(new Concat(new Star(new Dot()), slave_), lhs_);
+
+  lhs_->FillPosition();
   lhs_->FillExpr(slave_);
-  if (loop) {
-    lhs_ = new Union(new Concat(new Star(new Dot()), slave_), lhs_);
-  }
+  
+  max_length_ = std::numeric_limits<size_t>::max(); // Unknown
+  min_length_ = lhs_->min_length() == 0 ? std::numeric_limits<size_t>::max() : 0;
+  nullable_ = !lhs_->nullable();
+
   transition_.first = lhs_->transition().first;
   transition_.last = lhs_->transition().last;
 }

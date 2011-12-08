@@ -47,7 +47,7 @@ bool DFA::Construct(Expr *expr_root, std::size_t limit)
     exclusives.clear();
     bool is_accept = false;
 
- metatransition:
+pretransition:
     NFA::iterator iter = nfa_states.begin();
     while (iter != nfa_states.end()) {
       switch ((*iter)->type()) {
@@ -56,8 +56,13 @@ bool DFA::Construct(Expr *expr_root, std::size_t limit)
           switch (op->optype()) {
             case Operator::kIntersection:
               if (op->pair()->active()) {
+                std::size_t presize = nfa_states.size();
                 nfa_states.insert(op->transition().follow.begin(),
                                   op->transition().follow.end());
+                if (presize < nfa_states.size()) {
+                  iter = nfa_states.begin();
+                  continue;
+                }
               } else {
                 op->set_active(true);
                 intersects.insert(op);
@@ -88,7 +93,7 @@ bool DFA::Construct(Expr *expr_root, std::size_t limit)
                           (*iter)->transition().follow.end());
       }
     }
-    if (presize < nfa_states.size()) goto metatransition;
+    if (presize < nfa_states.size()) goto pretransition;
 
     iter = nfa_states.begin();
     while (iter != nfa_states.end()) {
@@ -103,7 +108,7 @@ bool DFA::Construct(Expr *expr_root, std::size_t limit)
           if ((*iter_)->non_greedy()) {
             next.erase(iter_++);
           } else {
-            iter_++;
+            ++iter_;
           }
         }
       }
