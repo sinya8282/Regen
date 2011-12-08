@@ -7,10 +7,11 @@
 int main(int argc, char *argv[]) {
   enum Generate { DOTGEN, REGEN, CGEN};
   std::string regex;
+  bool minimize = false;
   int opt;
   Generate generate = REGEN;
 
-  while ((opt = getopt(argc, argv, "dcxef:")) != -1) {
+  while ((opt = getopt(argc, argv, "mdcxef:")) != -1) {
     switch(opt) {
       case 'f': {
         std::ifstream ifs(optarg);
@@ -23,6 +24,10 @@ int main(int argc, char *argv[]) {
       }
       case 'c': {
         generate = CGEN;
+        break;
+      }
+      case 'm': {
+        minimize = true;
         break;
       }
       default: exitmsg("USAGE: regen [options] regexp\n");
@@ -39,9 +44,9 @@ int main(int argc, char *argv[]) {
 
   regen::Regex r = regen::Regex(regex);
   r.Compile(Regen::Options::O0);
+  if (minimize) r.MinimizeDFA();
 
   switch (generate) {
-    r.MinimizeDFA();
     case CGEN:
       regen::Generator::CGenerate(r);
       break;
