@@ -17,7 +17,15 @@ Lexer::Type Lexer::Consume()
     // Normal Symbols
     case '.': token_ = kDot;       break;
     case '[': token_ = kCharClass; break;
-    case '|': token_ = kUnion;     break;
+    case '|': {
+      if (*ptr_ == '|') {
+        ptr_++;
+        token_ = kXOR;
+      } else {
+        token_ = kUnion;
+      }
+      break;
+    }
     case '?': token_ = kQmark;     break;
     case '+': token_ = kPlus;      break;
     case '*': token_ = kStar;      break;

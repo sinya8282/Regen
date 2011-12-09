@@ -81,11 +81,12 @@ Expr* Regex::Parse(Lexer *lexer)
 
 /* Regen parsing rules
  * RE ::= e0 EOP
- * e0 ::= e1 ('|' e1)*                    # union
- * e1 ::= e2 ('&' e2)*                    # intersection
- * e2 ::= e3+                             # concatenation
- * e3 ::= e4 ([?+*]|{N,N}|{,}|{,N}|{N,})* # repetition
- * e4 ::= ATOM | '(' e0 ')' | '!' e0      # ATOM, grouped expresion, complement expresion
+ * e0 ::= e1 ('||' e2)*                   # xor
+ * e1 ::= e2 ('|' e3)*                    # union
+ * e2 ::= e3 ('&' e4)*                    # intersection
+ * e3 ::= e4+                             # concatenation
+ * e4 ::= e5 ([?+*]|{N,N}|{,}|{,N}|{N,})* # repetition
+ * e5 ::= ATOM | '(' e0 ')' | '!' e0      # ATOM, grouped expresion, complement expresion
 */
 
 Expr* Regex::e0(Lexer *lexer)
@@ -94,14 +95,37 @@ Expr* Regex::e0(Lexer *lexer)
   e = e1(lexer);
   
   while (e->type() == Expr::kNone &&
-         lexer->token() == Lexer::kUnion) {
+         lexer->token() == Lexer::kXOR) {
     lexer->Consume();
     e = e1(lexer);
   }
   
-  while (lexer->token() == Lexer::kUnion) {
+  while (lexer->token() == Lexer::kXOR) {
     lexer->Consume();
     f = e1(lexer);
+    if (f->type() != Expr::kNone) {
+      XOR *x = new XOR(e, f);
+      x->set_id(xor_num_++);
+      e = x;
+    }
+  }
+  return e;
+}
+
+Expr* Regex::e1(Lexer *lexer)
+{
+  Expr *e, *f;
+  e = e2(lexer);
+  
+  while (e->type() == Expr::kNone &&
+         lexer->token() == Lexer::kUnion) {
+    lexer->Consume();
+    e = e2(lexer);
+  }
+  
+  while (lexer->token() == Lexer::kUnion) {
+    lexer->Consume();
+    f = e2(lexer);
     if (f->type() != Expr::kNone) {
       if (e->stype() == Expr::kStateExpr &&
           f->stype() == Expr::kStateExpr) {
@@ -115,16 +139,16 @@ Expr* Regex::e0(Lexer *lexer)
 }
 
 Expr *
-Regex::e1(Lexer *lexer)
+Regex::e2(Lexer *lexer)
 {
   Expr *e, *f;
-  e = e2(lexer);
+  e = e3(lexer);
   bool null = e->type() == Expr::kNone;
 
   while (lexer->token() == Lexer::kIntersection) {
     lexer->Consume();
     if (!null) {
-      f = e2(lexer);
+      f = e3(lexer);
       if (f->type() == Expr::kNone) {
         delete e;
         e = f;
@@ -139,18 +163,18 @@ Regex::e1(Lexer *lexer)
 }
 
 Expr *
-Regex::e2(Lexer *lexer)
+Regex::e3(Lexer *lexer)
 {
   Expr *e, *f;
-  e = e3(lexer);
+  e = e4(lexer);
   
   while (e->type() == Expr::kNone &&
          lexer->Concatenated()) {
-    e = e3(lexer);
+    e = e4(lexer);
   }
 
   while (lexer->Concatenated()) {
-    f = e3(lexer);
+    f = e4(lexer);
     if (f->type() != Expr::kNone) {
       e = new Concat(e, f);
     }
@@ -160,10 +184,10 @@ Regex::e2(Lexer *lexer)
 }
 
 Expr *
-Regex::e3(Lexer *lexer)
+Regex::e4(Lexer *lexer)
 {
   Expr *e;
-  e = e4(lexer);
+  e = e5(lexer);
 
   if (e->type() == Expr::kNone) {
     while (lexer->Quantifier()) {
@@ -238,7 +262,7 @@ Regex::e3(Lexer *lexer)
 }
 
 Expr *
-Regex::e4(Lexer *lexer)
+Regex::e5(Lexer *lexer)
 { 
   Expr *e;
 
@@ -291,7 +315,7 @@ Regex::e4(Lexer *lexer)
         complement = !complement;
         lexer->Consume();
       } while (lexer->token() == Lexer::kComplement);
-      e = e4(lexer);
+      e = e5(lexer);
       if (complement) {
         if (e->type() == Expr::kNone) {
           delete e;
