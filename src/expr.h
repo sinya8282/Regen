@@ -25,7 +25,6 @@ class UnaryExpr;
 class Qmark;
 class Plus;
 class Star;
-class Complement;
 
 class ExprVisitor {
 public:
@@ -49,7 +48,6 @@ public:
   virtual void Visit(Qmark *e) { Visit((UnaryExpr*)e); }
   virtual void Visit(Plus *e) { Visit((UnaryExpr*)e); }
   virtual void Visit(Star *e) { Visit((UnaryExpr*)e); }
-  virtual void Visit(Complement *e) { Visit((UnaryExpr*)e); }
 };
 
 struct Must {
@@ -71,7 +69,7 @@ public:
     kLiteral=0, kCharClass, kDot,
     kBegLine, kEndLine, kEOP, kOperator,
     kConcat, kUnion, kIntersection, kXOR,
-    kQmark, kStar, kPlus, kComplement,
+    kQmark, kStar, kPlus,
     kEpsilon, kNone
   };
   enum SuperType {
@@ -218,7 +216,7 @@ private:
 
 class Operator: public StateExpr {
 public:
-  Operator(): pair_(NULL), active_(false) { min_length_ = max_length_ = 0; }
+  Operator(): pair_(NULL), active_(false), id_(0) { min_length_ = max_length_ = 0; }
   ~Operator() {}
   enum Type {
     kIntersection, kXOR
@@ -233,12 +231,15 @@ public:
   void set_active(bool b = true) { active_ = b; }
   Operator *pair() { return pair_; }
   void set_pair(Operator *p) { pair_ = p; }
+  std::size_t id() { return id_; }
+  void set_id(std::size_t id) { id_ = id; }
   static void NewPair(Operator **e1, Operator **e2, Type t = kXOR)
   { *e1 = new Operator(); *e2 = new Operator(); (*e1)->set_pair(*e2); (*e2)->set_pair(*e1); (*e1)->set_optype(t); (*e2)->set_optype(t); }
 private:
   Operator *pair_;
   Type optype_;
   bool active_;
+  std::size_t id_;
   DISALLOW_COPY_AND_ASSIGN(Operator);
 };
 
@@ -325,7 +326,7 @@ private:
 
 class Intersection: public BinaryExpr {
 public:
-  Intersection(Expr *lhs, Expr *rhs): BinaryExpr(lhs, rhs) {}
+  Intersection(Expr *lhs, Expr *rhs);
   ~Intersection() {}
   void FillPosition();
   void FillTransition(bool reverse = false);
@@ -334,20 +335,25 @@ public:
   Expr* Clone() { return new Intersection(lhs_->Clone(), rhs_->Clone()); };
 private:
   Operator *op1_, *op2_;
+  Expr *lhs__, *rhs__;
   DISALLOW_COPY_AND_ASSIGN(Intersection);
 };
 
 class XOR: public BinaryExpr {
 public:
-  XOR(Expr *lhs, Expr *rhs): BinaryExpr(lhs, rhs) {}
+  XOR(Expr *lhs, Expr *rhs);
   ~XOR() {}
   void FillPosition();
   void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kXOR; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone() { return new XOR(lhs_->Clone(), rhs_->Clone()); };
+  std::size_t id() { return id_; }
+  void set_id(std::size_t id) { id_ = id; }
 private:
   Operator *op1_, *op2_;
+  Expr *lhs__, *rhs__;
+  std::size_t id_;
   DISALLOW_COPY_AND_ASSIGN(XOR);
 };
 
@@ -406,21 +412,6 @@ public:
   Expr* Clone() { return new Plus(lhs_->Clone()); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Plus);
-};
-
-class Complement: public UnaryExpr {
-public:
-Complement(Expr *lhs, bool loop = false): UnaryExpr(lhs), loop_(loop), master_(NULL), slave_(NULL) {}
-  ~Complement() {}
-  void FillPosition();
-  void FillTransition(bool reverse = false);
-  Expr::Type type() { return Expr::kComplement; }
-  void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  Expr* Clone() { return new Complement(lhs_->Clone()); };
-private:
-  bool loop_;
-  Operator *master_, *slave_;
-  DISALLOW_COPY_AND_ASSIGN(Complement);
 };
 
 } // namespace regen

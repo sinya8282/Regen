@@ -6,7 +6,7 @@ Regex::Regex(const std::string &regex, const Regen::Options flags):
     regex_(regex),
     flag_(flags),
     recursive_depth_(0),
-    capture_num_(0),
+    xor_num_(0),
     involved_char_(std::bitset<256>()),
     olevel_(Regen::Options::Onone),
     dfa_failure_(false),
@@ -292,8 +292,15 @@ Regex::e4(Lexer *lexer)
         lexer->Consume();
       } while (lexer->token() == Lexer::kComplement);
       e = e4(lexer);
-      if (complement && e->type() != Expr::kNone) {
-        e = new Complement(e, true);
+      if (complement) {
+        if (e->type() == Expr::kNone) {
+          delete e;
+          e = new Star(new Dot());
+          return e;
+        }
+        XOR *e_ = new XOR(new Star(new Dot), e);
+        e_->set_id(xor_num_++);
+        e = e_;
       }
       return e;
     }

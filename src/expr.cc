@@ -131,16 +131,20 @@ void Union::FillTransition(bool reverse)
   lhs_->FillTransition(reverse);
 }
 
-void Intersection::FillPosition()
+Intersection::Intersection(Expr *lhs, Expr *rhs):
+    BinaryExpr(lhs, rhs), lhs__(lhs), rhs__(rhs)
 {
   Operator::NewPair(&op1_, &op2_, Operator::kIntersection);
   lhs_ = new Concat(lhs_, op1_);
-  rhs_ = new Concat(rhs_, op2_);
-  
+  rhs_ = new Concat(rhs_, op2_);  
+}
+
+void Intersection::FillPosition()
+{
   lhs_->FillPosition();
   rhs_->FillPosition();
 
-  nullable_ = lhs_->nullable() && rhs_->nullable();
+  nullable_ = lhs__->nullable() && rhs__->nullable();
   max_length_ = std::min(lhs_->max_length(), rhs_->max_length());
   min_length_ = std::max(lhs_->min_length(), rhs_->min_length());
 
@@ -159,18 +163,26 @@ void Intersection::FillTransition(bool reverse)
   lhs_->FillTransition(reverse);
 }
 
-void XOR::FillPosition()
+XOR::XOR(Expr* lhs, Expr* rhs):
+    BinaryExpr(lhs, rhs), lhs__(lhs), rhs__(rhs)
 {
   Operator::NewPair(&op1_, &op2_, Operator::kXOR);
   lhs_ = new Concat(lhs_, op1_);
-  rhs_ = new Concat(rhs_, op2_);
-  
+  rhs_ = new Concat(rhs_, op2_); 
+}
+
+void XOR::FillPosition()
+{  
   lhs_->FillPosition();
   rhs_->FillPosition();
 
-  nullable_ = lhs_->nullable() || rhs_->nullable();
+  nullable_ = lhs__->nullable() ^ rhs__->nullable();
   max_length_ = std::numeric_limits<size_t>::max();
-  min_length_ = std::min(lhs_->min_length(), rhs_->min_length());
+  if (lhs_->min_length() == 0 && rhs_->min_length() == 0) {
+    min_length_ = std::numeric_limits<size_t>::max();
+  } else {
+    min_length_ = std::min(lhs_->min_length(), rhs_->min_length());
+  }
   
   transition_.first = lhs_->transition().first;
   transition_.first.insert(rhs_->transition().first.begin(),
@@ -179,6 +191,9 @@ void XOR::FillPosition()
   transition_.last = lhs_->transition().last;
   transition_.last.insert(rhs_->transition().last.begin(),
                           rhs_->transition().last.end());
+
+  op1_->set_id(id_);
+  op2_->set_id(id_);
 }
 
 void XOR::FillTransition(bool reverse)
@@ -238,29 +253,6 @@ void Plus::FillTransition(bool reverse)
 {
   Connect(lhs_->transition().last, lhs_->transition().first, reverse);
   lhs_->FillTransition(reverse);
-}
-
-void Complement::FillPosition()
-{
-  Operator::NewPair(&master_, &slave_, Operator::kXOR);
-  lhs_ = new Concat(lhs_, master_);
-  lhs_ = new Union(new Concat(new Star(new Dot()), slave_), lhs_);
-
-  lhs_->FillPosition();
-  lhs_->FillExpr(slave_);
-  
-  max_length_ = std::numeric_limits<size_t>::max(); // Unknown
-  min_length_ = lhs_->min_length() == 0 ? std::numeric_limits<size_t>::max() : 0;
-  nullable_ = !lhs_->nullable();
-
-  transition_.first = lhs_->transition().first;
-  transition_.last = lhs_->transition().last;
-}
-
-void Complement::FillTransition(bool reverse)
-{
-  lhs_->FillTransition(reverse);
-  slave_->transition().follow = master_->transition().follow;
 }
 
 } // namespace regen

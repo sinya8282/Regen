@@ -37,7 +37,7 @@ bool DFA::Construct(Expr *expr_root, std::size_t limit)
 
   std::vector<NFA> transition(256);
   std::set<Operator*> intersects;
-  std::set<Operator*> exclusives;
+  std::map<std::size_t, Operator*> exclusives;
   
   while (!queue.empty()) {
     NFA nfa_states = queue.front();
@@ -70,7 +70,7 @@ pretransition:
               break;
             case Operator::kXOR:
               op->set_active(true);
-              exclusives.insert(op);
+              exclusives[op->id()] = op;
               break;
             default:
               break;
@@ -86,14 +86,15 @@ pretransition:
       ++iter;
     }
     std::size_t presize = nfa_states.size();
-    for (std::set<Operator*>::iterator iter = exclusives.begin();
+    for (std::map<std::size_t, Operator*>::iterator iter = exclusives.begin();
          iter != exclusives.end(); ++iter) {
-      if (!(*iter)->pair()->active()) {
-        nfa_states.insert((*iter)->transition().follow.begin(),
-                          (*iter)->transition().follow.end());
+      Operator *op = static_cast<Operator *>(iter->second);
+      if (!(op->pair()->active())) {
+        nfa_states.insert(op->transition().follow.begin(),
+                          op->transition().follow.end());
       }
+      if (presize < nfa_states.size()) goto pretransition;
     }
-    if (presize < nfa_states.size()) goto pretransition;
 
     iter = nfa_states.begin();
     while (iter != nfa_states.end()) {
@@ -153,9 +154,10 @@ pretransition:
          iter != intersects.end(); ++iter) {
       (*iter)->set_active(false);
     }
-    for (std::set<Operator*>::iterator iter = exclusives.begin();
+    for (std::map<std::size_t, Operator*>::iterator iter = exclusives.begin();
          iter != exclusives.end(); ++iter) {
-      (*iter)->set_active(false);
+      iter->second->set_active(false);
+      iter->second->pair()->set_active(false);
     }
     
     State &state = get_new_state();
