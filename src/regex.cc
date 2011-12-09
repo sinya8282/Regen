@@ -138,7 +138,7 @@ Expr* Regex::Parse(Lexer *lexer)
 
 /* Regen parsing rules
  * RE ::= e0 EOP
- * e0 ::= e1 ('||' e2)*                   # xor
+ * e0 ::= e1 ('&&' e2)*                   # xor
  * e1 ::= e2 ('|' e3)*                    # union
  * e2 ::= e3 ('&' e4)*                    # intersection
  * e3 ::= e4+                             # concatenation

@@ -11,21 +11,21 @@ Lexer::Type Lexer::Consume()
 
   switch (literal_ = *ptr_++) {
     // Regen Extension
-    case '!': token_ = kComplement;  break;
-    case '&': token_ = kIntersection;  break;
     case '@': token_ = kRecursive; break;
-    // Normal Symbols
-    case '.': token_ = kDot;       break;
-    case '[': token_ = kCharClass; break;
-    case '|': {
-      if (*ptr_ == '|') {
+    case '!': token_ = kComplement;  break;
+    case '&': {
+      if (*ptr_ == '&') {
         ptr_++;
         token_ = kXOR;
       } else {
-        token_ = kUnion;
+        token_ = kIntersection;
       }
       break;
     }
+    // Normal Symbols
+    case '.': token_ = kDot;       break;
+    case '[': token_ = kCharClass; break;
+    case '|': token_ = kUnion;     break;
     case '?': token_ = kQmark;     break;
     case '+': token_ = kPlus;      break;
     case '*': token_ = kStar;      break;
