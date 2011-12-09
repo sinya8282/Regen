@@ -134,9 +134,9 @@ void Union::FillTransition(bool reverse)
 Intersection::Intersection(Expr *lhs, Expr *rhs):
     BinaryExpr(lhs, rhs), lhs__(lhs), rhs__(rhs)
 {
-  Operator::NewPair(&op1_, &op2_, Operator::kIntersection);
-  lhs_ = new Concat(lhs_, op1_);
-  rhs_ = new Concat(rhs_, op2_);  
+  Operator::NewPair(&lop_, &rop_, Operator::kIntersection);
+  lhs_ = new Concat(lhs_, lop_);
+  rhs_ = new Concat(rhs_, rop_);  
 }
 
 void Intersection::FillPosition(ExprInfo* info)
@@ -166,9 +166,9 @@ void Intersection::FillTransition(bool reverse)
 XOR::XOR(Expr* lhs, Expr* rhs):
     BinaryExpr(lhs, rhs), lhs__(lhs), rhs__(rhs)
 {
-  Operator::NewPair(&op1_, &op2_, Operator::kXOR);
-  lhs_ = new Concat(lhs_, op1_);
-  rhs_ = new Concat(rhs_, op2_); 
+  Operator::NewPair(&lop_, &rop_, Operator::kXOR);
+  lhs_ = new Concat(lhs_, lop_);
+  rhs_ = new Concat(rhs_, rop_);
 }
 
 void XOR::FillPosition(ExprInfo *info)
@@ -192,9 +192,9 @@ void XOR::FillPosition(ExprInfo *info)
   transition_.last.insert(rhs_->transition().last.begin(),
                           rhs_->transition().last.end());
 
-  id_ = info->xor_num++;
-  op1_->set_id(id_);
-  op2_->set_id(id_);
+  std::size_t id = info->xor_num++;
+  lop_->set_id(id);
+  rop_->set_id(id);
 }
 
 void XOR::FillTransition(bool reverse)

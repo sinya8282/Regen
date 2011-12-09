@@ -6,7 +6,6 @@ Regex::Regex(const std::string &regex, const Regen::Options flags):
     regex_(regex),
     flag_(flags),
     recursive_depth_(0),
-    xor_num_(0),
     involved_char_(std::bitset<256>()),
     olevel_(Regen::Options::Onone),
     dfa_failure_(false),

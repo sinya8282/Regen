@@ -334,9 +334,9 @@ public:
   void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kIntersection; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  Expr* Clone() { return new Intersection(lhs_->Clone(), rhs_->Clone()); };
+  Expr* Clone() { return new Intersection(lhs__->Clone(), rhs__->Clone()); };
 private:
-  Operator *op1_, *op2_;
+  Operator *rop_, *lop_;
   Expr *lhs__, *rhs__;
   DISALLOW_COPY_AND_ASSIGN(Intersection);
 };
@@ -349,9 +349,9 @@ public:
   void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kXOR; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  Expr* Clone() { return new XOR(lhs_->Clone(), rhs_->Clone()); };
+  Expr* Clone() { return new XOR(lhs__->Clone(), rhs__->Clone()); }
 private:
-  Operator *op1_, *op2_;
+  Operator *lop_, *rop_;
   Expr *lhs__, *rhs__;
   DISALLOW_COPY_AND_ASSIGN(XOR);
 };
