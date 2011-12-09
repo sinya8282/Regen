@@ -106,6 +106,8 @@ public:
   virtual void FillPosition(ExprInfo *) = 0;
   virtual void FillTransition(bool reverse = false) = 0;
   void FillReverseTransition() { FillTransition(true); transition_.first.swap(transition_.last); }
+  virtual void Serialize(std::vector<Expr*> &e) { e.push_back(Clone()); }
+  virtual void PatchBackRef(Expr *, std::size_t) = 0;
   
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 protected:
@@ -115,8 +117,8 @@ protected:
   std::size_t min_length_;
   bool nullable_;
   Transition transition_;
-private:
   Expr *parent_;
+private:
   DISALLOW_COPY_AND_ASSIGN(Expr);
 };
 
@@ -137,6 +139,7 @@ public:
   void NonGreedify()  { non_greedy_ = true; }
   void FillPosition(ExprInfo *) { transition_.first.insert(this); transition_.last.insert(this); }
   virtual bool Match(const unsigned char c) = 0;
+  void PatchBackRef(Expr *, std::size_t) {}
 private:
   std::size_t state_id_;
   bool non_greedy_;
@@ -219,15 +222,17 @@ private:
 
 class Operator: public StateExpr {
 public:
-  Operator(): pair_(NULL), active_(false), id_(0) { min_length_ = max_length_ = 0; }
-  ~Operator() {}
   enum Type {
-    kIntersection, kXOR
+    kIntersection, kXOR, kBackRef
   };
+  Operator(Type type = kIntersection): pair_(NULL), optype_(type), active_(false), id_(0) { min_length_ = max_length_ = 0; }
+  Operator(Operator &o): pair_(NULL), optype_(o.optype()), active_(o.active()), id_(o.id()) { min_length_ = max_length_ = 0; }
+  ~Operator() {}
   Expr::Type type() { return Expr::kOperator; }  
   void Accept(ExprVisitor* visit) { visit->Visit(this); }
   bool Match(const unsigned char c) { return false; }
-  Expr* Clone() { return new Operator(); }
+  Expr* Clone() { Operator *o = new Operator(optype_); o->set_id(id_); return o; }
+  void PatchBackRef(Expr *, std::size_t);
   Type optype() { return optype_; }
   void set_optype(Type t) { optype_ = t; }
   bool active() { return active_; }
@@ -236,14 +241,13 @@ public:
   void set_pair(Operator *p) { pair_ = p; }
   std::size_t id() { return id_; }
   void set_id(std::size_t id) { id_ = id; }
-  static void NewPair(Operator **e1, Operator **e2, Type t = kXOR)
-  { *e1 = new Operator(); *e2 = new Operator(); (*e1)->set_pair(*e2); (*e2)->set_pair(*e1); (*e1)->set_optype(t); (*e2)->set_optype(t); }
+  static void NewPair(Operator **e1, Operator **e2, Type t)
+  { *e1 = new Operator(t); *e2 = new Operator(t); (*e1)->set_pair(*e2); (*e2)->set_pair(*e1); }
 private:
   Operator *pair_;
   Type optype_;
   bool active_;
   std::size_t id_;
-  DISALLOW_COPY_AND_ASSIGN(Operator);
 };
 
 class EOP: public StateExpr {
@@ -284,7 +288,7 @@ private:
 
 class BinaryExpr : public Expr {
 public:
-  BinaryExpr(Expr* lhs, Expr *rhs): lhs_(lhs), rhs_(rhs) {}
+  BinaryExpr(Expr* lhs, Expr *rhs): lhs_(lhs), rhs_(rhs) { lhs->set_parent(this); rhs->set_parent(this); }
   ~BinaryExpr() { delete lhs_; delete rhs_; }
   Expr* lhs() { return lhs_; }
   void  set_lhs(Expr *lhs) { lhs_ = lhs; }
@@ -293,6 +297,7 @@ public:
   Expr::SuperType stype() { return Expr::kBinaryExpr; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   void NonGreedify()  { lhs_->NonGreedify(); rhs_->NonGreedify(); }
+  void PatchBackRef(Expr *e, std::size_t i) { lhs_->PatchBackRef(e, i); rhs_->PatchBackRef(e, i); }
 protected:
   Expr *lhs_;
   Expr *rhs_;
@@ -309,6 +314,7 @@ public:
   Expr::Type type() { return Expr::kConcat; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone() { return new Concat(lhs_->Clone(), rhs_->Clone()); };
+  void Serialize(std::vector<Expr*> &e);
 private:
   DISALLOW_COPY_AND_ASSIGN(Concat);
 };
@@ -322,6 +328,7 @@ public:
   Expr::Type type() { return Expr::kUnion; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone() { return new Union(lhs_->Clone(), rhs_->Clone()); };
+  void Serialize(std::vector<Expr*> &e);
 private:
   DISALLOW_COPY_AND_ASSIGN(Union);
 };
@@ -358,13 +365,14 @@ private:
 
 class UnaryExpr: public Expr {
 public:
-  UnaryExpr(Expr* lhs): lhs_(lhs) {}
+  UnaryExpr(Expr* lhs): lhs_(lhs) { lhs->set_parent(this); }
   ~UnaryExpr() { delete lhs_; }
   Expr* lhs() { return lhs_; }
   void  set_lhs(Expr *lhs) { lhs_ = lhs; }
   Expr::SuperType stype() { return Expr::kUnaryExpr; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   void NonGreedify()  { lhs_->NonGreedify(); }
+  void PatchBackRef(Expr *e, std::size_t i) { lhs_->PatchBackRef(e, i); }
 protected:
   Expr *lhs_;
 private:
@@ -380,6 +388,7 @@ public:
   Expr::Type type() { return Expr::kQmark; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone() { return new Qmark(lhs_->Clone()); };
+  void Serialize(std::vector<Expr*> &e) { e.push_back(new Epsilon()); lhs_->Serialize(e); }
 private:
   bool non_greedy_;
   DISALLOW_COPY_AND_ASSIGN(Qmark);

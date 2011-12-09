@@ -76,6 +76,39 @@ top:
   }
 }
 
+void Operator::PatchBackRef(Expr *patch, std::size_t i)
+{
+  if (optype_ == kBackRef && id_ == i) {
+    if (!active_) patch = patch->Clone();
+    patch->set_parent(parent_);
+    switch (parent_->type()) {
+      case Expr::kConcat: case Expr::kUnion:
+      case Expr::kIntersection: case Expr::kXOR: {
+        BinaryExpr* p = static_cast<BinaryExpr*>(parent_);
+        if (p->lhs() == this) {
+          p->set_lhs(patch);
+        } else if (p->rhs() == this) {
+          p->set_rhs(patch);
+        } else {
+          exitmsg("inconsistency parent-child pointer");
+        }
+        break;
+      }
+      case Expr::kQmark: case Expr::kStar: case Expr::kPlus: {
+        UnaryExpr *p = static_cast<UnaryExpr*>(parent_);
+        if (p->lhs() == this) {
+          p->set_lhs(patch);
+        } else {
+          exitmsg("inconsistency parent-child pointer");
+        }
+        break;
+      }
+      default: exitmsg("invalid types");
+    }
+    delete this;
+  }
+}
+
 void Concat::FillPosition(ExprInfo *info)
 {
   lhs_->FillPosition(info);
@@ -107,6 +140,27 @@ void Concat::FillTransition(bool reverse)
   lhs_->FillTransition(reverse);
 }
 
+void Concat::Serialize(std::vector<Expr*> &e)
+{
+  std::size_t ini = e.size();
+  lhs_->Serialize(e);
+  std::size_t lnum = e.size()-ini;
+  rhs_->Serialize(e);
+  std::size_t rnum = e.size()-lnum-ini;
+  std::vector<Expr*> e_(lnum+rnum);
+  std::copy(e.begin()+ini, e.end(), e_.begin());
+  e.resize(ini+lnum*rnum);
+  Expr *lhs, *rhs;
+  for (std::size_t li = 0; li < lnum; li++) {
+    for (std::size_t ri = 0; ri < rnum; ri++) {
+      lhs = ri == 0 ? e_[li] : e_[li]->Clone();
+      rhs = li == 0 ? e_[ri+lnum] : e_[ri+lnum]->Clone();
+      e[ri+li*rnum+ini] = (new Concat(lhs, rhs));
+    }
+  }
+  return;
+}
+
 void Union::FillPosition(ExprInfo *info)
 {
   lhs_->FillPosition(info);
@@ -131,12 +185,20 @@ void Union::FillTransition(bool reverse)
   lhs_->FillTransition(reverse);
 }
 
+void Union::Serialize(std::vector<Expr*> &e)
+{
+  lhs_->Serialize(e);
+  rhs_->Serialize(e);
+}
+
 Intersection::Intersection(Expr *lhs, Expr *rhs):
     BinaryExpr(lhs, rhs), lhs__(lhs), rhs__(rhs)
 {
   Operator::NewPair(&lop_, &rop_, Operator::kIntersection);
   lhs_ = new Concat(lhs_, lop_);
-  rhs_ = new Concat(rhs_, rop_);  
+  rhs_ = new Concat(rhs_, rop_);
+  lhs_->set_parent(this);
+  rhs_->set_parent(this);
 }
 
 void Intersection::FillPosition(ExprInfo* info)
@@ -169,6 +231,8 @@ XOR::XOR(Expr* lhs, Expr* rhs):
   Operator::NewPair(&lop_, &rop_, Operator::kXOR);
   lhs_ = new Concat(lhs_, lop_);
   rhs_ = new Concat(rhs_, rop_);
+  lhs_->set_parent(this);
+  rhs_->set_parent(this);
 }
 
 void XOR::FillPosition(ExprInfo *info)

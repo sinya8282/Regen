@@ -50,6 +50,7 @@ private:
   Expr* e5(Lexer *);
   CharClass* BuildCharClass(Lexer *);
   StateExpr* CombineStateExpr(StateExpr* e1, StateExpr* e2);
+  Expr* PatchBackRef(Lexer *, Expr *);
 
   const std::string regex_;
   Regen::Options flag_;

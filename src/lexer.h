@@ -25,6 +25,8 @@ public:
   Regen::Options flag() const { return flag_; }
   std::size_t backref() const { return backref_; }
   std::vector<Expr*> &groups() { return groups_; }
+  std::set<std::size_t> &backrefs() { return backrefs_; }
+  bool weakref() { return weakref_; }
   Type Consume();
   bool Concatenated();
   bool Quantifier();
@@ -46,6 +48,8 @@ private:
   Type token_;
   std::bitset<256> table_;
   std::vector<Expr*> groups_;
+  std::set<std::size_t> backrefs_;
+  bool weakref_;
   unsigned char literal_;
   Regen::Options flag_;
 };

@@ -144,6 +144,7 @@ pretransition:
           break;
         }
         case Expr::kEOP: case Expr::kNone: case Expr::kOperator:
+        case Expr::kEpsilon:
           break;
         default: exitmsg("notype");
       }

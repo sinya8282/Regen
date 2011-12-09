@@ -46,6 +46,61 @@ Regex::CombineStateExpr(StateExpr *e1, StateExpr *e2)
   return s;
 }
 
+Expr* Regex::PatchBackRef(Lexer *lexer, Expr *e)
+{
+  std::set<std::size_t> &backrefs = lexer->backrefs();
+  for (std::set<std::size_t>::iterator iter = backrefs.begin();
+       iter != backrefs.end(); ++iter) {
+    std::size_t ref_id = *iter;
+    Expr* referee = lexer->groups()[ref_id];
+    Operator *patch = new Operator(Operator::kBackRef);
+    patch->set_id(ref_id);
+    patch->set_parent(referee->parent());
+    switch (referee->parent()->type()) {
+      case Expr::kConcat: case Expr::kUnion:
+      case Expr::kIntersection: case Expr::kXOR: {
+        BinaryExpr* p = static_cast<BinaryExpr*>(referee->parent());
+        if (p->lhs() == referee) {
+          p->set_lhs(patch);
+        } else if (p->rhs() == referee) {
+          p->set_rhs(patch);
+        } else {
+          exitmsg("inconsistency parent-child pointer");
+        }
+        break;
+      }
+      case Expr::kQmark: case Expr::kStar: case Expr::kPlus: {
+        UnaryExpr *p = static_cast<UnaryExpr*>(referee->parent());
+        if (p->lhs() == referee) {
+          p->set_lhs(patch);
+        } else {
+          exitmsg("inconsistency parent-child pointer");
+        }
+        break;
+      }
+      default: exitmsg("invalid types");
+    }
+
+    std::vector<Expr*> patches;
+    referee->Serialize(patches);
+    delete referee;
+    std::vector<Expr*> roots;
+    roots.push_back(e);
+    while (patches.size() > roots.size()) {
+      roots.push_back(e->Clone());
+    }
+    for (std::size_t i = 0; i < roots.size(); i++) {
+      roots[i]->PatchBackRef(patches[i], ref_id);
+    }
+    e = roots[0];
+    for (std::size_t i = 1; i < roots.size(); i++) {
+      e = new Union(e, roots[i]);
+    }
+  }
+
+  return e;
+}
+
 Expr* Regex::Parse(Lexer *lexer)
 {
   Expr* e;
@@ -58,6 +113,8 @@ Expr* Regex::Parse(Lexer *lexer)
 
   if (lexer->token() != Lexer::kEOP) exitmsg("expected end of pattern.");
 
+  if (!lexer->backrefs().empty()) e = PatchBackRef(lexer, e);
+  
   if (flag_.partial_match()) {
     //add '.*?' to top of regular expression for Partial Match
     Expr* dotstar = new Star(new Dot(), true);
@@ -126,15 +183,7 @@ Expr* Regex::e1(Lexer *lexer)
     lexer->Consume();
     f = e2(lexer);
     if (f->type() != Expr::kNone) {
-      if (e->stype() == Expr::kStateExpr &&
-          f->stype() == Expr::kStateExpr) {
-        Expr *e_ = CombineStateExpr((StateExpr*)e, (StateExpr*)f);
-        delete e;
-        delete f;
-        e = e_;
-      } else {
-        e = new Union(e, f);
-      }
+      e = new Union(e, f);
     }
   }
   return e;
@@ -301,10 +350,18 @@ Regex::e5(Lexer *lexer)
     case Lexer::kNone:
       e = new None();
       break;
-    case Lexer::kBackRef:
-      if (lexer->backref() > lexer->groups().size()) exitmsg("Invalid back reference");
-      e = lexer->groups()[lexer->backref()-1]->Clone();
+    case Lexer::kBackRef: {
+      if (lexer->backref() >= lexer->groups().size()) exitmsg("Invalid back reference");
+      if (lexer->weakref()) {
+        e = lexer->groups()[lexer->backref()]->Clone();
+      } else {
+        lexer->backrefs().insert(lexer->backref());
+        Operator *o = new Operator(Operator::kBackRef);
+        o->set_id(lexer->backref());
+        e = o;
+      }
       break;
+    }
     case Lexer::kLpar:
       lexer->Consume();
       e = e0(lexer);
