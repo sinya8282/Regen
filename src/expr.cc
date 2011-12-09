@@ -76,10 +76,10 @@ top:
   }
 }
 
-void Concat::FillPosition()
+void Concat::FillPosition(ExprInfo *info)
 {
-  lhs_->FillPosition();
-  rhs_->FillPosition();
+  lhs_->FillPosition(info);
+  rhs_->FillPosition(info);
 
   max_length_ = lhs_->max_length() + rhs_->max_length();
   min_length_ = lhs_->min_length() + rhs_->min_length();
@@ -107,10 +107,10 @@ void Concat::FillTransition(bool reverse)
   lhs_->FillTransition(reverse);
 }
 
-void Union::FillPosition()
+void Union::FillPosition(ExprInfo *info)
 {
-  lhs_->FillPosition();
-  rhs_->FillPosition();
+  lhs_->FillPosition(info);
+  rhs_->FillPosition(info);
   
   max_length_ = std::max(lhs_->max_length(), rhs_->max_length());
   min_length_ = std::min(lhs_->min_length(), rhs_->min_length());
@@ -139,10 +139,10 @@ Intersection::Intersection(Expr *lhs, Expr *rhs):
   rhs_ = new Concat(rhs_, op2_);  
 }
 
-void Intersection::FillPosition()
+void Intersection::FillPosition(ExprInfo* info)
 {
-  lhs_->FillPosition();
-  rhs_->FillPosition();
+  lhs_->FillPosition(info);
+  rhs_->FillPosition(info);
 
   nullable_ = lhs__->nullable() && rhs__->nullable();
   max_length_ = std::min(lhs_->max_length(), rhs_->max_length());
@@ -171,10 +171,10 @@ XOR::XOR(Expr* lhs, Expr* rhs):
   rhs_ = new Concat(rhs_, op2_); 
 }
 
-void XOR::FillPosition()
+void XOR::FillPosition(ExprInfo *info)
 {  
-  lhs_->FillPosition();
-  rhs_->FillPosition();
+  lhs_->FillPosition(info);
+  rhs_->FillPosition(info);
 
   nullable_ = lhs__->nullable() ^ rhs__->nullable();
   max_length_ = std::numeric_limits<size_t>::max();
@@ -192,6 +192,7 @@ void XOR::FillPosition()
   transition_.last.insert(rhs_->transition().last.begin(),
                           rhs_->transition().last.end());
 
+  id_ = info->xor_num++;
   op1_->set_id(id_);
   op2_->set_id(id_);
 }
@@ -202,9 +203,9 @@ void XOR::FillTransition(bool reverse)
   lhs_->FillTransition(reverse);
 }
 
-void Qmark::FillPosition()
+void Qmark::FillPosition(ExprInfo *info)
 {
-  lhs_->FillPosition();
+  lhs_->FillPosition(info);
   
   max_length_ = lhs_->min_length();
   min_length_ = 0;
@@ -219,10 +220,9 @@ void Qmark::FillTransition(bool reverse)
   lhs_->FillTransition(reverse);
 }
 
-
-void Star::FillPosition()
+void Star::FillPosition(ExprInfo *info)
 {
-  lhs_->FillPosition();
+  lhs_->FillPosition(info);
 
   max_length_ = std::numeric_limits<size_t>::max();
   min_length_ = 0;
@@ -238,9 +238,9 @@ void Star::FillTransition(bool reverse)
   lhs_->FillTransition(reverse);
 }
 
-void Plus::FillPosition()
+void Plus::FillPosition(ExprInfo *info)
 {
-  lhs_->FillPosition();
+  lhs_->FillPosition(info);
 
   max_length_ = std::numeric_limits<size_t>::max();
   min_length_ = lhs_->min_length();

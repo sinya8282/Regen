@@ -66,13 +66,14 @@ Expr* Regex::Parse(Lexer *lexer)
   }
 
   StateExpr *eop = new EOP();
+  ExprInfo info;
   if (flag_.reverse_match()) { 
     e = new Concat(eop, e);
-    e->FillPosition();
+    e->FillPosition(&info);
     e->FillReverseTransition();
   } else {
     e = new Concat(e, eop);
-    e->FillPosition();
+    e->FillPosition(&info);
     e->FillTransition();
   }
 
@@ -105,7 +106,6 @@ Expr* Regex::e0(Lexer *lexer)
     f = e1(lexer);
     if (f->type() != Expr::kNone) {
       XOR *x = new XOR(e, f);
-      x->set_id(xor_num_++);
       e = x;
     }
   }
@@ -129,7 +129,10 @@ Expr* Regex::e1(Lexer *lexer)
     if (f->type() != Expr::kNone) {
       if (e->stype() == Expr::kStateExpr &&
           f->stype() == Expr::kStateExpr) {
-        e = CombineStateExpr((StateExpr*)e, (StateExpr*)f);
+        Expr *e_ = CombineStateExpr((StateExpr*)e, (StateExpr*)f);
+        delete e;
+        delete f;
+        e = e_;
       } else {
         e = new Union(e, f);
       }
@@ -323,7 +326,6 @@ Regex::e5(Lexer *lexer)
           return e;
         }
         XOR *e_ = new XOR(new Star(new Dot), e);
-        e_->set_id(xor_num_++);
         e = e_;
       }
       return e;
@@ -467,7 +469,10 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa)
           Expr* f = gtransition[next];
           if (e->stype() == Expr::kStateExpr &&
               f->stype() == Expr::kStateExpr) {
-            e = CombineStateExpr((StateExpr*)e, (StateExpr*)f);
+            Expr *e_ = CombineStateExpr((StateExpr*)e, (StateExpr*)f);
+            delete e;
+            delete f;
+            e = e_;
           } else {
             e = new Union(e, f);
           }
@@ -523,7 +528,10 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa)
                 Expr* f = regex2;
                 if (e->stype() == Expr::kStateExpr &&
                     f->stype() == Expr::kStateExpr) {
-                  e = CombineStateExpr((StateExpr*)e, (StateExpr*)f);
+                  Expr *e_ = CombineStateExpr((StateExpr*)e, (StateExpr*)f);
+                  delete e;
+                  delete f;
+                  e = e_;
                 } else {
                   e = new Union(e, f);
                 }

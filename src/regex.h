@@ -56,7 +56,6 @@ private:
   Expr *expr_root_;
   std::size_t recursive_depth_;
   std::vector<StateExpr*> state_exprs_;
-  std::size_t xor_num_;
 
   Must must_;
   std::size_t must_max_length_;

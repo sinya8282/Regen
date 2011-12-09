@@ -63,6 +63,11 @@ struct Transition {
   std::set<StateExpr*> follow;
 };
 
+struct ExprInfo {
+  ExprInfo(): xor_num(0) {}
+  std::size_t xor_num;
+};
+
 class Expr {
 public:
   enum Type {
@@ -98,8 +103,7 @@ public:
   virtual Expr::SuperType stype() = 0;
   virtual Expr* Clone() = 0;
   virtual void NonGreedify() = 0;
-  virtual void FillExpr(StateExpr *) = 0;
-  virtual void FillPosition() = 0;
+  virtual void FillPosition(ExprInfo *) = 0;
   virtual void FillTransition(bool reverse = false) = 0;
   void FillReverseTransition() { FillTransition(true); transition_.first.swap(transition_.last); }
   
@@ -131,8 +135,7 @@ public:
   Expr::SuperType stype() { return Expr::kStateExpr; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   void NonGreedify()  { non_greedy_ = true; }
-  void FillExpr(StateExpr *e) { transition_.first.insert(e); transition_.last.insert(e); }
-  void FillPosition() { transition_.first.insert(this); transition_.last.insert(this); }
+  void FillPosition(ExprInfo *) { transition_.first.insert(this); transition_.last.insert(this); }
   virtual bool Match(const unsigned char c) = 0;
 private:
   std::size_t state_id_;
@@ -290,7 +293,6 @@ public:
   Expr::SuperType stype() { return Expr::kBinaryExpr; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   void NonGreedify()  { lhs_->NonGreedify(); rhs_->NonGreedify(); }
-  void FillExpr(StateExpr *e) { lhs_->FillExpr(e); rhs_->FillExpr(e); transition_.first.insert(e); transition_.last.insert(e); }
 protected:
   Expr *lhs_;
   Expr *rhs_;
@@ -302,7 +304,7 @@ class Concat: public BinaryExpr {
 public:
   Concat(Expr *lhs, Expr *rhs): BinaryExpr(lhs, rhs) {}
   ~Concat() {}
-  void FillPosition();
+  void FillPosition(ExprInfo *);
   void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kConcat; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
@@ -315,7 +317,7 @@ class Union: public BinaryExpr {
 public:
   Union(Expr *lhs, Expr *rhs): BinaryExpr(lhs, rhs) {}
   ~Union() {}
-  void FillPosition();
+  void FillPosition(ExprInfo *);
   void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kUnion; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
@@ -328,7 +330,7 @@ class Intersection: public BinaryExpr {
 public:
   Intersection(Expr *lhs, Expr *rhs);
   ~Intersection() {}
-  void FillPosition();
+  void FillPosition(ExprInfo *);
   void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kIntersection; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
@@ -343,17 +345,14 @@ class XOR: public BinaryExpr {
 public:
   XOR(Expr *lhs, Expr *rhs);
   ~XOR() {}
-  void FillPosition();
+  void FillPosition(ExprInfo *);
   void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kXOR; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone() { return new XOR(lhs_->Clone(), rhs_->Clone()); };
-  std::size_t id() { return id_; }
-  void set_id(std::size_t id) { id_ = id; }
 private:
   Operator *op1_, *op2_;
   Expr *lhs__, *rhs__;
-  std::size_t id_;
   DISALLOW_COPY_AND_ASSIGN(XOR);
 };
 
@@ -366,7 +365,6 @@ public:
   Expr::SuperType stype() { return Expr::kUnaryExpr; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   void NonGreedify()  { lhs_->NonGreedify(); }
-  void FillExpr(StateExpr *e) { lhs_->FillExpr(e); transition_.first.insert(e); transition_.last.insert(e); }
 protected:
   Expr *lhs_;
 private:
@@ -377,7 +375,7 @@ class Qmark: public UnaryExpr {
 public:
   Qmark(Expr *lhs, bool non_greedy = false): UnaryExpr(lhs), non_greedy_(non_greedy) {}
   ~Qmark() {}
-  void FillPosition();
+  void FillPosition(ExprInfo *);
   void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kQmark; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
@@ -391,7 +389,7 @@ class Star: public UnaryExpr {
 public:
   Star(Expr *lhs, bool non_greedy = false): UnaryExpr(lhs), non_greedy_(non_greedy) {}
   ~Star() {}
-  void FillPosition();
+  void FillPosition(ExprInfo *);
   void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kStar; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
@@ -405,7 +403,7 @@ class Plus: public UnaryExpr {
 public:
   Plus(Expr *lhs): UnaryExpr(lhs) {}
   ~Plus() {}
-  void FillPosition();
+  void FillPosition(ExprInfo *);
   void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kPlus; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
