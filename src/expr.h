@@ -106,12 +106,15 @@ public:
   virtual void FillPosition(ExprInfo *) = 0;
   virtual void FillTransition(bool reverse = false) = 0;
   void FillReverseTransition() { FillTransition(true); transition_.first.swap(transition_.last); }
-  virtual void Serialize(std::vector<Expr*> &e) { e.push_back(Clone()); }
+  virtual void Serialize(std::vector<Expr*> &v) { v.push_back(Clone()); }
+  virtual void Factorize(std::vector<Expr*> &v) { v.push_back(this); }
   virtual void PatchBackRef(Expr *, std::size_t) = 0;
+  static void Shuffle(Expr *, Expr *, std::vector<Expr *> &);
   
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 protected:
   static void Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst, bool reverse = false);
+  static void _Shuffle(std::vector<Expr*>&, std::size_t, std::vector<Expr*>&, std::size_t, std::vector<Expr*>&, Expr *c);
   std::size_t expr_id_;
   std::size_t max_length_;
   std::size_t min_length_;
@@ -314,7 +317,8 @@ public:
   Expr::Type type() { return Expr::kConcat; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone() { return new Concat(lhs_->Clone(), rhs_->Clone()); };
-  void Serialize(std::vector<Expr*> &e);
+  void Serialize(std::vector<Expr*> &v);
+  void Factorize(std::vector<Expr*> &v) { lhs_->Factorize(v); rhs_->Factorize(v); }
 private:
   DISALLOW_COPY_AND_ASSIGN(Concat);
 };
@@ -328,7 +332,7 @@ public:
   Expr::Type type() { return Expr::kUnion; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone() { return new Union(lhs_->Clone(), rhs_->Clone()); };
-  void Serialize(std::vector<Expr*> &e);
+  void Serialize(std::vector<Expr*> &v);
 private:
   DISALLOW_COPY_AND_ASSIGN(Union);
 };
@@ -388,7 +392,7 @@ public:
   Expr::Type type() { return Expr::kQmark; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone() { return new Qmark(lhs_->Clone()); };
-  void Serialize(std::vector<Expr*> &e) { e.push_back(new Epsilon()); lhs_->Serialize(e); }
+  void Serialize(std::vector<Expr*> &v) { v.push_back(new Epsilon()); lhs_->Serialize(v); }
 private:
   bool non_greedy_;
   DISALLOW_COPY_AND_ASSIGN(Qmark);

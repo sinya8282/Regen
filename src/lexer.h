@@ -13,9 +13,9 @@ public:
   enum Type {
     kLiteral=0, kCharClass, kDot, kBegLine,
     kEndLine, kRecursive, kByteRange, kBackRef, kEOP,
-    kConcat, kUnion, kIntersection, kXOR,
+    kConcat, kUnion, kIntersection, kXOR, kShuffle,
     kQmark, kStar, kPlus, kRepetition,
-    kRpar, kLpar, kEpsilon, kNone, kComplement
+    kRpar, kLpar, kEpsilon, kNone, kComplement, kPermutation
   };
   Lexer(const unsigned char *begin, const unsigned char *end, Regen::Options flag = Regen::Options::NoParseFlags): ptr_(begin), begin_(begin), end_(end), flag_(flag) {}
   Lexer(const Lexer &l): ptr_(l.ptr()), begin_(l.begin()), end_(l.end()), flag_(flag()) {}  

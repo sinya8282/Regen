@@ -12,6 +12,7 @@ Lexer::Type Lexer::Consume()
   switch (literal_ = *ptr_++) {
     // Regen Extension
     case '@': token_ = kRecursive; break;
+    case '#': token_ = kPermutation; break;
     case '!': token_ = kComplement;  break;
     case '&': {
       if (*ptr_ == '&') {
@@ -25,7 +26,15 @@ Lexer::Type Lexer::Consume()
     // Normal Symbols
     case '.': token_ = kDot;       break;
     case '[': token_ = kCharClass; break;
-    case '|': token_ = kUnion;     break;
+    case '|': {
+      if (*ptr_ == '|') {
+        ptr_++;
+        token_ = kShuffle;
+      } else {
+        token_ = kUnion;
+      }
+      break;
+    }      
     case '?': token_ = kQmark;     break;
     case '+': token_ = kPlus;      break;
     case '*': token_ = kStar;      break;

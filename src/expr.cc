@@ -41,6 +41,44 @@ void Expr::Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst, bool re
   }
 }
 
+void Expr::Shuffle(Expr *lhs, Expr *rhs, std::vector<Expr *> &result)
+{
+  std::vector<Expr*> l, r;
+  lhs->Factorize(l); rhs->Factorize(r);
+  _Shuffle(l, 0, r, 0, result, NULL);
+}
+
+void Expr::_Shuffle(std::vector<Expr*>& lhs, std::size_t il, std::vector<Expr*>& rhs, std::size_t ir, std::vector<Expr*>& result, Expr *choice)
+{
+  if (lhs.size() <= il && rhs.size() <= ir) {
+    result.push_back(choice);
+    return;
+  } else if (lhs.size() <= il) {
+    Expr *e = rhs[ir]->Clone();
+    for (std::size_t i = ir+1; i < rhs.size(); i++) {
+        e = new Concat(e, rhs[i]->Clone());
+    }
+    result.push_back(new Concat(choice, e));
+    return;
+  } else if (rhs.size() <= ir) {
+    Expr *e = lhs[il]->Clone();
+    for (std::size_t i = il+1; i < lhs.size(); i++) {
+      e = new Concat(e, lhs[i]->Clone());
+    }
+    result.push_back(new Concat(choice, e));
+    return;
+  }
+
+  std::size_t il_ = il+1, ir_ = ir+1;
+  if (choice == NULL) {
+    _Shuffle(lhs, il_, rhs, ir, result, lhs[il]->Clone());
+    _Shuffle(lhs, il, rhs, ir_, result, rhs[ir]->Clone());
+  } else {
+    _Shuffle(lhs, il_, rhs, ir, result, new Concat(choice->Clone(), lhs[il]->Clone()));
+    _Shuffle(lhs, il, rhs, ir_, result, new Concat(choice, rhs[ir]->Clone()));
+  }
+}
+
 CharClass::CharClass(StateExpr *e1, StateExpr *e2):
     negative_(false)
 {
@@ -140,22 +178,22 @@ void Concat::FillTransition(bool reverse)
   lhs_->FillTransition(reverse);
 }
 
-void Concat::Serialize(std::vector<Expr*> &e)
+void Concat::Serialize(std::vector<Expr*> &v)
 {
-  std::size_t ini = e.size();
-  lhs_->Serialize(e);
-  std::size_t lnum = e.size()-ini;
-  rhs_->Serialize(e);
-  std::size_t rnum = e.size()-lnum-ini;
-  std::vector<Expr*> e_(lnum+rnum);
-  std::copy(e.begin()+ini, e.end(), e_.begin());
-  e.resize(ini+lnum*rnum);
+  std::size_t ini = v.size();
+  lhs_->Serialize(v);
+  std::size_t lnum = v.size()-ini;
+  rhs_->Serialize(v);
+  std::size_t rnum = v.size()-lnum-ini;
+  std::vector<Expr*> v_(lnum+rnum);
+  std::copy(v.begin()+ini, v.end(), v_.begin());
+  v.resize(ini+lnum*rnum);
   Expr *lhs, *rhs;
   for (std::size_t li = 0; li < lnum; li++) {
     for (std::size_t ri = 0; ri < rnum; ri++) {
-      lhs = ri == 0 ? e_[li] : e_[li]->Clone();
-      rhs = li == 0 ? e_[ri+lnum] : e_[ri+lnum]->Clone();
-      e[ri+li*rnum+ini] = (new Concat(lhs, rhs));
+      lhs = ri == 0 ? v_[li] : v_[li]->Clone();
+      rhs = li == 0 ? v_[ri+lnum] : v_[ri+lnum]->Clone();
+      v[ri+li*rnum+ini] = (new Concat(lhs, rhs));
     }
   }
   return;
@@ -185,10 +223,10 @@ void Union::FillTransition(bool reverse)
   lhs_->FillTransition(reverse);
 }
 
-void Union::Serialize(std::vector<Expr*> &e)
+void Union::Serialize(std::vector<Expr*> &v)
 {
-  lhs_->Serialize(e);
-  rhs_->Serialize(e);
+  lhs_->Serialize(v);
+  rhs_->Serialize(v);
 }
 
 Intersection::Intersection(Expr *lhs, Expr *rhs):

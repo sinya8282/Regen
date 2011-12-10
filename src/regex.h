@@ -48,6 +48,7 @@ private:
   Expr* e3(Lexer *);
   Expr* e4(Lexer *);
   Expr* e5(Lexer *);
+  Expr* e6(Lexer *);
   CharClass* BuildCharClass(Lexer *);
   StateExpr* CombineStateExpr(StateExpr* e1, StateExpr* e2);
   Expr* PatchBackRef(Lexer *, Expr *);
