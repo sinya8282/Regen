@@ -110,12 +110,14 @@ public:
   virtual void Serialize(std::vector<Expr*> &v, ExprPool *p) { v.push_back(Clone(p)); }
   virtual void Factorize(std::vector<Expr*> &v) { v.push_back(this); }
   virtual void PatchBackRef(Expr *, std::size_t, ExprPool *) = 0;
-  static void Shuffle(Expr *, Expr *, std::vector<Expr *> &, ExprPool *);
+  static Expr* Shuffle(Expr *, Expr *, ExprPool *);
+  static Expr* Permutation(Expr *, ExprPool *);
   
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 protected:
   static void Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst, bool reverse = false);
   static void _Shuffle(std::vector<Expr*>&, std::size_t, std::vector<Expr*>&, std::size_t, std::vector<Expr*>&, Expr *c, ExprPool *);
+  static void _Permutation(std::vector<Expr*> &, std::bitset<8> &, std::vector<Expr*> &, std::vector<std::size_t> &, ExprPool *);
   std::size_t expr_id_;
   std::size_t max_length_;
   std::size_t min_length_;
@@ -130,6 +132,7 @@ struct ExprPool {
  public:
   ExprPool(bool b = true): del(b) {}
   ~ExprPool() { if (del) { for(std::deque<Expr*>::iterator i = pool.begin(); i != pool.end(); ++i) delete *i; } }
+
   template<class T> T* alloc()
   { pool.push_back(NULL); pool.back() = new T(); return (T*)pool.back(); }
   template<class T, class P1> T* alloc(P1 p1)
@@ -138,7 +141,10 @@ struct ExprPool {
   { pool.push_back(NULL); pool.back() = new T(p1, p2); return (T*)pool.back(); }
   template<class T, class P1, class P2, class P3> T* alloc(P1 p1, P2 p2, P3 p3)
   { pool.push_back(NULL); pool.back() = new T(p1, p2, p3); return (T*)pool.back(); }
- private:
+
+  void drain(ExprPool &p) { drain(&p); }
+  void drain(ExprPool *p) { if (p->del) { pool.insert(pool.end(), p->pool.begin(), p->pool.end()); p->del = false; p->pool.clear(); } }
+
   std::deque<Expr*> pool;
   bool del;
 };

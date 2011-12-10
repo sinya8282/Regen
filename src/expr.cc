@@ -41,29 +41,49 @@ void Expr::Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst, bool re
   }
 }
 
-void Expr::Shuffle(Expr *lhs, Expr *rhs, std::vector<Expr *> &result, ExprPool *p)
+Expr* Expr::Shuffle(Expr *lhs, Expr *rhs, ExprPool *p)
 {
-  std::vector<Expr*> l, r;
-  lhs->Factorize(l); rhs->Factorize(r);
-  _Shuffle(l, 0, r, 0, result, NULL, p);
+  Expr *e;
+  std::vector<Expr *> ls, rs;
+  ExprPool tmp_pool;
+  lhs->Serialize(ls, &tmp_pool); rhs->Serialize(rs, &tmp_pool);
+
+  for (std::vector<Expr*>::iterator i = ls.begin(); i != ls.end(); ++i) {
+    for (std::vector<Expr*>::iterator j = rs.begin(); j != rs.end(); ++j) {
+      std::vector<Expr*> lfac, rfac, result;
+
+      (*i)->Factorize(lfac); (*j)->Factorize(rfac);
+      _Shuffle(lfac, 0, rfac, 0, result, NULL, p);
+
+      for (std::vector<Expr*>::iterator k = result.begin(); k != result.end(); ++k) {
+        if (e == NULL) {
+          e = *k;
+        } else {
+          e = p->alloc<Union>(e, *k);
+        }
+      }
+    }
+  }
+
+  return e;
 }
 
-void Expr::_Shuffle(std::vector<Expr*>& lhs, std::size_t il, std::vector<Expr*>& rhs, std::size_t ir, std::vector<Expr*>& result, Expr *choice, ExprPool *p)
+void Expr::_Shuffle(std::vector<Expr*>& lfac, std::size_t il, std::vector<Expr*>& rfac, std::size_t ir, std::vector<Expr*>& result, Expr *choice, ExprPool *p)
 {
-  if (lhs.size() <= il && rhs.size() <= ir) {
+  if (lfac.size() <= il && rfac.size() <= ir) {
     result.push_back(choice);
     return;
-  } else if (lhs.size() <= il) {
-    Expr *e = rhs[ir]->Clone(p);
-    for (std::size_t i = ir+1; i < rhs.size(); i++) {
-      e = p->alloc<Concat>(e, rhs[i]->Clone(p));
+  } else if (lfac.size() <= il) {
+    Expr *e = rfac[ir]->Clone(p);
+    for (std::size_t i = ir+1; i < rfac.size(); i++) {
+      e = p->alloc<Concat>(e, rfac[i]->Clone(p));
     }
     result.push_back(p->alloc<Concat>(choice, e));
     return;
-  } else if (rhs.size() <= ir) {
-    Expr *e = lhs[il]->Clone(p);
-    for (std::size_t i = il+1; i < lhs.size(); i++) {
-      e = p->alloc<Concat>(e, lhs[i]->Clone(p));
+  } else if (rfac.size() <= ir) {
+    Expr *e = lfac[il]->Clone(p);
+    for (std::size_t i = il+1; i < lfac.size(); i++) {
+      e = p->alloc<Concat>(e, lfac[i]->Clone(p));
     }
     result.push_back(p->alloc<Concat>(choice, e));
     return;
@@ -71,11 +91,62 @@ void Expr::_Shuffle(std::vector<Expr*>& lhs, std::size_t il, std::vector<Expr*>&
 
   std::size_t il_ = il+1, ir_ = ir+1;
   if (choice == NULL) {
-    _Shuffle(lhs, il_, rhs, ir, result, lhs[il]->Clone(p), p);
-    _Shuffle(lhs, il, rhs, ir_, result, rhs[ir]->Clone(p), p);
+    _Shuffle(lfac, il_, rfac, ir, result, lfac[il]->Clone(p), p);
+    _Shuffle(lfac, il, rfac, ir_, result, rfac[ir]->Clone(p), p);
   } else {
-    _Shuffle(lhs, il_, rhs, ir, result, p->alloc<Concat>(choice->Clone(p), lhs[il]->Clone(p)), p);
-    _Shuffle(lhs, il, rhs, ir_, result, p->alloc<Concat>(choice, rhs[ir]->Clone(p)), p);
+    _Shuffle(lfac, il_, rfac, ir, result, p->alloc<Concat>(choice->Clone(p), lfac[il]->Clone(p)), p);
+    _Shuffle(lfac, il, rfac, ir_, result, p->alloc<Concat>(choice, rfac[ir]->Clone(p)), p);
+  }
+}
+
+Expr* Expr::Permutation(Expr *e, ExprPool *p)
+{
+  std::vector<Expr*> es;
+  ExprPool tmp_pool;
+  e->Serialize(es, &tmp_pool);
+  e = NULL;
+
+  for (std::vector<Expr*>::iterator iter = es.begin(); iter != es.end(); ++iter) {
+    std::vector<Expr*> fac;
+    std::bitset<8> perm(false); //Maximum: 8! = 40320
+
+    (*iter)->Factorize(fac);
+    for (std::size_t i = 0; i < fac.size(); i++) {
+      perm[i] = true;
+    }
+    std::vector<Expr*> result;
+    std::vector<std::size_t> choice;
+    _Permutation(fac, perm, result, choice, p);
+
+    for (std::vector<Expr*>::iterator i = result.begin(); i != result.end(); ++i) {
+      if (e == NULL) {
+        e = *i;
+      } else {
+        e = p->alloc<Union>(e, *i);
+      }
+    }
+  }
+  
+  return e;
+}
+
+void Expr::_Permutation(std::vector<Expr*> &v, std::bitset<8> &perm, std::vector<Expr*> &result, std::vector<std::size_t> &choice, ExprPool *p)
+{
+  if (perm.none()) {
+    Expr *e = v[choice[0]]->Clone(p);
+    for (std::size_t i = 1; i < choice.size(); i++) {
+      e = p->alloc<Concat>(e, v[choice[i]]->Clone(p));
+    }
+    result.push_back(e);
+    return;
+  }
+
+  for (std::size_t i = 0; i < perm.size(); i++) {
+    if (perm[i]) {
+      perm[i] = false; choice.push_back(i);
+      _Permutation(v, perm, result, choice, p);
+      perm[i] = true; choice.pop_back();
+    }
   }
 }
 

@@ -163,23 +163,7 @@ Expr* Regex::e0(Lexer *lexer, ExprPool *pool)
     lexer->Consume();
     f = e1(lexer, pool);
     if (f->type() != Expr::kNone) {
-      std::vector<Expr *> ev, fv;
-      e->Serialize(ev, &tmp_pool); f->Serialize(fv, &tmp_pool);
-      bool init = true;
-      for (std::vector<Expr*>::iterator i = ev.begin(); i != ev.end(); ++i) {
-        for (std::vector<Expr*>::iterator j = fv.begin(); j != fv.end(); ++j) {
-          std::vector<Expr *> sv;
-          Expr::Shuffle(*i, *j, sv, &pool_);
-          for (std::vector<Expr*>::iterator k = sv.begin(); k != sv.end(); ++k) {
-            if (init) {
-              e = *k;
-              init = false;
-            } else {
-              e = pool->alloc<Union>(e, *k);
-            }
-          }
-        }
-      }
+      e = Expr::Shuffle(f, e, pool);
     }
   }
 
@@ -422,6 +406,17 @@ Regex::e6(Lexer *lexer, ExprPool *pool)
         }
         Expr *dotstar = pool->alloc<Star>(pool->alloc<Dot>());
         e = pool->alloc<XOR>(dotstar, e, pool); /* R xor .* == !R */
+      }
+      return e;
+    }
+    case Lexer::kPermutation: {
+      lexer->Consume();
+      ExprPool tmp_pool;
+      e = e6(lexer, &tmp_pool);
+      if (e->type() == Expr::kNone) {
+        pool->drain(tmp_pool);
+      } else {
+        e = Expr::Permutation(e, pool);
       }
       return e;
     }
