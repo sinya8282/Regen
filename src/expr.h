@@ -25,6 +25,7 @@ class UnaryExpr;
 class Qmark;
 class Plus;
 class Star;
+struct ExprPool;
 
 class ExprVisitor {
 public:
@@ -50,6 +51,11 @@ public:
   virtual void Visit(Star *e) { Visit((UnaryExpr*)e); }
 };
 
+struct ExprInfo {
+  ExprInfo(): xor_num(0) {}
+  std::size_t xor_num;
+};
+
 struct Must {
   std::string *is;
   std::string *left;
@@ -61,11 +67,6 @@ struct Transition {
   std::set<StateExpr*> first;
   std::set<StateExpr*> last;
   std::set<StateExpr*> follow;
-};
-
-struct ExprInfo {
-  ExprInfo(): xor_num(0) {}
-  std::size_t xor_num;
 };
 
 class Expr {
@@ -101,20 +102,20 @@ public:
 
   virtual Expr::Type type() = 0;
   virtual Expr::SuperType stype() = 0;
-  virtual Expr* Clone() = 0;
+  virtual Expr* Clone(ExprPool *) = 0;
   virtual void NonGreedify() = 0;
   virtual void FillPosition(ExprInfo *) = 0;
   virtual void FillTransition(bool reverse = false) = 0;
   void FillReverseTransition() { FillTransition(true); transition_.first.swap(transition_.last); }
-  virtual void Serialize(std::vector<Expr*> &v) { v.push_back(Clone()); }
+  virtual void Serialize(std::vector<Expr*> &v, ExprPool *p) { v.push_back(Clone(p)); }
   virtual void Factorize(std::vector<Expr*> &v) { v.push_back(this); }
-  virtual void PatchBackRef(Expr *, std::size_t) = 0;
-  static void Shuffle(Expr *, Expr *, std::vector<Expr *> &);
+  virtual void PatchBackRef(Expr *, std::size_t, ExprPool *) = 0;
+  static void Shuffle(Expr *, Expr *, std::vector<Expr *> &, ExprPool *);
   
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 protected:
   static void Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst, bool reverse = false);
-  static void _Shuffle(std::vector<Expr*>&, std::size_t, std::vector<Expr*>&, std::size_t, std::vector<Expr*>&, Expr *c);
+  static void _Shuffle(std::vector<Expr*>&, std::size_t, std::vector<Expr*>&, std::size_t, std::vector<Expr*>&, Expr *c, ExprPool *);
   std::size_t expr_id_;
   std::size_t max_length_;
   std::size_t min_length_;
@@ -123,6 +124,23 @@ protected:
   Expr *parent_;
 private:
   DISALLOW_COPY_AND_ASSIGN(Expr);
+};
+
+struct ExprPool {
+ public:
+  ExprPool(bool b = true): del(b) {}
+  ~ExprPool() { if (del) { for(std::deque<Expr*>::iterator i = pool.begin(); i != pool.end(); ++i) delete *i; } }
+  template<class T> T* alloc()
+  { pool.push_back(NULL); pool.back() = new T(); return (T*)pool.back(); }
+  template<class T, class P1> T* alloc(P1 p1)
+  { pool.push_back(NULL); pool.back() = new T(p1); return (T*)pool.back(); }
+  template<class T, class P1, class P2> T* alloc(P1 p1, P2 p2)
+  { pool.push_back(NULL); pool.back() = new T(p1, p2); return (T*)pool.back(); }
+  template<class T, class P1, class P2, class P3> T* alloc(P1 p1, P2 p2, P3 p3)
+  { pool.push_back(NULL); pool.back() = new T(p1, p2, p3); return (T*)pool.back(); }
+ private:
+  std::deque<Expr*> pool;
+  bool del;
 };
 
 class StateExpr: public Expr {
@@ -142,7 +160,7 @@ public:
   void NonGreedify()  { non_greedy_ = true; }
   void FillPosition(ExprInfo *) { transition_.first.insert(this); transition_.last.insert(this); }
   virtual bool Match(const unsigned char c) = 0;
-  void PatchBackRef(Expr *, std::size_t) {}
+  void PatchBackRef(Expr *, std::size_t, ExprPool *) {}
 private:
   std::size_t state_id_;
   bool non_greedy_;
@@ -157,8 +175,8 @@ public:
   unsigned char literal() { return literal_; }
   Expr::Type type() { return Expr::kLiteral; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  bool Match(const unsigned char c) { return c == literal_; };
-  Expr *Clone() { return new Literal(literal_); };
+  bool Match(unsigned char c) { return c == literal_; };
+  Expr *Clone(ExprPool *p) { return p->alloc<Literal>(literal_); };
 private:
   const unsigned char literal_;
   DISALLOW_COPY_AND_ASSIGN(Literal);
@@ -167,8 +185,7 @@ private:
 class CharClass: public StateExpr {
 public:
   CharClass(): table_(std::bitset<256>()), negative_(false) {}
-  CharClass(std::bitset<256> &table): table_(table), negative_(false) {}
-  CharClass(std::bitset<256> &table, bool negative): table_(table), negative_(negative) {}
+ CharClass(const std::bitset<256> &table, bool negative = false): table_(table), negative_(negative) {}
   CharClass(StateExpr *e1, StateExpr *e2);
   ~CharClass() {}
   std::bitset<256>& table() { return table_; }
@@ -180,7 +197,7 @@ public:
   Expr::Type type() { return Expr::kCharClass; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   bool Match(const unsigned char c) { return Involve(c); };
-  Expr *Clone() { return new CharClass(table_, negative_); };
+  Expr *Clone(ExprPool *p) { return p->alloc<CharClass>(table_, negative_); };
 private:
   std::bitset<256> table_;
   bool negative_;
@@ -194,7 +211,7 @@ public:
   Expr::Type type() { return Expr::kDot; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   bool Match(const unsigned char c) { return true; };
-  Expr *Clone() { return new Dot(); };
+  Expr *Clone(ExprPool *p) { return p->alloc<Dot>(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Dot);
 };
@@ -206,7 +223,7 @@ public:
   Expr::Type type() { return Expr::kBegLine; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   bool Match(const unsigned char c) { return c == '\n'; };
-  Expr* Clone() { return new BegLine(); };
+  Expr *Clone(ExprPool *p) { return p->alloc<BegLine>(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(BegLine);
 };
@@ -217,8 +234,8 @@ public:
   ~EndLine() {}
   Expr::Type type() { return Expr::kEndLine; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  bool Match(const unsigned char c) { return c == '\n'; };
-  Expr* Clone() { return new EndLine(); };
+  bool Match(const unsigned char c) { return c == '\n'; };  
+  Expr *Clone(ExprPool *p) { return p->alloc<EndLine>(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(EndLine);
 };
@@ -229,13 +246,13 @@ public:
     kIntersection, kXOR, kBackRef
   };
   Operator(Type type = kIntersection): pair_(NULL), optype_(type), active_(false), id_(0) { min_length_ = max_length_ = 0; }
-  Operator(Operator &o): pair_(NULL), optype_(o.optype()), active_(o.active()), id_(o.id()) { min_length_ = max_length_ = 0; }
+  Operator(Operator *o): pair_(NULL), optype_(o->optype()), active_(o->active()), id_(o->id()) { min_length_ = max_length_ = 0; }
   ~Operator() {}
   Expr::Type type() { return Expr::kOperator; }  
   void Accept(ExprVisitor* visit) { visit->Visit(this); }
   bool Match(const unsigned char c) { return false; }
-  Expr* Clone() { Operator *o = new Operator(optype_); o->set_id(id_); return o; }
-  void PatchBackRef(Expr *, std::size_t);
+  Expr *Clone(ExprPool *p) { return p->alloc<Operator>(this); };
+  void PatchBackRef(Expr *, std::size_t, ExprPool *);
   Type optype() { return optype_; }
   void set_optype(Type t) { optype_ = t; }
   bool active() { return active_; }
@@ -244,8 +261,8 @@ public:
   void set_pair(Operator *p) { pair_ = p; }
   std::size_t id() { return id_; }
   void set_id(std::size_t id) { id_ = id; }
-  static void NewPair(Operator **e1, Operator **e2, Type t)
-  { *e1 = new Operator(t); *e2 = new Operator(t); (*e1)->set_pair(*e2); (*e2)->set_pair(*e1); }
+  static void NewPair(Operator **e1, Operator **e2, Type t, ExprPool *p)
+  { *e1 = p->alloc<Operator>(t); *e2 = p->alloc<Operator>(t); (*e1)->set_pair(*e2); (*e2)->set_pair(*e1); }
 private:
   Operator *pair_;
   Type optype_;
@@ -260,7 +277,7 @@ public:
   Expr::Type type() { return Expr::kEOP; }  
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   bool Match(const unsigned char c) { return false; };
-  Expr* Clone() { return new EOP(); };
+  Expr* Clone(ExprPool *p) { return p->alloc<EOP>(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(EOP);
 };
@@ -272,7 +289,7 @@ public:
   Expr::Type type() { return Expr::kNone; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   bool Match(const unsigned char c) { return false; };
-  Expr* Clone() { return new None(); };
+  Expr* Clone(ExprPool *p) { return p->alloc<None>(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(None);
 };
@@ -284,7 +301,7 @@ public:
   Expr::Type type() { return Expr::kEpsilon; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   bool Match(const unsigned char c) { return true; };
-  Expr* Clone() { return new Epsilon(); };    
+  Expr* Clone(ExprPool *p) { return p->alloc<Epsilon>(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Epsilon);
 };
@@ -292,7 +309,7 @@ private:
 class BinaryExpr : public Expr {
 public:
   BinaryExpr(Expr* lhs, Expr *rhs): lhs_(lhs), rhs_(rhs) { lhs->set_parent(this); rhs->set_parent(this); }
-  ~BinaryExpr() { delete lhs_; delete rhs_; }
+  ~BinaryExpr() {}
   Expr* lhs() { return lhs_; }
   void  set_lhs(Expr *lhs) { lhs_ = lhs; }
   Expr* rhs() { return rhs_; }
@@ -300,7 +317,7 @@ public:
   Expr::SuperType stype() { return Expr::kBinaryExpr; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   void NonGreedify()  { lhs_->NonGreedify(); rhs_->NonGreedify(); }
-  void PatchBackRef(Expr *e, std::size_t i) { lhs_->PatchBackRef(e, i); rhs_->PatchBackRef(e, i); }
+  void PatchBackRef(Expr *e, std::size_t i, ExprPool *p) { lhs_->PatchBackRef(e, i, p); rhs_->PatchBackRef(e, i, p); }
 protected:
   Expr *lhs_;
   Expr *rhs_;
@@ -316,8 +333,8 @@ public:
   void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kConcat; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  Expr* Clone() { return new Concat(lhs_->Clone(), rhs_->Clone()); };
-  void Serialize(std::vector<Expr*> &v);
+  Expr* Clone(ExprPool *p) { return p->alloc<Concat>(lhs_->Clone(p), rhs_->Clone(p)); };
+  void Serialize(std::vector<Expr*> &v, ExprPool *p);
   void Factorize(std::vector<Expr*> &v) { lhs_->Factorize(v); rhs_->Factorize(v); }
 private:
   DISALLOW_COPY_AND_ASSIGN(Concat);
@@ -331,21 +348,21 @@ public:
   void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kUnion; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  Expr* Clone() { return new Union(lhs_->Clone(), rhs_->Clone()); };
-  void Serialize(std::vector<Expr*> &v);
+  Expr* Clone(ExprPool *p) { return p->alloc<Union>(lhs_->Clone(p), rhs_->Clone(p)); };
+  void Serialize(std::vector<Expr*> &v, ExprPool *p);
 private:
   DISALLOW_COPY_AND_ASSIGN(Union);
 };
 
 class Intersection: public BinaryExpr {
 public:
-  Intersection(Expr *lhs, Expr *rhs);
+  Intersection(Expr *lhs, Expr *rhs, ExprPool *p);
   ~Intersection() {}
   void FillPosition(ExprInfo *);
   void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kIntersection; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  Expr* Clone() { return new Intersection(lhs__->Clone(), rhs__->Clone()); };
+  Expr* Clone(ExprPool *p) { return p->alloc<Intersection>(lhs__->Clone(p), rhs__->Clone(p), p); };
 private:
   Operator *rop_, *lop_;
   Expr *lhs__, *rhs__;
@@ -354,13 +371,13 @@ private:
 
 class XOR: public BinaryExpr {
 public:
-  XOR(Expr *lhs, Expr *rhs);
+  XOR(Expr *lhs, Expr *rhs, ExprPool *p);
   ~XOR() {}
   void FillPosition(ExprInfo *);
   void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kXOR; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  Expr* Clone() { return new XOR(lhs__->Clone(), rhs__->Clone()); }
+  Expr* Clone(ExprPool *p) { return p->alloc<XOR>(lhs__->Clone(p), rhs__->Clone(p), p); }
 private:
   Operator *lop_, *rop_;
   Expr *lhs__, *rhs__;
@@ -370,13 +387,13 @@ private:
 class UnaryExpr: public Expr {
 public:
   UnaryExpr(Expr* lhs): lhs_(lhs) { lhs->set_parent(this); }
-  ~UnaryExpr() { delete lhs_; }
+  ~UnaryExpr() {}
   Expr* lhs() { return lhs_; }
   void  set_lhs(Expr *lhs) { lhs_ = lhs; }
   Expr::SuperType stype() { return Expr::kUnaryExpr; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   void NonGreedify()  { lhs_->NonGreedify(); }
-  void PatchBackRef(Expr *e, std::size_t i) { lhs_->PatchBackRef(e, i); }
+  void PatchBackRef(Expr *e, std::size_t i, ExprPool *p) { lhs_->PatchBackRef(e, i, p); }
 protected:
   Expr *lhs_;
 private:
@@ -391,8 +408,8 @@ public:
   void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kQmark; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  Expr* Clone() { return new Qmark(lhs_->Clone()); };
-  void Serialize(std::vector<Expr*> &v) { v.push_back(new Epsilon()); lhs_->Serialize(v); }
+  Expr* Clone(ExprPool *p) { return p->alloc<Qmark>(lhs_->Clone(p)); };
+  void Serialize(std::vector<Expr*> &v, ExprPool *p) { v.push_back(p->alloc<Epsilon>()); lhs_->Serialize(v, p); }
 private:
   bool non_greedy_;
   DISALLOW_COPY_AND_ASSIGN(Qmark);
@@ -406,7 +423,7 @@ public:
   void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kStar; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  Expr* Clone() { return new Star(lhs_->Clone()); };
+  Expr* Clone(ExprPool *p) { return p->alloc<Star>(lhs_->Clone(p), non_greedy_); };
 private:
   bool non_greedy_;
   DISALLOW_COPY_AND_ASSIGN(Star);
@@ -420,7 +437,7 @@ public:
   void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kPlus; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  Expr* Clone() { return new Plus(lhs_->Clone()); };
+  Expr* Clone(ExprPool* p) { return p->alloc<Plus>(lhs_->Clone(p)); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Plus);
 };

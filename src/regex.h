@@ -17,11 +17,11 @@ namespace regen {
 class Regex {
 public:
   Regex(const std::string &regex, const Regen::Options = Regen::Options::NoParseFlags);
-  ~Regex() { delete expr_root_; };
+  ~Regex() {}
   void PrintRegex();
   void PrintExtendedRegex() const;
   void PrintParseTree() const;
-  Expr* CreateRegexFromDFA(DFA &dfa);
+  Expr* CreateRegexFromDFA(DFA &dfa, ExprPool *p);
   void DumpExprTree() const;
   bool Compile(Regen::Options::CompileFlag olevel = Regen::Options::O3);
   bool MinimizeDFA() { if (dfa_.Complete()) { dfa_.Minimize(); return true; } else return false; }
@@ -41,21 +41,22 @@ public:
   const std::vector<StateExpr*> &state_exprs() const { return state_exprs_; }
 
 private:
-  Expr* Parse(Lexer *);
-  Expr* e0(Lexer *);
-  Expr* e1(Lexer *);
-  Expr* e2(Lexer *);
-  Expr* e3(Lexer *);
-  Expr* e4(Lexer *);
-  Expr* e5(Lexer *);
-  Expr* e6(Lexer *);
-  CharClass* BuildCharClass(Lexer *);
-  StateExpr* CombineStateExpr(StateExpr* e1, StateExpr* e2);
-  Expr* PatchBackRef(Lexer *, Expr *);
+  Expr* Parse(Lexer *, ExprPool *);
+  Expr* e0(Lexer *, ExprPool *);
+  Expr* e1(Lexer *, ExprPool *);
+  Expr* e2(Lexer *, ExprPool *);
+  Expr* e3(Lexer *, ExprPool *);
+  Expr* e4(Lexer *, ExprPool *);
+  Expr* e5(Lexer *, ExprPool *);
+  Expr* e6(Lexer *, ExprPool *);
+  CharClass* BuildCharClass(Lexer *, ExprPool *);
+  StateExpr* CombineStateExpr(StateExpr*, StateExpr*, ExprPool *);
+  Expr* PatchBackRef(Lexer *, Expr *, ExprPool *);
 
   const std::string regex_;
   Regen::Options flag_;
   Expr *expr_root_;
+  ExprPool pool_;
   std::size_t recursive_depth_;
   std::vector<StateExpr*> state_exprs_;
 

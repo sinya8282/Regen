@@ -14,21 +14,21 @@ Regex::Regex(const std::string &regex, const Regen::Options flags):
   const unsigned char *begin = (const unsigned char*)regex.c_str(),
       *end = begin + regex.length();
   Lexer lexer(begin, end, flags);
-  expr_root_ = Parse(&lexer);
+  expr_root_ = Parse(&lexer, &pool_);
   NumberingStateExprVisitor::Numbering(expr_root_, &state_exprs_);
   dfa_.set_expr_root(expr_root_);
 }
 
 StateExpr*
-Regex::CombineStateExpr(StateExpr *e1, StateExpr *e2)
+Regex::CombineStateExpr(StateExpr *e1, StateExpr *e2, ExprPool *p)
 {
   StateExpr *s;
-  CharClass *cc = new CharClass(e1, e2);
+  CharClass *cc = p->alloc<CharClass>(e1, e2);
   if (cc->count() == 256) {
-    delete cc;
-    s = new Dot();
+    //delete cc;
+    s = p->alloc<Dot>();
   } else if (cc->count() == 1) {
-    delete cc;
+    //delete cc;
     char c;
     switch (e1->type()) {
       case Expr::kLiteral:
@@ -39,21 +39,21 @@ Regex::CombineStateExpr(StateExpr *e1, StateExpr *e2)
         break;
       default: exitmsg("Invalid Expr Type: %d", e1->type());
     }
-    s = new Literal(c);
+    s = p->alloc<Literal>(c);
   } else {
     s = cc;
   }
   return s;
 }
 
-Expr* Regex::PatchBackRef(Lexer *lexer, Expr *e)
+Expr* Regex::PatchBackRef(Lexer *lexer, Expr *e, ExprPool *p)
 {
   std::set<std::size_t> &backrefs = lexer->backrefs();
   for (std::set<std::size_t>::iterator iter = backrefs.begin();
        iter != backrefs.end(); ++iter) {
     std::size_t ref_id = *iter;
     Expr* referee = lexer->groups()[ref_id];
-    Operator *patch = new Operator(Operator::kBackRef);
+    Operator *patch = p->alloc<Operator>(Operator::kBackRef);
     patch->set_id(ref_id);
     patch->set_parent(referee->parent());
     switch (referee->parent()->type()) {
@@ -82,53 +82,53 @@ Expr* Regex::PatchBackRef(Lexer *lexer, Expr *e)
     }
 
     std::vector<Expr*> patches;
-    referee->Serialize(patches);
-    delete referee;
+    referee->Serialize(patches, p);
+    //delete referee;
     std::vector<Expr*> roots;
     roots.push_back(e);
     while (patches.size() > roots.size()) {
-      roots.push_back(e->Clone());
+      roots.push_back(e->Clone(p));
     }
     for (std::size_t i = 0; i < roots.size(); i++) {
-      roots[i]->PatchBackRef(patches[i], ref_id);
+      roots[i]->PatchBackRef(patches[i], ref_id, p);
     }
     e = roots[0];
     for (std::size_t i = 1; i < roots.size(); i++) {
-      e = new Union(e, roots[i]);
+      e = p->alloc<Union>(e, roots[i]);
     }
   }
 
   return e;
 }
 
-Expr* Regex::Parse(Lexer *lexer)
+Expr* Regex::Parse(Lexer *lexer, ExprPool *pool)
 {
   Expr* e;
 
   lexer->Consume();
 
   do {
-    e = e0(lexer);
+    e = e0(lexer, pool);
   } while (e->type() == Expr::kNone);
 
   if (lexer->token() != Lexer::kEOP) exitmsg("expected end of pattern.");
 
-  if (!lexer->backrefs().empty()) e = PatchBackRef(lexer, e);
+  if (!lexer->backrefs().empty()) e = PatchBackRef(lexer, e, pool);
   
   if (flag_.partial_match()) {
     //add '.*?' to top of regular expression for Partial Match
-    Expr* dotstar = new Star(new Dot(), true);
-    e = new Concat(dotstar, e);
+    Expr* dotstar = pool->alloc<Star>(pool_.alloc<Dot>(), true);
+    e = pool->alloc<Concat>(dotstar, e);
   }
 
-  StateExpr *eop = new EOP();
+  StateExpr *eop = pool->alloc<EOP>();
   ExprInfo info;
   if (flag_.reverse_match()) { 
-    e = new Concat(eop, e);
+    e = pool->alloc<Concat>(eop, e);
     e->FillPosition(&info);
     e->FillReverseTransition();
   } else {
-    e = new Concat(e, eop);
+    e = pool->alloc<Concat>(e, eop);
     e->FillPosition(&info);
     e->FillTransition();
   }
@@ -147,111 +147,105 @@ Expr* Regex::Parse(Lexer *lexer)
  * e6 ::= ATOM | '(' e0 ')' | '!' e0 | '#' e0 # ATOM, grouped, complement, permutation
 */
 
-Expr* Regex::e0(Lexer *lexer)
+Expr* Regex::e0(Lexer *lexer, ExprPool *pool)
 {
   Expr *e, *f;
-  e = e1(lexer);
+  e = e1(lexer, pool);
   
   while (e->type() == Expr::kNone &&
          lexer->token() == Lexer::kShuffle) {
     lexer->Consume();
-    e = e1(lexer);
+    e = e1(lexer, pool);
   }
-  
+
+  ExprPool tmp_pool;
   while (lexer->token() == Lexer::kShuffle) {
     lexer->Consume();
-    f = e1(lexer);
+    f = e1(lexer, pool);
     if (f->type() != Expr::kNone) {
-      std::vector<Expr *> ev, fv, sv;
-      e->Serialize(ev); f->Serialize(fv);
-      delete e; delete f; e = NULL; f = NULL;
+      std::vector<Expr *> ev, fv;
+      e->Serialize(ev, &tmp_pool); f->Serialize(fv, &tmp_pool);
       bool init = true;
       for (std::vector<Expr*>::iterator i = ev.begin(); i != ev.end(); ++i) {
         for (std::vector<Expr*>::iterator j = fv.begin(); j != fv.end(); ++j) {
-          sv.clear();
-          Expr::Shuffle(*i, *j, sv);
+          std::vector<Expr *> sv;
+          Expr::Shuffle(*i, *j, sv, &pool_);
           for (std::vector<Expr*>::iterator k = sv.begin(); k != sv.end(); ++k) {
             if (init) {
               e = *k;
               init = false;
             } else {
-              e = new Union(e, *k);
+              e = pool->alloc<Union>(e, *k);
             }
           }
         }
       }
-      for (std::vector<Expr*>::iterator i = ev.begin(); i != ev.end(); ++i) {
-        delete *i;
-      }
-      for (std::vector<Expr*>::iterator i = fv.begin(); i != fv.end(); ++i) {
-        delete *i;
-      }
     }
   }
 
   return e;
 }
 
-Expr* Regex::e1(Lexer *lexer)
+Expr* Regex::e1(Lexer *lexer, ExprPool *pool)
 {
   Expr *e, *f;
-  e = e2(lexer);
+  e = e2(lexer, pool);
   
   while (e->type() == Expr::kNone &&
          lexer->token() == Lexer::kXOR) {
     lexer->Consume();
-    e = e2(lexer);
+    e = e2(lexer, pool);
   }
   
   while (lexer->token() == Lexer::kXOR) {
     lexer->Consume();
-    f = e2(lexer);
+    f = e2(lexer, pool);
     if (f->type() != Expr::kNone) {
-      XOR *x = new XOR(e, f);
+      XOR *x = pool->alloc<XOR>(e, f, pool);
       e = x;
     }
   }
+
   return e;
 }
 
-Expr* Regex::e2(Lexer *lexer)
+Expr* Regex::e2(Lexer *lexer, ExprPool *pool)
 {
   Expr *e, *f;
-  e = e3(lexer);
-  
+  e = e3(lexer, pool);
+
   while (e->type() == Expr::kNone &&
          lexer->token() == Lexer::kUnion) {
     lexer->Consume();
-    e = e3(lexer);
+    e = e3(lexer, pool);
   }
   
   while (lexer->token() == Lexer::kUnion) {
     lexer->Consume();
-    f = e3(lexer);
+    f = e3(lexer, pool);
     if (f->type() != Expr::kNone) {
-      e = new Union(e, f);
+      e = pool->alloc<Union>(e, f);
     }
   }
   return e;
 }
 
 Expr *
-Regex::e3(Lexer *lexer)
+Regex::e3(Lexer *lexer, ExprPool *pool)
 {
   Expr *e, *f;
-  e = e4(lexer);
+  e = e4(lexer, pool);
   bool null = e->type() == Expr::kNone;
 
   while (lexer->token() == Lexer::kIntersection) {
     lexer->Consume();
     if (!null) {
-      f = e4(lexer);
+      f = e4(lexer, pool);
       if (f->type() == Expr::kNone) {
-        delete e;
-        e = f;
+        e = f; //delete e;
         null = true;
       } else {
-        e = new Intersection(e, f);
+        e = pool->alloc<Intersection>(e, f, pool);
       }
     }
   }
@@ -260,20 +254,20 @@ Regex::e3(Lexer *lexer)
 }
 
 Expr *
-Regex::e4(Lexer *lexer)
+Regex::e4(Lexer *lexer, ExprPool *pool)
 {
   Expr *e, *f;
-  e = e5(lexer);
+  e = e5(lexer, pool);
   
   while (e->type() == Expr::kNone &&
          lexer->Concatenated()) {
-    e = e5(lexer);
+    e = e5(lexer, pool);
   }
 
   while (lexer->Concatenated()) {
-    f = e5(lexer);
+    f = e5(lexer, pool);
     if (f->type() != Expr::kNone) {
-      e = new Concat(e, f);
+      e = pool->alloc<Concat>(e, f);
     }
   }
 
@@ -281,10 +275,10 @@ Regex::e4(Lexer *lexer)
 }
 
 Expr *
-Regex::e5(Lexer *lexer)
+Regex::e5(Lexer *lexer, ExprPool *pool)
 {
   Expr *e;
-  e = e6(lexer);
+  e = e6(lexer, pool);
 
   if (e->type() == Expr::kNone) {
     while (lexer->Quantifier()) {
@@ -303,49 +297,49 @@ Regex::e5(Lexer *lexer)
     }
     switch (token) {
       case Lexer::kStar:
-        e = new Star(e, non_greedy);
+        e = pool->alloc<Star>(e, non_greedy);
         break;
       case Lexer::kPlus: {
         if (non_greedy) {
-          Expr* e_ = e->Clone();
-          e = new Concat(e_, new Star(e, non_greedy));
+          Expr* e_ = e->Clone(pool);
+          e = pool->alloc<Concat>(e_, pool->alloc<Star>(e, non_greedy));
         } else {
-          e = new Plus(e);
+          e = pool->alloc<Plus>(e);
         }
         break;
       }
       case Lexer::kQmark: {
-        e = new Qmark(e, non_greedy);
+        e = pool->alloc<Qmark>(e, non_greedy);
         break;
       }
       case Lexer::kRepetition: {
         std::pair<int, int> r = lexer->repetition();
         int lower_repetition = r.first, upper_repetition = r.second;
         if (lower_repetition == 0 && upper_repetition == 0) {
-          delete e;
-          e = new None();
+          //delete e;
+          e = pool->alloc<None>();
         } else if (upper_repetition == -1) {
           Expr* f = e;
           for (int i = 0; i < lower_repetition - 1; i++) {
-            e = new Concat(e, f->Clone());
+            e = pool->alloc<Concat>(e, f->Clone(pool));
           }
-          e = new Concat(e, new Star(f->Clone(), non_greedy));
+          e = pool->alloc<Concat>(e, pool->alloc<Star>(f->Clone(pool), non_greedy));
         } else if (upper_repetition == lower_repetition) {
           Expr* f = e;
           for (int i = 0; i < lower_repetition - 1; i++) {
-            e = new Concat(e, f->Clone());
+            e = pool->alloc<Concat>(e, f->Clone(pool));
           }
         } else {
           Expr *f = e;
           for (int i = 0; i < lower_repetition - 1; i++) {
-            e = new Concat(e, f->Clone());
+            e = pool->alloc<Concat>(e, f->Clone(pool));
           }
           if (lower_repetition == 0) {
-            e = new Qmark(e, non_greedy);
+            e = pool->alloc<Qmark>(e, non_greedy);
             lower_repetition = 1;
           }
           for (int i = 0; i < (upper_repetition - lower_repetition); i++) {
-            e = new Concat(e, new Qmark(f->Clone(), non_greedy));
+            e = pool->alloc<Concat>(e, pool->alloc<Qmark>(f->Clone(pool), non_greedy));
           }
         }
         break;
@@ -359,50 +353,50 @@ Regex::e5(Lexer *lexer)
 }
 
 Expr *
-Regex::e6(Lexer *lexer)
+Regex::e6(Lexer *lexer, ExprPool *pool)
 { 
   Expr *e;
 
   switch(lexer->token()) {
     case Lexer::kLiteral:
-      e = new Literal(lexer->literal());
+      e = pool->alloc<Literal>(lexer->literal());
       break;
     case Lexer::kBegLine:
-      e = new BegLine();
+      e = pool->alloc<BegLine>();
       break;
     case Lexer::kEndLine:
-      e = new EndLine();
+      e = pool->alloc<EndLine>();
       break;
     case Lexer::kDot:
-      e = new Dot();
+      e = pool->alloc<Dot>();
       break;
     case Lexer::kByteRange: {
-      e = new CharClass(lexer->table());
+      e = pool->alloc<CharClass>(lexer->table());
       break;
     }
     case Lexer::kCharClass: {
-      CharClass *cc = BuildCharClass(lexer);
+      CharClass *cc = BuildCharClass(lexer, pool);
       if (cc->count() == 1) {
-        e = new Literal(lexer->literal());
-        delete cc;
+        e = pool->alloc<Literal>(lexer->literal());
+        //delete cc;
       } else if (cc->count() == 256) {
-        e = new Dot();
-        delete cc;
+        e = pool->alloc<Dot>();
+        //delete cc;
       } else {
         e = cc;
       }
       break;
     }
     case Lexer::kNone:
-      e = new None();
+      e = pool->alloc<None>();
       break;
     case Lexer::kBackRef: {
       if (lexer->backref() >= lexer->groups().size()) exitmsg("Invalid back reference");
       if (lexer->weakref()) {
-        e = lexer->groups()[lexer->backref()]->Clone();
+        e = lexer->groups()[lexer->backref()]->Clone(pool);
       } else {
         lexer->backrefs().insert(lexer->backref());
-        Operator *o = new Operator(Operator::kBackRef);
+        Operator *o = pool->alloc<Operator>(Operator::kBackRef);
         o->set_id(lexer->backref());
         e = o;
       }
@@ -410,7 +404,7 @@ Regex::e6(Lexer *lexer)
     }
     case Lexer::kLpar:
       lexer->Consume();
-      e = e0(lexer);
+      e = e0(lexer, pool);
       if (lexer->token() != Lexer::kRpar) exitmsg("expected a ')'");
       lexer->groups().push_back(e);
       break;
@@ -420,15 +414,14 @@ Regex::e6(Lexer *lexer)
         complement = !complement;
         lexer->Consume();
       } while (lexer->token() == Lexer::kComplement);
-      e = e6(lexer);
+      e = e6(lexer, pool);
       if (complement) {
         if (e->type() == Expr::kNone) {
-          delete e;
-          e = new Star(new Dot());
-          return e;
+          //delete e;
+          return pool->alloc<Star>(pool->alloc<Dot>());
         }
-        XOR *e_ = new XOR(new Star(new Dot), e);
-        e = e_;
+        Expr *dotstar = pool->alloc<Star>(pool->alloc<Dot>());
+        e = pool->alloc<XOR>(dotstar, e, pool); /* R xor .* == !R */
       }
       return e;
     }
@@ -449,13 +442,13 @@ Regex::e6(Lexer *lexer)
             *end = begin + regex_.length();
         Lexer l(begin, end);
         l.Consume();
-        e = e0(&l);
+        e = e0(&l, pool);
         if (recursive_depth_ > static_cast<std::size_t>(recursive_limit.first)) {
-          e = new Qmark(e);
+          e = pool->alloc<Qmark>(e);
         }
         recursive_depth_--;
       } else {
-        e = new None();
+        e = pool->alloc<None>();
       }
       return e;
     }
@@ -473,8 +466,8 @@ Regex::e6(Lexer *lexer)
 }
 
 CharClass*
-Regex::BuildCharClass(Lexer *lexer) {
-  CharClass *cc = new CharClass();
+Regex::BuildCharClass(Lexer *lexer, ExprPool *pool) {
+  CharClass *cc = pool->alloc<CharClass>();
   std::bitset<256>& table = cc->table();
   bool range;
   unsigned char lastc = '\0';
@@ -529,7 +522,7 @@ Regex::BuildCharClass(Lexer *lexer) {
 
 // Converte DFA to Regular Expression using GNFA.
 // see http://en.wikipedia.org/wiki/Generalized_nondeterministic_finite-state_machine
-Expr* Regex::CreateRegexFromDFA(DFA &dfa)
+Expr* Regex::CreateRegexFromDFA(DFA &dfa, ExprPool *p)
 {
   int GSTART  = dfa.size();
   int GACCEPT = GSTART+1;
@@ -551,7 +544,7 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa)
           }
           int end = c;
           if (begin == 0 && end == 255) {
-            e = new Dot();
+            e = p->alloc<Dot>();
           } else {
             std::bitset<256> table;
             bool negative = false;
@@ -562,21 +555,21 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa)
               negative = true;
               table.flip();
             }
-            e = new CharClass(table, negative);
+            e = p->alloc<CharClass>(table, negative);
           }
         } else {
-          e = new Literal(c);
+          e = p->alloc<Literal>(c);
         }
         if (gtransition.find(next) != gtransition.end()) {
           Expr* f = gtransition[next];
           if (e->stype() == Expr::kStateExpr &&
               f->stype() == Expr::kStateExpr) {
-            Expr *e_ = CombineStateExpr((StateExpr*)e, (StateExpr*)f);
-            delete e;
-            delete f;
+            Expr *e_ = CombineStateExpr((StateExpr*)e, (StateExpr*)f, p);
+            //delete e;
+            //delete f;
             e = e_;
           } else {
-            e = new Union(e, f);
+            e = p->alloc<Union>(e, f);
           }
         }
         gtransition[next] = e;
@@ -596,7 +589,7 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa)
     Expr* loop = NULL;
     GNFATrans &gtransition = gnfa_transition[i];
     if (gtransition.find(i) != gtransition.end()) {
-      loop = new Star(gtransition[i]);
+      loop = p->alloc<Star>(gtransition[i]);
       gtransition.erase(i);
     }
     for (int j = i+1; j <= GSTART; j++) {
@@ -608,20 +601,20 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa)
           Expr* regex2 = (*iter).second;
           if (loop != NULL) {
             if (regex2 != NULL) {
-              regex2 = new Concat(loop, regex2);
+              regex2 = p->alloc<Concat>(loop, regex2);
             } else {
               regex2 = loop;
             }
           }
           if (regex1 != NULL) {
             if (regex2 != NULL) {
-              regex2 = new Concat(regex1, regex2);
+              regex2 = p->alloc<Concat>(regex1, regex2);
             } else {
               regex2 = regex1;
             }
           }
           if (regex2 != NULL) {
-            regex2 = regex2->Clone();
+            regex2 = regex2->Clone(p);
           }
           if (gnfa_transition[j].find((*iter).first) != gnfa_transition[j].end()) {
             if (gnfa_transition[j][(*iter).first] != NULL) {
@@ -630,21 +623,21 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa)
                 Expr* f = regex2;
                 if (e->stype() == Expr::kStateExpr &&
                     f->stype() == Expr::kStateExpr) {
-                  Expr *e_ = CombineStateExpr((StateExpr*)e, (StateExpr*)f);
-                  delete e;
-                  delete f;
+                  Expr *e_ = CombineStateExpr((StateExpr*)e, (StateExpr*)f, p);
+                  //delete e;
+                  //delete f;
                   e = e_;
                 } else {
-                  e = new Union(e, f);
+                  e = p->alloc<Union>(e, f);
                 }
                 gnfa_transition[j][(*iter).first] = e;
               } else {
                 gnfa_transition[j][(*iter).first] =
-                    new Qmark(gnfa_transition[j][(*iter).first]);
+                    p->alloc<Qmark>(gnfa_transition[j][(*iter).first]);
               }
             } else {
               if (regex2 != NULL) {
-                gnfa_transition[j][(*iter).first] = new Qmark(regex2);
+                gnfa_transition[j][(*iter).first] = p->alloc<Qmark>(regex2);
               } else {
                 gnfa_transition[j][(*iter).first] = regex2;
               }
@@ -656,6 +649,7 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa)
         }
       }
     }
+    /*
     GNFATrans::iterator iter = gtransition.begin();
     iter = gtransition.begin();
     while (iter != gtransition.end()) {
@@ -663,10 +657,11 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa)
       ++iter;
     }
     delete loop;
+    */
   }
 
   if(gnfa_transition[GSTART][GACCEPT] == NULL) {
-    return new None();
+    return p->alloc<None>();
   } else {
     return gnfa_transition[GSTART][GACCEPT];
   }
@@ -761,9 +756,9 @@ bool Regex::MatchNFA(const unsigned char *begin, const unsigned char *end, Regen
 
 void Regex::PrintRegex() {
   if (dfa_.Complete()) {
-    Expr* e = CreateRegexFromDFA(dfa_);
+    ExprPool p;
+    Expr* e = CreateRegexFromDFA(dfa_, &p);
     PrintRegexVisitor::Print(e);
-    delete e;
   } else {
     PrintRegexVisitor::Print(expr_root_);
   }
