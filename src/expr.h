@@ -85,8 +85,6 @@ public:
   Expr(): parent_(NULL) {}
   virtual ~Expr() {}
 
-  std::size_t expr_id() { return expr_id_; }
-  void set_expr_id(std::size_t id) { expr_id_ = id; }
   std::size_t max_length() { return max_length_; }
   void set_max_length(int len) { max_length_ = len; }
   std::size_t min_length() { return min_length_; }
@@ -118,7 +116,6 @@ protected:
   static void Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst, bool reverse = false);
   static void _Shuffle(std::vector<Expr*>&, std::size_t, std::vector<Expr*>&, std::size_t, std::vector<Expr*>&, Expr *c, ExprPool *);
   static void _Permutation(std::vector<Expr*> &, std::bitset<8> &, std::vector<Expr*> &, std::vector<std::size_t> &, ExprPool *);
-  std::size_t expr_id_;
   std::size_t max_length_;
   std::size_t min_length_;
   bool nullable_;

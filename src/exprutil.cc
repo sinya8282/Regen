@@ -119,14 +119,14 @@ void PrintRegexVisitor::Visit(UnaryExpr *e)
 
 void PrintParseTreeVisitor::print_state(Expr *e)
 {
-  printf("  q%"PRIuS" [label=\"", e->expr_id());
+  printf("  0x%p"PRIuS" [label=\"", e);
   PrintExprVisitor::Print(e);
   printf("\", %s]\n", thema.c_str());
 }
 
 void PrintParseTreeVisitor::print_arrow(Expr *src, Expr *dst)
 {
-  printf("  q%"PRIuS" -> q%"PRIuS"\n", src->expr_id(), dst->expr_id());
+  printf("  0x%p -> 0x%p\n", src, dst);
 }
 
 void PrintParseTreeVisitor::Visit(UnaryExpr* e)

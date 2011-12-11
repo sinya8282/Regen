@@ -66,9 +66,6 @@ private:
   std::bitset<256> involved_char_;
   std::size_t count_involved_char_;
 
-  std::size_t expr_id_;
-  std::size_t state_id_;
-
   Regen::Options::CompileFlag olevel_;
   bool dfa_failure_;
   DFA dfa_;
