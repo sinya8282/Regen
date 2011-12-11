@@ -6,8 +6,10 @@ const char*
 Expr::TypeString(Expr::Type type)
 {
   static const char* const type_strings[] = {
-    "Literal", "CharClass", "Dot", "BegLine", "EndLine",
-    "EOP", "Concat", "Union", "Qmark", "Star", "Plus",
+    "Literal", "CharClass", "Dot",
+    "BegLine", "EndLine", "EOP", "Operator",
+    "Concat", "Union", "Intersection", "XOR",
+    "Qmark", "Star", "Plus",
     "Epsilon", "None"
   };
 
@@ -24,7 +26,8 @@ Expr::SuperTypeString(Expr::SuperType stype)
   return stype_strings[stype];
 }
 
-void Expr::Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst, bool reverse)
+void
+Expr::Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst, bool reverse)
 {
   if (reverse) {
     std::set<StateExpr*>::iterator iter = dst.begin();
