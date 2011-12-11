@@ -557,8 +557,8 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa, ExprPool *p)
         }
         if (gtransition.find(next) != gtransition.end()) {
           Expr* f = gtransition[next];
-          if (e->stype() == Expr::kStateExpr &&
-              f->stype() == Expr::kStateExpr) {
+          if (Expr::SuperTypeOf(e) == Expr::kStateExpr &&
+              Expr::SuperTypeOf(f) == Expr::kStateExpr) {
             Expr *e_ = CombineStateExpr((StateExpr*)e, (StateExpr*)f, p);
             //delete e;
             //delete f;
@@ -616,8 +616,8 @@ Expr* Regex::CreateRegexFromDFA(DFA &dfa, ExprPool *p)
               if (regex2 != NULL) {
                 Expr* e = gnfa_transition[j][(*iter).first];
                 Expr* f = regex2;
-                if (e->stype() == Expr::kStateExpr &&
-                    f->stype() == Expr::kStateExpr) {
+                if (Expr::SuperTypeOf(e) == Expr::kStateExpr &&
+                    Expr::SuperTypeOf(f) == Expr::kStateExpr) {
                   Expr *e_ = CombineStateExpr((StateExpr*)e, (StateExpr*)f, p);
                   //delete e;
                   //delete f;

@@ -99,9 +99,9 @@ public:
   void set_parent(Expr *parent) { parent_ = parent; }
   static const char* TypeString(Expr::Type type);
   static const char* SuperTypeString(Expr::SuperType stype);
+  static SuperType SuperTypeOf(Expr *);
 
   virtual Expr::Type type() = 0;
-  virtual Expr::SuperType stype() = 0;
   virtual Expr* Clone(ExprPool *) = 0;
   virtual void NonGreedify() = 0;
   virtual void FillPosition(ExprInfo *) = 0;
@@ -161,7 +161,6 @@ public:
   StateExpr* non_greedy_pair() { return non_greedy_pair_; }
   void set_non_greedy_pair(StateExpr* p) { non_greedy_pair_ = p; }
   void set_non_greedy(bool non_greedy = true) { non_greedy_ = non_greedy; }
-  Expr::SuperType stype() { return Expr::kStateExpr; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   void NonGreedify()  { non_greedy_ = true; }
   void FillPosition(ExprInfo *) { transition_.first.insert(this); transition_.last.insert(this); }
@@ -320,7 +319,6 @@ public:
   void  set_lhs(Expr *lhs) { lhs_ = lhs; }
   Expr* rhs() { return rhs_; }
   void  set_rhs(Expr *rhs) { rhs_ = rhs; }
-  Expr::SuperType stype() { return Expr::kBinaryExpr; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   void NonGreedify()  { lhs_->NonGreedify(); rhs_->NonGreedify(); }
   void PatchBackRef(Expr *e, std::size_t i, ExprPool *p) { lhs_->PatchBackRef(e, i, p); rhs_->PatchBackRef(e, i, p); }
@@ -396,7 +394,6 @@ public:
   ~UnaryExpr() {}
   Expr* lhs() { return lhs_; }
   void  set_lhs(Expr *lhs) { lhs_ = lhs; }
-  Expr::SuperType stype() { return Expr::kUnaryExpr; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   void NonGreedify()  { lhs_->NonGreedify(); }
   void PatchBackRef(Expr *e, std::size_t i, ExprPool *p) { lhs_->PatchBackRef(e, i, p); }

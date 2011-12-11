@@ -26,6 +26,22 @@ Expr::SuperTypeString(Expr::SuperType stype)
   return stype_strings[stype];
 }
 
+Expr::SuperType
+Expr::SuperTypeOf(Expr *e)
+{
+  switch (e->type()) {
+    case kLiteral: case kCharClass: case kDot:
+    case kBegLine: case kEndLine: case kEOP: case kOperator:
+    case kEpsilon: case kNone:
+      return kStateExpr;
+    case kConcat: case kUnion: case kIntersection: case kXOR:
+      return kBinaryExpr;
+    default: case kQmark: case kStar: case kPlus:
+      return kUnaryExpr;
+  }
+}
+
+
 void
 Expr::Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst, bool reverse)
 {
