@@ -127,8 +127,8 @@ private:
 
 struct ExprPool {
  public:
-  ExprPool(bool b = true): del(b) {}
-  ~ExprPool() { if (del) { for(std::deque<Expr*>::iterator i = pool.begin(); i != pool.end(); ++i) delete *i; } }
+  ExprPool() {}
+  ~ExprPool() { for(std::vector<Expr*>::iterator i = pool.begin(); i != pool.end(); ++i) delete *i; }
 
   template<class T> T* alloc()
   { pool.push_back(NULL); pool.back() = new T(); return (T*)pool.back(); }
@@ -140,10 +140,15 @@ struct ExprPool {
   { pool.push_back(NULL); pool.back() = new T(p1, p2, p3); return (T*)pool.back(); }
 
   void drain(ExprPool &p) { drain(&p); }
-  void drain(ExprPool *p) { if (p->del) { pool.insert(pool.end(), p->pool.begin(), p->pool.end()); p->del = false; p->pool.clear(); } }
+  void drain(ExprPool *p)
+  {
+    pool.reserve(pool.size()+p->pool.size());
+    pool.insert(pool.end(), p->pool.begin(), p->pool.end());
+    p->pool.erase(p->pool.begin(), p->pool.end());
+  }
 
-  std::deque<Expr*> pool;
-  bool del;
+ private:
+  std::vector<Expr*> pool;
 };
 
 class StateExpr: public Expr {
