@@ -536,7 +536,11 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
   const uint8_t *reject_state_addr = getCurr();
   mov(reg_a, DFA::REJECT); // return false
   L("return");
+  cmp(arg3, NULL);
+  je("finalize");
   mov(ptr[arg3+sizeof(uint8_t*)], tmp2);
+  jmp("finalize");
+  L("finalize");
 #ifdef XBYAK32
   pop(ebx);
   pop(ebp);
@@ -556,8 +560,17 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
     L(labelbuf);
     states_addr[i] = getCurr();
     if (dfa.IsAcceptState(i)) {
+      inLocalLabel();
+      cmp(arg3, NULL);
+      je(".ret");
       mov(tmp2, arg1);
       if (dfa.flag().shortest_match()) jmp(".ret");
+      jmp(".cont");
+      L(".ret");
+      mov(reg_a, i);
+      jmp("return");
+      L(".cont");
+      outLocalLabel();
     }
     // can transition without table lookup ?
     const DFA::AlterTrans &at = dfa[i].alter_transition;
@@ -772,11 +785,14 @@ bool DFA::Match(const unsigned char *str, const unsigned char *end, Regen::Conte
 
   state_t state = 0;
   Regen::Context context_;
-  if (context == NULL) context = &context_;
 
   if (olevel_ >= Regen::Options::O1) {
     state = CompiledMatch(str, end, context);
-    return state != DFA::REJECT ? states_[state].accept : false;
+    if (context == NULL) {
+      return state != DFA::REJECT ? states_[state].accept : false;
+    } else {
+      return context->end() != NULL;
+    }
   }
 
   int dir = str < end ? 1 : -1;
