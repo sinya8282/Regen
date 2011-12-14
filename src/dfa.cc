@@ -539,7 +539,6 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
   cmp(arg3, NULL);
   je("finalize");
   mov(ptr[arg3+sizeof(uint8_t*)], tmp2);
-  jmp("finalize");
   L("finalize");
 #ifdef XBYAK32
   pop(ebx);
@@ -560,17 +559,19 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
     L(labelbuf);
     states_addr[i] = getCurr();
     if (dfa.IsAcceptState(i)) {
-      inLocalLabel();
-      cmp(arg3, NULL);
-      je(".ret");
       mov(tmp2, arg1);
-      if (dfa.flag().shortest_match()) jmp(".ret");
-      jmp(".cont");
-      L(".ret");
-      mov(reg_a, i);
-      jmp("return");
-      L(".cont");
-      outLocalLabel();
+      if (!dfa.flag().full_match()) {
+        inLocalLabel();
+        cmp(arg3, NULL);
+        je(".ret");
+        if (dfa.flag().shortest_match()) jmp(".ret");
+        jmp("@f");
+        L(".ret");
+        mov(reg_a, i);
+        jmp("return");
+        L("@@");
+        outLocalLabel();
+      }
     }
     // can transition without table lookup ?
     const DFA::AlterTrans &at = dfa[i].alter_transition;
