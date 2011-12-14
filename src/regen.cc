@@ -3,6 +3,8 @@
 
 namespace regen {
 
+const Regen::Options Regen::DefaultOptions(Regen::Options::NoParseFlags);
+
 Regen::Options::Options(Regen::Options::ParseFlag flag):
     shortest_match_(false), match_nl_(false), one_line_(false),
     reverse_match_(false), partial_match_(false), parallel_match_(false),
@@ -70,16 +72,30 @@ bool Regen::Match(const char *beg, const char *end, const Regen &reg, Context *c
   return reg.Match(beg, end, context);
 }
 
-bool Regen::FullMatch(const char *beg, const char *end, Context *context)
+bool Regen::FullMatch(const char *beg, const char *end, const std::string &reg, Context *context)
 {
-  // Not yet
-  return false;
+  return FullMatch(beg, end, reg, DefaultOptions, context);
 }
 
-bool Regen::PartialMatch(const char *beg, const char *end, const std::string &, Context *context)
+bool Regen::FullMatch(const char *beg, const char *end, const std::string &reg, Options opt, Context *context)
 {
-  // Not yet
-  return false;
+  opt.full_match(true);
+  Regex re(reg, opt);
+  re.Compile(Options::O3);
+  return re.Match(beg, end, context);
+}
+
+bool Regen::PartialMatch(const char *beg, const char *end, const std::string &reg, Context *context)
+{
+  return PartialMatch(beg, end, reg, DefaultOptions, context);
+}
+
+bool Regen::PartialMatch(const char *beg, const char *end, const std::string &reg, Options opt, Context *context)
+{
+  opt.partial_match(true);
+  Regex re(reg, opt);
+  re.Compile(Options::O3);
+  return re.Match(beg, end, context);
 }
 
 } // namespace regen

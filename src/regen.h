@@ -10,7 +10,6 @@ class Regex;
 class Regen {
 public:
   class Options {
-    static const int DefaultOption;
  public:
     enum ParseFlag {
       NoParseFlags = 0,
@@ -21,7 +20,7 @@ public:
       PartialMatch = 1 << 4,
       ParallelMatch = 1 << 5, // Enable Parallel Matching (SSFA)
       CapturedMatch = 1 << 6,
-      Extended = 1 << 7  // Regen-Extended syntax support (!,&,@)
+      Extended = 1 << 7  // Regen-Extended syntax support (!, &, @, &&, ||, #, \1)
     };
     enum CompileFlag {
       Onone = -1, O0 = 0, O1 = 1, O2 = 2, O3 = 3
@@ -58,6 +57,7 @@ public:
     bool captured_match_;
     bool extended_;
   };
+  static const Options DefaultOptions;
   struct Context {
     Context() { ptr[0] = ptr[1] = NULL; }
     const char *ptr[2];
@@ -72,7 +72,9 @@ public:
   bool Compile(Options::CompileFlag olevel = Options::O3);
   bool Match(const char *, const char *, Context *context = NULL) const;
   static bool Match(const char *, const char *, const Regen &, Context * context = NULL);
-  static bool FullMatch(const char *, const char *, Context *context = NULL);
+  static bool FullMatch(const char *, const char *, const std::string &, Options, Context *context = NULL);
+  static bool PartialMatch(const char *, const char *, const std::string &, Options, Context *context = NULL);
+  static bool FullMatch(const char *, const char *, const std::string &, Context *context = NULL);
   static bool PartialMatch(const char *, const char *, const std::string &, Context *context = NULL);
 private:
   Regex *regex_;
