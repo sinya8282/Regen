@@ -128,27 +128,26 @@ private:
 struct ExprPool {
  public:
   ExprPool() {}
-  ~ExprPool() { for(std::vector<Expr*>::iterator i = pool.begin(); i != pool.end(); ++i) delete *i; }
+  ~ExprPool() { for(std::deque<Expr*>::iterator i = pool.begin(); i != pool.end(); ++i) delete *i; }
 
   template<class T> T* alloc()
-  { pool.push_back(NULL); pool.back() = new T(); return (T*)pool.back(); }
+  { pool.push_back(new T()); return (T*)pool.back(); }
   template<class T, class P1> T* alloc(P1 p1)
-  { pool.push_back(NULL); pool.back() = new T(p1); return (T*)pool.back(); }
+  { pool.push_back(new T(p1)); return (T*)pool.back(); }
   template<class T, class P1, class P2> T* alloc(P1 p1, P2 p2)
-  { pool.push_back(NULL); pool.back() = new T(p1, p2); return (T*)pool.back(); }
+  { pool.push_back(new T(p1, p2)); return (T*)pool.back(); }
   template<class T, class P1, class P2, class P3> T* alloc(P1 p1, P2 p2, P3 p3)
-  { pool.push_back(NULL); pool.back() = new T(p1, p2, p3); return (T*)pool.back(); }
+  { pool.push_back(new T(p1, p2, p3)); return (T*)pool.back(); }
 
   void drain(ExprPool &p) { drain(&p); }
   void drain(ExprPool *p)
   {
-    pool.reserve(pool.size()+p->pool.size());
     pool.insert(pool.end(), p->pool.begin(), p->pool.end());
-    p->pool.erase(p->pool.begin(), p->pool.end());
+    p->pool.clear();
   }
 
  private:
-  std::vector<Expr*> pool;
+  std::deque<Expr*> pool;
 };
 
 class StateExpr: public Expr {
