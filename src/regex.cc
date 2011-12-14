@@ -5,7 +5,7 @@ namespace regen {
 Regex::Regex(const std::string &regex, const Regen::Options flags):
     regex_(regex),
     flag_(flags),
-    recursive_depth_(0),
+    recursion_depth_(0),
     involved_char_(std::bitset<256>()),
     olevel_(Regen::Options::Onone),
     dfa_failure_(false),
@@ -420,28 +420,28 @@ Regex::e6(Lexer *lexer, ExprPool *pool)
       }
       return e;
     }
-    case Lexer::kRecursive: {
+    case Lexer::kRecursion: {
       lexer->Consume();
-      std::pair<int, int> recursive_limit;
-      recursive_limit.first = recursive_limit.second = 1;
+      std::pair<int, int> recursion_limit;
+      recursion_limit.first = recursion_limit.second = 1;
       if (lexer->token() == Lexer::kRepetition) {
-        recursive_limit = lexer->repetition();
+        recursion_limit = lexer->repetition();
         lexer->Consume();
       }
-      if (recursive_limit.second == -1) {
-        exitmsg("disallow infinite recursive.");
+      if (recursion_limit.second == -1) {
+        exitmsg("disallow infinite recursion.");
       }
-      if (recursive_depth_ < static_cast<std::size_t>(recursive_limit.second)) {
-        recursive_depth_++;
+      if (recursion_depth_ < static_cast<std::size_t>(recursion_limit.second)) {
+        recursion_depth_++;
         const unsigned char *begin = (const unsigned char*)regex_.c_str(),
             *end = begin + regex_.length();
         Lexer l(begin, end);
         l.Consume();
         e = e0(&l, pool);
-        if (recursive_depth_ > static_cast<std::size_t>(recursive_limit.first)) {
+        if (recursion_depth_ > static_cast<std::size_t>(recursion_limit.first)) {
           e = pool->alloc<Qmark>(e);
         }
-        recursive_depth_--;
+        recursion_depth_--;
       } else {
         e = pool->alloc<None>();
       }

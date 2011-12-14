@@ -12,7 +12,7 @@ class Lexer {
 public:
   enum Type {
     kLiteral=0, kCharClass, kDot, kBegLine,
-    kEndLine, kRecursive, kByteRange, kBackRef, kEOP,
+    kEndLine, kRecursion, kByteRange, kBackRef, kEOP,
     kConcat, kUnion, kIntersection, kXOR, kShuffle,
     kQmark, kStar, kPlus, kRepetition,
     kRpar, kLpar, kEpsilon, kNone, kComplement, kPermutation

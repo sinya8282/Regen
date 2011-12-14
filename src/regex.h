@@ -57,7 +57,7 @@ private:
   Regen::Options flag_;
   Expr *expr_root_;
   ExprPool pool_;
-  std::size_t recursive_depth_;
+  std::size_t recursion_depth_;
   std::vector<StateExpr*> state_exprs_;
 
   Must must_;

@@ -11,7 +11,7 @@ Lexer::Type Lexer::Consume()
 
   switch (literal_ = *ptr_++) {
     // Regen Extension
-    case '@': token_ = kRecursive; break;
+    case '@': token_ = kRecursion; break;
     case '#': token_ = kPermutation; break;
     case '!': token_ = kComplement;  break;
     case '&': {
@@ -234,7 +234,7 @@ bool Lexer::Concatenated()
   switch (token_) {
     case kLiteral: case kCharClass: case kDot:
     case kEndLine: case kBegLine: case kNone:
-    case kLpar: case kComplement: case kRecursive:
+    case kLpar: case kComplement: case kRecursion:
     case kByteRange: case kBackRef:
       return true;
     default:
@@ -257,7 +257,7 @@ const char* Lexer::TokenToString(Lexer::Type token)
 {
   static const char* str[] = {
     "kLiteral", "kCharClass", "kDot", "kBegLine", "kEndLine",
-    "kRecursive", "kByteRange", "kEOP", "kConcat", "kUnion",
+    "kRecursion", "kByteRange", "kEOP", "kConcat", "kUnion",
     "kIntersection", "kQmark", "kStar", "kPlus", "kRepetition",
     "kRpar", "kLpar", "kEpsilon", "kNone", "kComplement"
   };
