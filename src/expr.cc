@@ -62,7 +62,7 @@ Expr::Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst, bool reverse
 
 Expr* Expr::Shuffle(Expr *lhs, Expr *rhs, ExprPool *p)
 {
-  Expr *e;
+  Expr *e = NULL;
   std::vector<Expr *> ls, rs;
   ExprPool tmp_pool;
   lhs->Serialize(ls, &tmp_pool); rhs->Serialize(rs, &tmp_pool);
