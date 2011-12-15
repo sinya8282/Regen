@@ -433,9 +433,7 @@ Regex::e6(Lexer *lexer, ExprPool *pool)
       }
       if (recursion_depth_ < static_cast<std::size_t>(recursion_limit.second)) {
         recursion_depth_++;
-        const unsigned char *begin = (const unsigned char*)regex_.c_str(),
-            *end = begin + regex_.length();
-        Lexer l(begin, end);
+        Lexer l(lexer->begin(), lexer->end(), flag_);
         l.Consume();
         e = e0(&l, pool);
         if (recursion_depth_ > static_cast<std::size_t>(recursion_limit.first)) {

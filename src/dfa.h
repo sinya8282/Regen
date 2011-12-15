@@ -35,18 +35,23 @@ class JITCompiler: public Xbyak::CodeGenerator {
 class DFA {
 #ifdef REGEN_ENABLE_XBYAK
   class Jitter: public Xbyak::CodeGenerator {
-    friend class DFA;
     struct Transition {
       void* t[256];
       Transition(void* fill = NULL) { std::fill(t, t+256, fill); }
       void* &operator[](std::size_t index) { return t[index]; }
     };
+    struct CodeInfo {
+      CodeInfo(): data_addr(NULL), code_addr(NULL) {}
+      void** data_addr;
+      void** code_addr;
+    };
  public:
     Jitter(std::size_t code_size = 4096): CodeGenerator(code_size), state_num_(0) {}
- private:
     std::deque<Transition> data_segment_;
+    std::deque<Xbyak::CodeGenerator*> code_segments_;
+    std::deque<CodeInfo> code_info_;
     std::size_t state_num_;
-};
+  };
 #endif  
 public:
   typedef uint32_t state_t;
