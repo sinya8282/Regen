@@ -10,24 +10,24 @@ Lexer::Type Lexer::Consume()
   }
 
   switch (literal_ = *ptr_++) {
-    // Regen Extension
-    case '@': token_ = kRecursion; break;
-    case '#': token_ = kPermutation; break;
-    case '!': token_ = kComplement;  break;
+    case '@': token_ = flag_.recursion_ext() ? kRecursion : kLiteral; break;
+    case '#': token_ = flag_.permutation_ext() ? kPermutation : kLiteral; break;
+    case '!': token_ = flag_.complement_ext() ? kComplement : kLiteral; break;
     case '&': {
-      if (*ptr_ == '&') {
+      if (*ptr_ == '&' && flag_.xor_ext()) {
         ptr_++;
         token_ = kXOR;
-      } else {
+      } else if (flag_.intersection_ext()) {
         token_ = kIntersection;
+      } else {
+        token_ = kLiteral;
       }
       break;
     }
-    // Normal Symbols
     case '.': token_ = kDot;       break;
     case '[': token_ = kCharClass; break;
     case '|': {
-      if (*ptr_ == '|') {
+      if (*ptr_ == '|' && flag_.shuffle_ext()) {
         ptr_++;
         token_ = kShuffle;
       } else {
@@ -65,16 +65,18 @@ Lexer::Type Lexer::Consume()
 
 Lexer::Type Lexer::lex_metachar()
 {
-  if (*ptr_ == '_' && '0' <= *(ptr_+1) && *(ptr_+1) <= '9') ptr_++;
-  if ('0' <= *ptr_ && *ptr_ <= '9') {
-    weakref_ = (*(ptr_-1) == '_');
-    backref_ = 0;
-    do {
-      backref_ *= 10;
-      backref_ += *ptr_++ - '0';
-    } while ('0' <= *ptr_ && *ptr_ <= '9');
-    backref_--;
-    return kBackRef;
+  if (flag_.weakbackref_ext()) {
+    if (*ptr_ == '_' && '0' <= *(ptr_+1) && *(ptr_+1) <= '9') ptr_++;
+    if ('0' <= *ptr_ && *ptr_ <= '9') {
+      weakref_ = (*(ptr_-1) == '_');
+      backref_ = 0;
+      do {
+        backref_ *= 10;
+        backref_ += *ptr_++ - '0';
+      } while ('0' <= *ptr_ && *ptr_ <= '9');
+      backref_--;
+      return kBackRef;
+    }
   }
 
   Type token;

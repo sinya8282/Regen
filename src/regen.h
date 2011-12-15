@@ -20,7 +20,16 @@ public:
       PartialMatch = 1 << 4,
       ParallelMatch = 1 << 5, // Enable Parallel Matching (SSFA)
       CapturedMatch = 1 << 6,
-      Extended = 1 << 7  // Regen-Extended syntax support (!, &, @, &&, ||, #, \1)
+      /* Regen-Extended syntax support (!, &, @, &&, ||, #, \1) */
+      ComplementExt = 1 << 7,
+      IntersectionExt = 1 << 8,
+      RecursionExt = 1 << 9,
+      XORExt = 1 << 10,
+      ShuffleExt = 1 << 11,
+      PermutationExt = 1 << 12,
+      WeakBackRefExt = 1 << 13,
+      Extended =  ComplementExt | IntersectionExt | RecursionExt
+      | XORExt | ShuffleExt | PermutationExt | WeakBackRefExt
     };
     enum CompileFlag {
       Onone = -1, O0 = 0, O1 = 1, O2 = 2, O3 = 3
@@ -43,9 +52,21 @@ public:
     bool parallel_match() const { return parallel_match_; }
     void parallel_match(bool b) { parallel_match_ = b; }
     bool captured_match() const { return captured_match_; }
-    void captured_match(bool b) { captured_match_ = b; }    
-    bool extended() { return extended_; }
-    void extended(bool b) { extended_ = b; }        
+    void captured_match(bool b) { captured_match_ = b; }
+    bool complement_ext() { return complement_ext_; }
+    void complement_ext(bool b) { complement_ext_ = b; }
+    bool intersection_ext() { return intersection_ext_; }
+    void intersection_ext(bool b) { intersection_ext_ = b; }
+    bool recursion_ext() { return recursion_ext_; }
+    void recursion_ext(bool b) { recursion_ext_ = b; }
+    bool xor_ext() { return xor_ext_; }
+    void xor_ext(bool b) { xor_ext_ = b; }
+    bool shuffle_ext() { return shuffle_ext_; }
+    void shuffle_ext(bool b) { shuffle_ext_ = b; }
+    bool permutation_ext() { return permutation_ext_; }
+    void permutation_ext(bool b) { permutation_ext_ = b; }
+    bool weakbackref_ext() { return weakbackref_ext_; }
+    void weakbackref_ext(bool b) { weakbackref_ext_ = b; }
  private:
     bool shortest_match_;
     bool dot_nl_;
@@ -55,7 +76,13 @@ public:
     bool partial_match_;
     bool parallel_match_;
     bool captured_match_;
-    bool extended_;
+    bool complement_ext_;
+    bool intersection_ext_;
+    bool recursion_ext_;
+    bool xor_ext_;
+    bool shuffle_ext_;
+    bool permutation_ext_;
+    bool weakbackref_ext_;
   };
   static const Options DefaultOptions;
   struct Context {
@@ -70,12 +97,14 @@ public:
   Regen(const std::string &, Regen::Options);
   ~Regen();
   bool Compile(Options::CompileFlag olevel = Options::O3);
+
   bool Match(const char *, const char *, Context *context = NULL) const;
   static bool Match(const char *, const char *, const Regen &, Context * context = NULL);
   static bool FullMatch(const char *, const char *, const std::string &, Options, Context *context = NULL);
   static bool PartialMatch(const char *, const char *, const std::string &, Options, Context *context = NULL);
   static bool FullMatch(const char *, const char *, const std::string &, Context *context = NULL);
   static bool PartialMatch(const char *, const char *, const std::string &, Context *context = NULL);
+
 private:
   Regex *regex_;
   Regex *reverse_regex_;

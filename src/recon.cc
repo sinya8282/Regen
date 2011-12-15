@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  regen::Regex r = regen::Regex(regex);
+  regen::Regex r = regen::Regex(regex, Regen::Options::Extended);
   r.Compile(Regen::Options::O0);
   if (minimize) r.MinimizeDFA();
 

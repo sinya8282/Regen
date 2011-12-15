@@ -8,16 +8,24 @@ const Regen::Options Regen::DefaultOptions(Regen::Options::NoParseFlags);
 Regen::Options::Options(Regen::Options::ParseFlag flag):
     shortest_match_(false), match_nl_(false), one_line_(false),
     reverse_match_(false), partial_match_(false), parallel_match_(false),
-    captured_match_(false), extended_(false)
+    captured_match_(false), complement_ext_(false), intersection_ext_(false),
+    recursion_ext_(false), xor_ext_(false), shuffle_ext_(false),
+    permutation_ext_(false), weakbackref_ext_(false)
 {
-  if (flag & ShortestMatch) shortest_match_ = true;
-  if (flag & MatchNL) match_nl_ = true;
-  if (flag & OneLine) one_line_ = true;
-  if (flag & ReverseMatch) reverse_match_ = true;
-  if (flag & PartialMatch) partial_match_ = true;
-  if (flag & ParallelMatch) parallel_match_ = true;
-  if (flag & CapturedMatch) captured_match_ = true;
-  if (flag & Extended) extended_ = true;
+  shortest_match_ = flag & ShortestMatch;
+  match_nl_ = flag & MatchNL;
+  one_line_ = flag & OneLine;
+  reverse_match_ = flag & ReverseMatch;
+  partial_match_ = flag & PartialMatch;
+  parallel_match_ = flag & ParallelMatch;
+  captured_match_ = flag & CapturedMatch;
+  complement_ext_ = flag & ComplementExt;
+  intersection_ext_ = flag & IntersectionExt;
+  recursion_ext_ = flag & RecursionExt;
+  xor_ext_ = flag & XORExt;
+  shuffle_ext_ = flag & ShuffleExt;
+  permutation_ext_ = flag & PermutationExt;
+  weakbackref_ext_ = flag & WeakBackRefExt;
 }
 
 Regen::Regen(const std::string &regex, const Regen::Options options = Regen::Options::NoParseFlags):
@@ -81,7 +89,7 @@ bool Regen::FullMatch(const char *beg, const char *end, const std::string &reg, 
 {
   opt.full_match(true);
   Regex re(reg, opt);
-  re.Compile(Options::O3);
+  re.Compile();
   return re.Match(beg, end, context);
 }
 
@@ -94,7 +102,7 @@ bool Regen::PartialMatch(const char *beg, const char *end, const std::string &re
 {
   opt.partial_match(true);
   Regex re(reg, opt);
-  re.Compile(Options::O3);
+  re.Compile();
   return re.Match(beg, end, context);
 }
 
