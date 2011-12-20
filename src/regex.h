@@ -19,9 +19,9 @@ public:
   Regex(const std::string &regex, const Regen::Options = Regen::Options::NoParseFlags);
   ~Regex() {}
   void PrintRegex();
-  void PrintExtendedRegex() const;
+  static void PrintRegex(const DFA &);
   void PrintParseTree() const;
-  Expr* CreateRegexFromDFA(DFA &dfa, ExprPool *p);
+  static Expr* CreateRegexFromDFA(const DFA &dfa, ExprPool *p);
   void DumpExprTree() const;
   bool Compile(Regen::Options::CompileFlag olevel = Regen::Options::O3);
   bool MinimizeDFA() { if (dfa_.Complete()) { dfa_.Minimize(); return true; } else return false; }
@@ -39,6 +39,7 @@ public:
   Regen::Options::CompileFlag olevel() const { return olevel_; }
   Expr* expr_root() const { return expr_root_; }
   const std::vector<StateExpr*> &state_exprs() const { return state_exprs_; }
+  static CharClass* BuildCharClass(Lexer *, CharClass *);
 
 private:
   Expr* Parse(Lexer *, ExprPool *);
@@ -49,8 +50,7 @@ private:
   Expr* e4(Lexer *, ExprPool *);
   Expr* e5(Lexer *, ExprPool *);
   Expr* e6(Lexer *, ExprPool *);
-  CharClass* BuildCharClass(Lexer *, ExprPool *);
-  StateExpr* CombineStateExpr(StateExpr*, StateExpr*, ExprPool *);
+  static StateExpr* CombineStateExpr(StateExpr*, StateExpr*, ExprPool *);
   Expr* PatchBackRef(Lexer *, Expr *, ExprPool *);
 
   const std::string regex_;

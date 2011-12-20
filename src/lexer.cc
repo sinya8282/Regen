@@ -5,6 +5,7 @@ namespace regen {
 Lexer::Type Lexer::Consume()
 {
   if (ptr_ >= end_) {
+    literal_ = '\0';
     token_ = kEOP;
     return token_;
   }

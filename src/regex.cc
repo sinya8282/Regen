@@ -359,7 +359,8 @@ Regex::e6(Lexer *lexer, ExprPool *pool)
       break;
     }
     case Lexer::kCharClass: {
-      CharClass *cc = BuildCharClass(lexer, pool);
+      CharClass *cc = pool->alloc<CharClass>();
+      BuildCharClass(lexer, cc);
       if (cc->count() == 1) {
         e = pool->alloc<Literal>(lexer->literal());
         //delete cc;
@@ -459,8 +460,7 @@ Regex::e6(Lexer *lexer, ExprPool *pool)
 }
 
 CharClass*
-Regex::BuildCharClass(Lexer *lexer, ExprPool *pool) {
-  CharClass *cc = pool->alloc<CharClass>();
+Regex::BuildCharClass(Lexer *lexer, CharClass *cc) {
   std::bitset<256>& table = cc->table();
   bool range;
   unsigned char lastc = '\0';
@@ -515,7 +515,7 @@ Regex::BuildCharClass(Lexer *lexer, ExprPool *pool) {
 
 // Converte DFA to Regular Expression using GNFA.
 // see http://en.wikipedia.org/wiki/Generalized_nondeterministic_finite-state_machine
-Expr* Regex::CreateRegexFromDFA(DFA &dfa, ExprPool *p)
+Expr* Regex::CreateRegexFromDFA(const DFA &dfa, ExprPool *p)
 {
   int GSTART  = dfa.size();
   int GACCEPT = GSTART+1;
@@ -755,6 +755,13 @@ void Regex::PrintRegex() {
   } else {
     PrintRegexVisitor::Print(expr_root_);
   }
+}
+
+void Regex::PrintRegex(const DFA &dfa)
+{
+  ExprPool p;
+  Expr* e = CreateRegexFromDFA(dfa, &p);
+  PrintRegexVisitor::Print(e);
 }
 
 void Regex::PrintParseTree() const {
