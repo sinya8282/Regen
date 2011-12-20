@@ -83,7 +83,8 @@ void PrintRegexVisitor::Print(Expr* e)
 
 void PrintRegexVisitor::Visit(BinaryExpr *e)
 {
-  if (e->lhs()->type() == Expr::kUnion) {
+  if (Expr::SuperTypeOf(e->lhs()) == Expr::kBinaryExpr
+      && e->lhs()->type() != Expr::kConcat) {
     printf("(");
     e->lhs()->Accept(this);
     printf(")");
@@ -93,7 +94,8 @@ void PrintRegexVisitor::Visit(BinaryExpr *e)
 
   PrintExprVisitor::Print(e);
 
-  if (e->rhs()->type() == Expr::kUnion) {
+  if (Expr::SuperTypeOf(e->rhs()) == Expr::kBinaryExpr
+      && e->rhs()->type() != Expr::kConcat) {
     printf("(");
     e->rhs()->Accept(this);
     printf(")");
@@ -104,8 +106,8 @@ void PrintRegexVisitor::Visit(BinaryExpr *e)
 
 void PrintRegexVisitor::Visit(UnaryExpr *e)
 {
-  switch (e->lhs()->type()) {
-    case Expr::kConcat: case Expr::kUnion:
+  switch (Expr::SuperTypeOf(e->lhs())) {
+    case Expr::kBinaryExpr:
       printf("(");
       e->lhs()->Accept(this);
       printf(")");

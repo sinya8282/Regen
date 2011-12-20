@@ -29,6 +29,8 @@ public:
   void Visit(None * e) { printf("[:None:]"); }
   void Visit(Concat* e) {}
   void Visit(Union* e) { printf("|"); }
+  void Visit(Intersection* e) { printf("&"); }
+  void Visit(XOR* e) { printf("&&"); }
   void Visit(Qmark* e) { printf("?"); }
   void Visit(Plus* e) { printf("+"); }
   void Visit(Star* e) { printf("*"); }

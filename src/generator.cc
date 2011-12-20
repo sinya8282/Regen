@@ -19,14 +19,13 @@ unsigned char* normalize(unsigned int c, unsigned char *buf)
   return buf;
 }
 
-void DotGenerate(const Regex &regex)
+void DotGenerate(const DFA &dfa)
 {
   static const char* const normal = "circle";
   static const char* const accept = "doublecircle";
   static const char* const thema  = "fillcolor=lightsteelblue1, style=filled, color = navyblue ";
   unsigned char buf[10];
   puts("digraph DFA {\n  rankdir=\"LR\"");
-  const DFA &dfa = regex.dfa();
   for (std::size_t i = 0; i < dfa.size(); i++) {
     printf("  q%"PRIuS" [shape=%s, %s]\n", i, (dfa.IsAcceptState(i) ? accept : normal), thema);
   }
@@ -53,11 +52,10 @@ void DotGenerate(const Regex &regex)
   puts("}");
 }
 
-void CGenerate(const Regex& regex)
+void CGenerate(const DFA &dfa)
 {
   puts("typedef unsigned char  UCHAR;");
   puts("typedef unsigned char *UCHARP;");
-  const DFA &dfa = regex.dfa();
   for (std::size_t i = 0; i < dfa.size(); i++) {
     const DFA::Transition &transition = dfa.GetTransition(i);
     printf("void s%"PRIuS"(UCHARP beg, UCHARP buf, UCHARP end)\n{\n", i);

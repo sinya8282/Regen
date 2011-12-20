@@ -1,3 +1,4 @@
+#include "lexer.h"
 #include "regen.h"
 #include "regex.h"
 #include "exprutil.h"
@@ -49,17 +50,18 @@ int main(int argc, char *argv[]) {
   } else {
     r.Compile(Regen::Options::O0);
     if (minimize) r.MinimizeDFA();
-  }    
+  }
 
   switch (generate) {
     case CGEN:
-      regen::Generator::CGenerate(r);
+      regen::Generator::CGenerate(r.dfa());
       break;
     case DOTGEN:
-      r.MinimizeDFA();
-      regen::Generator::DotGenerate(r);
+      regen::Generator::DotGenerate(r.dfa());
       break;
-    case REGEN: break; // Unreachable
+    case REGEN:
+      r.PrintRegex();
+      break;
   }
   return 0;
 }
