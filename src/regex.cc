@@ -676,7 +676,7 @@ bool Regex::Compile(Regen::Options::CompileFlag olevel) {
   if (!dfa_failure_ && !dfa_.Complete()) {
     /* try create DFA.  */
     std::size_t limit = state_exprs_.size();
-    limit = 1000; // default limitation is 1000 (it's may finish within a second).
+    limit = 10000; // default limitation is 10000 (it's may finish within a second).
     dfa_failure_ = !dfa_.Construct(expr_root_, limit);
   }
   if (dfa_failure_) {

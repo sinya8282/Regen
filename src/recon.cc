@@ -43,8 +43,13 @@ int main(int argc, char *argv[]) {
   }
 
   regen::Regex r = regen::Regex(regex, Regen::Options::Extended);
-  r.Compile(Regen::Options::O0);
-  if (minimize) r.MinimizeDFA();
+  if (generate == REGEN && !minimize) {
+    r.PrintRegex();
+    return 0;
+  } else {
+    r.Compile(Regen::Options::O0);
+    if (minimize) r.MinimizeDFA();
+  }    
 
   switch (generate) {
     case CGEN:
@@ -54,9 +59,7 @@ int main(int argc, char *argv[]) {
       r.MinimizeDFA();
       regen::Generator::DotGenerate(r);
       break;
-    case REGEN:
-      r.PrintRegex();
-      break;
+    case REGEN: break; // Unreachable
   }
   return 0;
 }
