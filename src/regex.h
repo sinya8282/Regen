@@ -18,9 +18,10 @@ class Regex {
 public:
   Regex(const std::string &regex, const Regen::Options = Regen::Options::NoParseFlags);
   ~Regex() {}
-  void PrintRegex();
+  void PrintRegex() const;
   static void PrintRegex(const DFA &);
   void PrintParseTree() const;
+  void PrintText() const;
   static Expr* CreateRegexFromDFA(const DFA &dfa, ExprPool *p);
   void DumpExprTree() const;
   bool Compile(Regen::Options::CompileFlag olevel = Regen::Options::O3);

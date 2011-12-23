@@ -60,20 +60,22 @@ public:
     void parallel_match(bool b) { parallel_match_ = b; }
     bool captured_match() const { return captured_match_; }
     void captured_match(bool b) { captured_match_ = b; }
-    bool complement_ext() { return complement_ext_; }
+    bool complement_ext() const { return complement_ext_; }
     void complement_ext(bool b) { complement_ext_ = b; }
-    bool intersection_ext() { return intersection_ext_; }
+    bool intersection_ext() const { return intersection_ext_; }
     void intersection_ext(bool b) { intersection_ext_ = b; }
-    bool recursion_ext() { return recursion_ext_; }
+    bool recursion_ext() const { return recursion_ext_; }
     void recursion_ext(bool b) { recursion_ext_ = b; }
-    bool xor_ext() { return xor_ext_; }
+    bool xor_ext() const { return xor_ext_; }
     void xor_ext(bool b) { xor_ext_ = b; }
-    bool shuffle_ext() { return shuffle_ext_; }
+    bool shuffle_ext() const { return shuffle_ext_; }
     void shuffle_ext(bool b) { shuffle_ext_ = b; }
-    bool permutation_ext() { return permutation_ext_; }
+    bool permutation_ext() const { return permutation_ext_; }
     void permutation_ext(bool b) { permutation_ext_ = b; }
-    bool weakbackref_ext() { return weakbackref_ext_; }
+    bool weakbackref_ext() const { return weakbackref_ext_; }
     void weakbackref_ext(bool b) { weakbackref_ext_ = b; }
+    bool extended() const { return complement_ext_ & intersection_ext_ & recursion_ext_ & xor_ext_ & shuffle_ext_ & permutation_ext_ & weakbackref_ext_; }
+    void extended(bool b) { complement_ext_ = intersection_ext_ = recursion_ext_ = xor_ext_ = shuffle_ext_ = permutation_ext_ = weakbackref_ext_ = b; }
  private:
     bool shortest_match_;
     bool dot_nl_;

@@ -288,6 +288,19 @@ void Concat::Serialize(std::vector<Expr*> &v, ExprPool *p)
   return;
 }
 
+void Concat::Generate(std::set<std::string> &g)
+{
+  std::set<std::string> h, r;
+  lhs_->Generate(g);
+  rhs_->Generate(h);
+  for (std::set<std::string>::iterator i = g.begin(); i != g.end(); ++i) {
+    for (std::set<std::string>::iterator j = h.begin(); j != h.end(); ++j) {
+      r.insert(*i+*j);
+    }
+  }
+  g.swap(r);
+}
+
 void Union::FillPosition(ExprInfo *info)
 {
   lhs_->FillPosition(info);
@@ -316,6 +329,20 @@ void Union::Serialize(std::vector<Expr*> &v, ExprPool *p)
 {
   lhs_->Serialize(v, p);
   rhs_->Serialize(v, p);
+}
+
+void Union::Generate(std::set<std::string> &g)
+{
+  std::set<std::string> h;
+  lhs_->Generate(g);
+  rhs_->Generate(h);
+  std::vector<std::string> r(g.size()+h.size());
+  std::set_union(g.begin(), g.end(), h.begin(), h.end(), r.begin());
+  if (g.find("") == g.end() && h.find("") == h.end()) {
+    r.erase(std::remove(r.begin(), r.end(), ""), r.end());
+  }    
+  g.clear();
+  g.insert(r.begin(), r.end());
 }
 
 Intersection::Intersection(Expr *lhs, Expr *rhs, ExprPool *p):
@@ -350,6 +377,20 @@ void Intersection::FillTransition(bool reverse)
 {
   rhs_->FillTransition(reverse);
   lhs_->FillTransition(reverse);
+}
+
+void Intersection::Generate(std::set<std::string> &g)
+{
+  std::set<std::string> h;
+  lhs_->Generate(g);
+  rhs_->Generate(h);
+  std::vector<std::string> r(g.size()+h.size());
+  std::set_intersection(g.begin(), g.end(), h.begin(), h.end(), r.begin());
+  if (g.find("") == g.end() || h.find("") == h.end()) {
+    r.erase(std::remove(r.begin(), r.end(), ""), r.end());
+  }    
+  g.clear();
+  g.insert(r.begin(), r.end());
 }
 
 XOR::XOR(Expr* lhs, Expr* rhs, ExprPool *p):
@@ -394,6 +435,24 @@ void XOR::FillTransition(bool reverse)
   lhs_->FillTransition(reverse);
 }
 
+void XOR::Generate(std::set<std::string> &g)
+{
+  std::set<std::string> h;
+  lhs_->Generate(g);
+  rhs_->Generate(h);
+  std::vector<std::string> r1(g.size());
+  std::vector<std::string> r2(h.size());
+  std::set_difference(g.begin(), g.end(), h.begin(), h.end(), r1.begin());
+  std::set_difference(h.begin(), h.end(), g.begin(), g.end(), r2.begin());
+  if ((g.find("") == g.end()) == ( h.find("") == h.end())) {
+    r1.erase(std::remove(r1.begin(), r1.end(), ""), r1.end());
+    r2.erase(std::remove(r2.begin(), r2.end(), ""), r2.end());
+  }    
+  g.clear();
+  g.insert(r1.begin(), r1.end());
+  g.insert(r2.begin(), r2.end());
+}
+
 void Qmark::FillPosition(ExprInfo *info)
 {
   lhs_->FillPosition(info);
@@ -429,6 +488,11 @@ void Star::FillTransition(bool reverse)
   lhs_->FillTransition(reverse);
 }
 
+void Star::Generate(std::set<std::string> &g)
+{
+  g.insert("");
+}
+
 void Plus::FillPosition(ExprInfo *info)
 {
   lhs_->FillPosition(info);
@@ -444,6 +508,11 @@ void Plus::FillTransition(bool reverse)
 {
   Connect(lhs_->transition().last, lhs_->transition().first, reverse);
   lhs_->FillTransition(reverse);
+}
+
+void Plus::Generate(std::set<std::string> &g)
+{
+  lhs_->Generate(g);
 }
 
 } // namespace regen

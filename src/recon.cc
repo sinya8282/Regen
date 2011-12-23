@@ -8,7 +8,7 @@
 #include "dfa.h"
 #include "generator.h"
 
-enum Generate { DOTGEN, REGEN, CGEN };
+enum Generate { DOTGEN, REGEN, CGEN, TEXTGEN };
 
 void Dispatch(Generate generate, const regen::DFA &dfa) {
   switch (generate) {
@@ -20,6 +20,8 @@ void Dispatch(Generate generate, const regen::DFA &dfa) {
       break;
     case REGEN:
       regen::Regex::PrintRegex(dfa);
+      break;
+    case TEXTGEN:
       break;
   }
 }
@@ -134,32 +136,35 @@ int main(int argc, char *argv[]) {
   std::string regex;
   bool minimize = false;
   bool automata = false;
+  bool extended = false;
   int opt;
   Generate generate = REGEN;
 
-  while ((opt = getopt(argc, argv, "amdcxef:")) != -1) {
+  while ((opt = getopt(argc, argv, "amdcxEtf:")) != -1) {
     switch(opt) {
+      case 'E':
+        extended = true;
+        break;
       case 'f': {
         std::ifstream ifs(optarg);
         ifs >> regex;
         break;
       }
-      case 'd': {
+      case 'd':
         generate = DOTGEN;
         break;
-      }
-      case 'c': {
+      case 'c':
         generate = CGEN;
         break;
-      }
-      case 'm': {
+      case 'm':
         minimize = true;
         break;
-      }
-      case 'a': {
+      case 'a':
         automata = true;
         break;
-      }
+      case 't': 
+        generate = TEXTGEN;
+        break;
       default: exitmsg("USAGE: regen [options] regexp\n");
     }
   }
@@ -180,10 +185,14 @@ int main(int argc, char *argv[]) {
     regen::DFA dfa(nfa);
     Dispatch(generate, dfa);
     return 0;
-  }
-  
-  regen::Regex r = regen::Regex(regex, Regen::Options::Extended);
-  if (generate == REGEN && !minimize) {
+  }  
+
+  regen::Regen::Options option;
+  option.extended(extended);
+  regen::Regex r = regen::Regex(regex, option);
+  if (generate == TEXTGEN) {
+    r.PrintText();
+  } else if (generate == REGEN && !minimize) {
     r.PrintRegex();
     return 0;
   } else {

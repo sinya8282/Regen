@@ -747,7 +747,8 @@ bool Regex::MatchNFA(const unsigned char *begin, const unsigned char *end, Regen
   return match;
 }
 
-void Regex::PrintRegex() {
+void Regex::PrintRegex() const
+{
   if (dfa_.Complete()) {
     ExprPool p;
     Expr* e = CreateRegexFromDFA(dfa_, &p);
@@ -764,12 +765,23 @@ void Regex::PrintRegex(const DFA &dfa)
   PrintRegexVisitor::Print(e);
 }
 
-void Regex::PrintParseTree() const {
+void Regex::PrintParseTree() const
+{
   PrintParseTreeVisitor::Print(expr_root_);
 }
 
-void Regex::DumpExprTree() const {
+void Regex::DumpExprTree() const
+{
   DumpExprVisitor::Dump(expr_root_);
+}
+
+void Regex::PrintText() const
+{
+  std::set<std::string> g;
+  expr_root_->Generate(g);
+  for (std::set<std::string>::iterator iter = g.begin(); iter != g.end(); ++iter) {
+    printf("%s\n", iter->c_str());
+  }
 }
 
 } // namespace regen

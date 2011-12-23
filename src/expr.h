@@ -95,6 +95,7 @@ public:
   void FillReverseTransition() { FillTransition(true); transition_.first.swap(transition_.last); }
   virtual void Serialize(std::vector<Expr*> &v, ExprPool *p) { v.push_back(Clone(p)); }
   virtual void Factorize(std::vector<Expr*> &v) { v.push_back(this); }
+  virtual void Generate(std::set<std::string> &g) { g.insert(""); }
   virtual void PatchBackRef(Expr *, std::size_t, ExprPool *) = 0;
   static Expr* Shuffle(Expr *, Expr *, ExprPool *);
   static Expr* Permutation(Expr *, ExprPool *);
@@ -173,6 +174,7 @@ public:
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   bool Match(unsigned char c) { return c == literal_; };
   Expr *Clone(ExprPool *p) { return p->alloc<Literal>(literal_); };
+  void Generate(std::set<std::string> &g) { g.insert(std::string(1, literal_)); }
 private:
   const unsigned char literal_;
   DISALLOW_COPY_AND_ASSIGN(Literal);
@@ -194,6 +196,7 @@ public:
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   bool Match(const unsigned char c) { return Involve(c); };
   Expr *Clone(ExprPool *p) { return p->alloc<CharClass>(table_, negative_); };
+  void Generate(std::set<std::string> &g) { for (std::size_t i = 0; i < 256; i++) if (Involve((unsigned char)i)) g.insert(std::string(1, (char)i)); }
 private:
   std::bitset<256> table_;
   bool negative_;
@@ -208,6 +211,7 @@ public:
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   bool Match(const unsigned char c) { return true; };
   Expr *Clone(ExprPool *p) { return p->alloc<Dot>(); };
+  void Generate(std::set<std::string> &g) { for (std::size_t i = 0; i < 256; i++) g.insert(std::string(1, (char)i)); }
 private:
   DISALLOW_COPY_AND_ASSIGN(Dot);
 };
@@ -331,6 +335,7 @@ public:
   Expr* Clone(ExprPool *p) { return p->alloc<Concat>(lhs_->Clone(p), rhs_->Clone(p)); };
   void Serialize(std::vector<Expr*> &v, ExprPool *p);
   void Factorize(std::vector<Expr*> &v) { lhs_->Factorize(v); rhs_->Factorize(v); }
+  void Generate(std::set<std::string> &g);
 private:
   DISALLOW_COPY_AND_ASSIGN(Concat);
 };
@@ -345,6 +350,7 @@ public:
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool *p) { return p->alloc<Union>(lhs_->Clone(p), rhs_->Clone(p)); };
   void Serialize(std::vector<Expr*> &v, ExprPool *p);
+  void Generate(std::set<std::string> &g);
 private:
   DISALLOW_COPY_AND_ASSIGN(Union);
 };
@@ -358,6 +364,7 @@ public:
   Expr::Type type() { return Expr::kIntersection; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool *p) { return p->alloc<Intersection>(lhs__->Clone(p), rhs__->Clone(p), p); };
+  void Generate(std::set<std::string> &g);
 private:
   Operator *rop_, *lop_;
   Expr *lhs__, *rhs__;
@@ -373,6 +380,7 @@ public:
   Expr::Type type() { return Expr::kXOR; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool *p) { return p->alloc<XOR>(lhs__->Clone(p), rhs__->Clone(p), p); }
+  void Generate(std::set<std::string> &g);
 private:
   Operator *lop_, *rop_;
   Expr *lhs__, *rhs__;
@@ -404,6 +412,7 @@ public:
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool *p) { return p->alloc<Qmark>(lhs_->Clone(p)); };
   void Serialize(std::vector<Expr*> &v, ExprPool *p) { v.push_back(p->alloc<Epsilon>()); lhs_->Serialize(v, p); }
+  void Generate(std::set<std::string> &g) { lhs_->Generate(g); g.insert(""); }
 private:
   bool non_greedy_;
   DISALLOW_COPY_AND_ASSIGN(Qmark);
@@ -418,6 +427,7 @@ public:
   Expr::Type type() { return Expr::kStar; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool *p) { return p->alloc<Star>(lhs_->Clone(p), non_greedy_); };
+  void Generate(std::set<std::string> &g);
 private:
   bool non_greedy_;
   DISALLOW_COPY_AND_ASSIGN(Star);
@@ -432,6 +442,7 @@ public:
   Expr::Type type() { return Expr::kPlus; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool* p) { return p->alloc<Plus>(lhs_->Clone(p)); };
+  void Generate(std::set<std::string> &g);
 private:
   DISALLOW_COPY_AND_ASSIGN(Plus);
 };
