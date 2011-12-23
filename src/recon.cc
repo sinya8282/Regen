@@ -8,7 +8,7 @@
 #include "dfa.h"
 #include "generator.h"
 
-enum Generate { DOTGEN, REGEN, CGEN};
+enum Generate { DOTGEN, REGEN, CGEN };
 
 void Dispatch(Generate generate, const regen::DFA &dfa) {
   switch (generate) {

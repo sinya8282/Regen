@@ -17,17 +17,20 @@ public:
       OneLine = 1 << 1,
       ShortestMatch = 1 << 2,
       ReverseMatch = 1 << 3,
-      PartialMatch = 1 << 4,
-      ParallelMatch = 1 << 5, // Enable Parallel Matching (SSFA)
-      CapturedMatch = 1 << 6,
+      NoPrefixMatch = 1 << 4,
+      NoSuffixMatch = 1 << 5,
+      PartialMatch = NoPrefixMatch | NoSuffixMatch,
+      FullMatch = 0,
+      ParallelMatch = 1 << 6, // Enable Parallel Matching (SSFA)
+      CapturedMatch = 1 << 7,
       /* Regen-Extended syntax support (!, &, @, &&, ||, #, \1) */
-      ComplementExt = 1 << 7,
-      IntersectionExt = 1 << 8,
-      RecursionExt = 1 << 9,
-      XORExt = 1 << 10,
-      ShuffleExt = 1 << 11,
-      PermutationExt = 1 << 12,
-      WeakBackRefExt = 1 << 13,
+      ComplementExt = 1 << 8,
+      IntersectionExt = 1 << 9,
+      RecursionExt = 1 << 10,
+      XORExt = 1 << 11,
+      ShuffleExt = 1 << 12,
+      PermutationExt = 1 << 13,
+      WeakBackRefExt = 1 << 14,
       Extended =  ComplementExt | IntersectionExt | RecursionExt
       | XORExt | ShuffleExt | PermutationExt | WeakBackRefExt
     };
@@ -45,10 +48,14 @@ public:
     void one_line(bool b) { one_line_ = b; }
     bool reverse_match() const { return reverse_match_; }
     void reverse_match(bool b) { reverse_match_ = b; }
-    bool partial_match() const { return partial_match_; }
-    void partial_match(bool b) { partial_match_ = b; }
-    bool full_match() const { return !partial_match(); }
-    void full_match(bool b) { partial_match_ = !b; }
+    bool suffix_match() const { return !nosuffix_match_; }
+    void suffix_match(bool b) { nosuffix_match_ = !b; }
+    bool prefix_match() const { return !noprefix_match_; }
+    void prefix_match(bool b) { noprefix_match_ = !b; }
+    bool full_match() const { return prefix_match() && suffix_match(); }
+    void full_match(bool b) { prefix_match(b); suffix_match(b); }
+    bool partial_match() const { return !full_match(); }
+    void partial_match(bool b) { full_match(!b); }
     bool parallel_match() const { return parallel_match_; }
     void parallel_match(bool b) { parallel_match_ = b; }
     bool captured_match() const { return captured_match_; }
@@ -73,7 +80,8 @@ public:
     bool match_nl_;
     bool one_line_;
     bool reverse_match_;
-    bool partial_match_;
+    bool noprefix_match_;
+    bool nosuffix_match_;
     bool parallel_match_;
     bool captured_match_;
     bool complement_ext_;
@@ -94,7 +102,7 @@ public:
     void set_end(const char* p) { ptr[1] = p; }
     const char * operator[](std::size_t index) const { return ptr[index]; }
   };
-  Regen(const std::string &, Regen::Options);
+  Regen(const std::string &, Regen::Options = Regen::Options::NoParseFlags);
   ~Regen();
   bool Compile(Options::CompileFlag olevel = Options::O3);
 

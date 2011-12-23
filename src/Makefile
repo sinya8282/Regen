@@ -20,7 +20,7 @@ CFLAGS=-fPIC -O3 -Wall -g3 -fno-operator-names $(REGENFLAGS)
 SRC=regen.cc regex.cc lexer.cc expr.cc exprutil.cc nfa.cc dfa.cc ssfa.cc generator.cc 
 OBJS=$(SRC:.cc=.o)
 
-all: libregen recon fullmatch state_num test.o bench.o
+all: libregen recon fullmatch state_num regengrep test.o bench.o
 
 libregen: $(OBJS)
 	$(CC) $(OBJS) $(MAKE_SHARED_LIBRARY) -o libregen.so $(CFLAGS) $(LIBTHREAD)
@@ -33,6 +33,9 @@ fullmatch: tests/fullmatch.cc libregen
 
 state_num: tests/state_num.cc libregen
 	$(CC) tests/state_num.cc -o $@ $(CFLAGS) $(LIBTHREAD) -L$(PWD) -lregen
+
+regengrep: tests/regengrep.cc libregen
+	$(CC) tests/regengrep.cc -o $@ $(CFLAGS) $(LIBTHREAD) -L$(PWD) -lregen
 
 test: test.o
 	@./test.o
@@ -50,7 +53,7 @@ bench.o: tests/bench.cc $(OBJS)
 	$(CC) -c $< $(CFLAGS)
 
 clean:
-	rm -rf $(OBJS) test.o bench.o ssfa.h.gch recon test bench fullmatch state_num *.dSYM libregen.so
+	rm -rf $(OBJS) test.o bench.o ssfa.h.gch recon test bench fullmatch state_num regengrep *.dSYM libregen.so
 
 depend:
 	sed '/^# DO NOT DELETE THIS LINE/q' Makefile > tmp

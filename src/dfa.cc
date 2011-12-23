@@ -163,8 +163,12 @@ pretransition:
     
     State &state = get_new_state();
     Transition &trans = transition_[state.id];
+    state.accept = is_accept;
     //only Leftmost-Shortest matching
-    if (flag_.shortest_match() && is_accept) goto shortest;
+    if (flag_.shortest_match() && is_accept) {
+      trans.fill(REJECT);
+      continue;
+    }
 
     for (state_t i = 0; i < 256; i++) {
       NFA &next = transition[i];
@@ -186,8 +190,6 @@ pretransition:
       trans[i] = dfa_map_[next];
       state.dst_states.insert(dfa_map_[next]);
     }
- shortest:
-    state.accept = is_accept;
   }
 
   if (limit_over) {
@@ -227,8 +229,12 @@ bool DFA::Construct(const NFA &nfa, size_t limit)
 
     State &state = get_new_state();
     Transition &trans = transition_[state.id];
+    state.accept = is_accept;
     //only Leftmost-Shortest matching
-    if (flag_.shortest_match() && is_accept) goto shortest;
+    if (flag_.shortest_match() && is_accept) {
+      trans.fill(REJECT);
+      continue;
+    }
     
     for (state_t i = 0; i < 256; i++) {
       NFA_ &next = transition[i];
@@ -244,8 +250,6 @@ bool DFA::Construct(const NFA &nfa, size_t limit)
       trans[i] = dfa_map[next];
       state.dst_states.insert(dfa_map[next]);
     }
- shortest:
-    state.accept = is_accept;
   }
 
   Finalize();
@@ -558,20 +562,17 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
     dfa.state2label(i, labelbuf);
     L(labelbuf);
     states_addr[i] = getCurr();
-    if (dfa.IsAcceptState(i)) {
+    if (dfa.IsAcceptState(i) && !dfa.flag().suffix_match()) {
+      inLocalLabel();
+      cmp(arg3, NULL);
+      je(".ret");
       mov(tmp2, arg1);
-      if (!dfa.flag().full_match()) {
-        inLocalLabel();
-        cmp(arg3, NULL);
-        je(".ret");
-        if (dfa.flag().shortest_match()) jmp(".ret");
-        jmp("@f");
-        L(".ret");
-        mov(reg_a, i);
-        jmp("return");
-        L("@@");
-        outLocalLabel();
-      }
+      if (!dfa.flag().shortest_match()) jmp("@f");
+      L(".ret");
+      mov(reg_a, i);
+      jmp("return");
+      L("@@");
+      outLocalLabel();
     }
     // can transition without table lookup ?
     const DFA::AlterTrans &at = dfa[i].alter_transition;
@@ -785,14 +786,18 @@ bool DFA::Match(const unsigned char *str, const unsigned char *end, Regen::Conte
   if (!complete_) return OnTheFlyMatch(str, end, context);
 
   state_t state = 0;
-  Regen::Context context_;
 
   if (olevel_ >= Regen::Options::O1) {
     state = CompiledMatch(str, end, context);
     if (context == NULL) {
-      return state != DFA::REJECT ? states_[state].accept : false;
+      return IsAcceptState(state);
     } else {
-      return context->end() != NULL;
+      if (flag_.suffix_match() && IsAcceptState(state)) {
+        context->set_end((const char *)end);
+        return true;
+      } else {
+        return context->end() != NULL;
+      }
     }
   }
 

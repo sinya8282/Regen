@@ -7,7 +7,7 @@ const Regen::Options Regen::DefaultOptions(Regen::Options::NoParseFlags);
 
 Regen::Options::Options(Regen::Options::ParseFlag flag):
     shortest_match_(false), match_nl_(false), one_line_(false),
-    reverse_match_(false), partial_match_(false), parallel_match_(false),
+    reverse_match_(false), noprefix_match_(false), nosuffix_match_(false), parallel_match_(false),
     captured_match_(false), complement_ext_(false), intersection_ext_(false),
     recursion_ext_(false), xor_ext_(false), shuffle_ext_(false),
     permutation_ext_(false), weakbackref_ext_(false)
@@ -16,7 +16,8 @@ Regen::Options::Options(Regen::Options::ParseFlag flag):
   match_nl_ = flag & MatchNL;
   one_line_ = flag & OneLine;
   reverse_match_ = flag & ReverseMatch;
-  partial_match_ = flag & PartialMatch;
+  noprefix_match_ = flag & NoPrefixMatch;
+  nosuffix_match_ = flag & NoSuffixMatch;
   parallel_match_ = flag & ParallelMatch;
   captured_match_ = flag & CapturedMatch;
   complement_ext_ = flag & ComplementExt;
@@ -28,15 +29,17 @@ Regen::Options::Options(Regen::Options::ParseFlag flag):
   weakbackref_ext_ = flag & WeakBackRefExt;
 }
 
-Regen::Regen(const std::string &regex, const Regen::Options options = Regen::Options::NoParseFlags):
+Regen::Regen(const std::string &regex, const Regen::Options options):
     regex_(NULL), reverse_regex_(NULL), flag_(options)
 {
   regex_ = new Regex(regex, flag_);
-  if (flag_.captured_match() && flag_.partial_match()) {
+  if (flag_.captured_match() && !flag_.prefix_match()) {
     Options opt(flag_);
     opt.reverse_match(true);
-    opt.partial_match(false);
-    opt.shortest_match(false);
+    opt.prefix_match(true);
+    opt.suffix_match(false);
+    opt.longest_match(true);
+    opt.captured_match(false);
     reverse_regex_ = new Regex(regex, opt);
   }
 }

@@ -115,8 +115,8 @@ Expr* Regex::Parse(Lexer *lexer, ExprPool *pool)
 
   if (!lexer->backrefs().empty()) e = PatchBackRef(lexer, e, pool);
   
-  if (flag_.partial_match()) {
-    //add '.*?' to top of regular expression for Partial Match
+  if (!flag_.prefix_match()) {
+    //add '.*?' to top of regular expression for non-Prefix Match(Partial Match)
     Expr* dotstar = pool->alloc<Star>(pool_.alloc<Dot>(), true);
     e = pool->alloc<Concat>(dotstar, e);
   }

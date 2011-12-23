@@ -62,6 +62,7 @@ public:
   struct Transition {
     state_t t[256];
     Transition(state_t fill = UNDEF) { std::fill(t, t+256, fill); }
+    void fill(state_t fill) { std::fill(t, t+256, fill); }
     state_t &operator[](std::size_t index) { return t[index]; }
     const state_t &operator[](std::size_t index) const { return t[index]; }
   };
@@ -113,7 +114,7 @@ DFA(const Regen::Options flag = Regen::Options::NoParseFlags): complete_(false),
   const std::set<state_t> &dst_states(std::size_t i) const { return states_[i].dst_states; }
   const AlterTrans &GetAlterTrans(std::size_t state) const { return states_[state].alter_transition; }
   const Transition &GetTransition(std::size_t state) const { return transition_[state]; }
-  bool IsAcceptState(std::size_t state) const { return states_[state].accept; }
+  bool IsAcceptState(std::size_t state) const { return state == REJECT ? false : states_[state].accept; }
 
   bool Construct(Expr *expr_root, std::size_t limit = std::numeric_limits<size_t>::max());
   bool Construct(const NFA &nfa, std::size_t limit = std::numeric_limits<size_t>::max());
