@@ -540,7 +540,7 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
   const uint8_t *reject_state_addr = getCurr();
   mov(reg_a, DFA::REJECT); // return false
   L("return");
-  cmp(arg3, NULL);
+  cmp(arg3, 0);
   je("finalize");
   mov(ptr[arg3+sizeof(uint8_t*)], tmp2);
   L("finalize");
@@ -564,7 +564,7 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
     states_addr[i] = getCurr();
     if (dfa.IsAcceptState(i) && !dfa.flag().suffix_match()) {
       inLocalLabel();
-      cmp(arg3, NULL);
+      cmp(arg3, 0);
       je(".ret");
       mov(tmp2, arg1);
       if (!dfa.flag().shortest_match()) jmp("@f");
