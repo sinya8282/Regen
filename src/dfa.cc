@@ -38,6 +38,7 @@ bool DFA::Construct(Expr *expr_root, std::size_t limit)
   std::vector<NFA> transition(256);
   std::set<Operator*> intersects;
   std::map<std::size_t, Operator*> exclusives;
+  NFA next_non_greedy;
   
   while (!queue.empty()) {
     NFA nfa_states = queue.front();
@@ -45,6 +46,7 @@ bool DFA::Construct(Expr *expr_root, std::size_t limit)
     std::fill(transition.begin(), transition.end(), NFA());
     intersects.clear();
     exclusives.clear();
+    next_non_greedy.clear();
     bool is_accept = false;
 
 pretransition:
@@ -96,59 +98,13 @@ pretransition:
       if (presize < nfa_states.size()) goto pretransition;
     }
 
-    iter = nfa_states.begin();
-    while (iter != nfa_states.end()) {
-      if (is_accept && (*iter)->non_greedy()) {
-        ++iter;
+    for (iter = nfa_states.begin(); iter != nfa_states.end(); ++iter) {
+      if ((*iter)->non_greedy()) {
+        if (!is_accept) next_non_greedy.insert(*iter);
         continue;
       }
       NFA next = (*iter)->transition().follow;
-      if (is_accept) {
-        NFA::iterator iter_ = next.begin();
-        while (iter_ != next.end()) {
-          if ((*iter_)->non_greedy()) {
-            next.erase(iter_++);
-          } else {
-            ++iter_;
-          }
-        }
-      }
-      switch ((*iter)->type()) {
-        case Expr::kLiteral: {
-          Literal* literal = static_cast<Literal*>(*iter);
-          unsigned char index = (unsigned char)literal->literal();
-          transition[index].insert(next.begin(), next.end());
-          break;
-        }
-        case Expr::kCharClass: {
-          CharClass* charclass = static_cast<CharClass*>(*iter);
-          for (int i = 0; i < 256; i++) {
-            if (charclass->Involve(static_cast<unsigned char>(i))) {
-              transition[i].insert(next.begin(), next.end());
-            }
-          }
-          break;
-        }
-        case Expr::kDot: {
-          for (int i = 0; i < 256; i++) {
-            transition[i].insert(next.begin(), next.end());
-          }
-          break;
-        }
-        case Expr::kBegLine: {
-          transition['\n'].insert(next.begin(), next.end());
-          break;
-        }
-        case Expr::kEndLine: {
-          transition['\n'].insert(next.begin(), next.end());
-          break;
-        }
-        case Expr::kEOP: case Expr::kNone: case Expr::kOperator:
-        case Expr::kEpsilon:
-          break;
-        default: exitmsg("notype");
-      }
-      ++iter;
+      (*iter)->FillTransition(transition);
     }
 
     for (std::set<Operator*>::iterator iter = intersects.begin();
@@ -167,11 +123,21 @@ pretransition:
     //only Leftmost-Shortest matching
     if (flag_.shortest_match() && is_accept) {
       trans.fill(REJECT);
+      state.dst_states.insert(REJECT);
       continue;
     }
 
     for (state_t i = 0; i < 256; i++) {
       NFA &next = transition[i];
+      bool to_accept = false;
+      for (NFA::iterator iter_ = next.begin(); iter_ != next.end(); ++iter_) {
+        to_accept |= (*iter_)->type() == Expr::kEOP;
+      }
+      if (!to_accept && !next_non_greedy.empty()) {
+        for(NFA::iterator iter_ = next_non_greedy.begin(); iter_ != next_non_greedy.end(); iter_++) {
+          if ((*iter_)->Match(i)) next.insert((*iter_)->transition().follow.begin(), (*iter_)->transition().follow.end());
+        }
+      }
       if (next.empty()) {
         trans[i] = REJECT;
         state.dst_states.insert(REJECT);

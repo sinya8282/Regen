@@ -156,7 +156,8 @@ public:
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   void NonGreedify()  { non_greedy_ = true; }
   void FillPosition(ExprInfo *) { transition_.first.insert(this); transition_.last.insert(this); }
-  virtual bool Match(const unsigned char c) = 0;
+  virtual bool Match(const unsigned char c) { return false; }
+  virtual void FillTransition(std::vector<std::set<StateExpr*> > &) {}
   void PatchBackRef(Expr *, std::size_t, ExprPool *) {}
 private:
   std::size_t state_id_;
@@ -173,6 +174,7 @@ public:
   Expr::Type type() { return Expr::kLiteral; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   bool Match(unsigned char c) { return c == literal_; };
+  void FillTransition(std::vector<std::set<StateExpr*> > &t) { t[literal_].insert(transition_.follow.begin(), transition_.follow.end()); }
   Expr *Clone(ExprPool *p) { return p->alloc<Literal>(literal_); };
   void Generate(std::set<std::string> &g) { g.insert(std::string(1, literal_)); }
 private:
@@ -195,6 +197,7 @@ public:
   Expr::Type type() { return Expr::kCharClass; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   bool Match(const unsigned char c) { return Involve(c); };
+  void FillTransition(std::vector<std::set<StateExpr*> > &t) { for (std::size_t i = 0; i < 256; i++) if (Match(i)) t[i].insert(transition_.follow.begin(), transition_.follow.end()); }
   Expr *Clone(ExprPool *p) { return p->alloc<CharClass>(table_, negative_); };
   void Generate(std::set<std::string> &g) { for (std::size_t i = 0; i < 256; i++) if (Involve((unsigned char)i)) g.insert(std::string(1, (char)i)); }
 private:
@@ -210,6 +213,7 @@ public:
   Expr::Type type() { return Expr::kDot; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   bool Match(const unsigned char c) { return true; };
+  void FillTransition(std::vector<std::set<StateExpr*> > &t) { for (std::size_t i = 0; i < 256; i++) t[i].insert(transition_.follow.begin(), transition_.follow.end()); }
   Expr *Clone(ExprPool *p) { return p->alloc<Dot>(); };
   void Generate(std::set<std::string> &g) { for (std::size_t i = 0; i < 256; i++) g.insert(std::string(1, (char)i)); }
 private:
@@ -223,6 +227,7 @@ public:
   Expr::Type type() { return Expr::kBegLine; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   bool Match(const unsigned char c) { return c == '\n'; };
+  void FillTransition(std::vector<std::set<StateExpr*> > &t) { t['\n'].insert(transition_.follow.begin(), transition_.follow.end()); }
   Expr *Clone(ExprPool *p) { return p->alloc<BegLine>(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(BegLine);
@@ -234,7 +239,8 @@ public:
   ~EndLine() {}
   Expr::Type type() { return Expr::kEndLine; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  bool Match(const unsigned char c) { return c == '\n'; };  
+  bool Match(const unsigned char c) { return c == '\n'; };
+  void FillTransition(std::vector<std::set<StateExpr*> > &t) { t['\n'].insert(transition_.follow.begin(), transition_.follow.end()); }
   Expr *Clone(ExprPool *p) { return p->alloc<EndLine>(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(EndLine);
@@ -250,7 +256,6 @@ public:
   ~Operator() {}
   Expr::Type type() { return Expr::kOperator; }  
   void Accept(ExprVisitor* visit) { visit->Visit(this); }
-  bool Match(const unsigned char c) { return false; }
   Expr *Clone(ExprPool *p) { return p->alloc<Operator>(this); };
   void PatchBackRef(Expr *, std::size_t, ExprPool *);
   Type optype() { return optype_; }
@@ -276,7 +281,6 @@ public:
   ~EOP() {}
   Expr::Type type() { return Expr::kEOP; }  
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  bool Match(const unsigned char c) { return false; };
   Expr* Clone(ExprPool *p) { return p->alloc<EOP>(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(EOP);
@@ -288,7 +292,6 @@ public:
   ~None() {}
   Expr::Type type() { return Expr::kNone; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  bool Match(const unsigned char c) { return false; };
   Expr* Clone(ExprPool *p) { return p->alloc<None>(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(None);
@@ -300,7 +303,6 @@ public:
   ~Epsilon() {}
   Expr::Type type() { return Expr::kEpsilon; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  bool Match(const unsigned char c) { return true; };
   Expr* Clone(ExprPool *p) { return p->alloc<Epsilon>(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(Epsilon);
