@@ -10,7 +10,8 @@ Regen::Options::Options(Regen::Options::ParseFlag flag):
     reverse_match_(false), noprefix_match_(false), nosuffix_match_(false), parallel_match_(false),
     captured_match_(false), complement_ext_(false), intersection_ext_(false),
     recursion_ext_(false), xor_ext_(false), shuffle_ext_(false),
-    permutation_ext_(false), weakbackref_ext_(false)
+    permutation_ext_(false), weakbackref_ext_(false),
+    encoding_utf8_(false)
 {
   shortest_match_ = flag & ShortestMatch;
   match_nl_ = flag & MatchNL;
@@ -28,6 +29,7 @@ Regen::Options::Options(Regen::Options::ParseFlag flag):
   shuffle_ext_ = flag & ShuffleExt;
   permutation_ext_ = flag & PermutationExt;
   weakbackref_ext_ = flag & WeakBackRefExt;
+  encoding_utf8_ = flag & EncodingUTF8;
 }
 
 Regen::Regen(const std::string &regex, const Regen::Options options):

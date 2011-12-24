@@ -34,7 +34,10 @@ public:
       PermutationExt = 1 << 14,
       WeakBackRefExt = 1 << 15,
       Extended =  ComplementExt | IntersectionExt | RecursionExt
-      | XORExt | ShuffleExt | PermutationExt | WeakBackRefExt
+      | XORExt | ShuffleExt | PermutationExt | WeakBackRefExt,
+      /* Encodings: UTF8 xor Ascii (default) */
+      EncodingUTF8 = 1 << 14,
+      EncodingAscii = 0
     };
     enum CompileFlag {
       Onone = -1, O0 = 0, O1 = 1, O2 = 2, O3 = 3
@@ -82,6 +85,10 @@ public:
     void weakbackref_ext(bool b) { weakbackref_ext_ = b; }
     bool extended() const { return complement_ext_ & intersection_ext_ & recursion_ext_ & xor_ext_ & shuffle_ext_ & permutation_ext_ & weakbackref_ext_; }
     void extended(bool b) { complement_ext_ = intersection_ext_ = recursion_ext_ = xor_ext_ = shuffle_ext_ = permutation_ext_ = weakbackref_ext_ = b; }
+    bool encoding_utf8() const { return encoding_utf8_; }
+    void encoding_utf8(bool b) { encoding_utf8_ = b; }
+    bool encoding_ascii() const { return !encoding_utf8(); }
+    void encoding_ascii(bool b) { encoding_utf8(!b); }
  private:
     bool shortest_match_;
     bool dot_nl_;
@@ -100,6 +107,7 @@ public:
     bool shuffle_ext_;
     bool permutation_ext_;
     bool weakbackref_ext_;
+    bool encoding_utf8_;
   };
   static const Options DefaultOptions;
   struct Context {

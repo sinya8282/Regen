@@ -134,13 +134,13 @@ parse_transition:
 
 int main(int argc, char *argv[]) {
   std::string regex;
-  bool minimize, automata, extended, reverse;
-  minimize = automata = extended = reverse = false;
+  bool minimize, automata, extended, reverse, encoding_utf8;
+  minimize = automata = extended = reverse = encoding_utf8 = false;
   int opt;
   int seed = time(NULL);
   Generate generate = REGEN;
 
-  while ((opt = getopt(argc, argv, "amdcxEtrf:s:")) != -1) {
+  while ((opt = getopt(argc, argv, "amdcxEtrf:s:U")) != -1) {
     switch(opt) {
       case 'E':
         extended = true;
@@ -171,6 +171,9 @@ int main(int argc, char *argv[]) {
       case 's':
         seed = atoi(optarg);
         break;
+      case 'U':
+        encoding_utf8 = true;
+        break;
       default: exitmsg("USAGE: regen [options] regexp\n");
     }
   }
@@ -196,6 +199,7 @@ int main(int argc, char *argv[]) {
   regen::Regen::Options option;
   option.extended(extended);
   option.reverse(reverse);
+  option.encoding_utf8(encoding_utf8);
   regen::Regex r = regen::Regex(regex, option);
   if (generate == TEXTGEN) {
     srand(seed);

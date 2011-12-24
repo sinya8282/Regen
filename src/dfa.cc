@@ -49,8 +49,7 @@ bool DFA::Construct(std::size_t limit)
     bool is_accept = false;
 
 pretransition:
-    NFA::iterator iter = nfa_states.begin();
-    while (iter != nfa_states.end()) {
+    for (NFA::iterator iter = nfa_states.begin(); iter != nfa_states.end(); ++iter) {
       switch ((*iter)->type()) {
         case Expr::kOperator: {
           Operator *op = static_cast<Operator*>(*iter);
@@ -84,7 +83,6 @@ pretransition:
         default:
           break;
       }
-      ++iter;
     }
     std::size_t presize = nfa_states.size();
     for (std::map<std::size_t, Operator*>::iterator iter = exclusives.begin();
@@ -97,7 +95,7 @@ pretransition:
       if (presize < nfa_states.size()) goto pretransition;
     }
 
-    for (iter = nfa_states.begin(); iter != nfa_states.end(); ++iter) {
+    for (NFA::iterator iter = nfa_states.begin(); iter != nfa_states.end(); ++iter) {
       if ((*iter)->non_greedy()) {
         if (!is_accept) next_non_greedy.insert(*iter);
         continue;
@@ -128,13 +126,10 @@ pretransition:
 
     for (state_t i = 0; i < 256; i++) {
       NFA &next = transition[i];
-      bool to_accept = false;
-      for (NFA::iterator iter_ = next.begin(); iter_ != next.end(); ++iter_) {
-        to_accept |= (*iter_)->type() == Expr::kEOP;
-      }
+      bool to_accept = std::find(next.begin(), next.end(), expr_info_.eop) != next.end();
       if (!to_accept && !next_non_greedy.empty()) {
-        for(NFA::iterator iter_ = next_non_greedy.begin(); iter_ != next_non_greedy.end(); iter_++) {
-          if ((*iter_)->Match(i)) next.insert((*iter_)->transition().follow.begin(), (*iter_)->transition().follow.end());
+        for(NFA::iterator iter = next_non_greedy.begin(); iter != next_non_greedy.end(); ++iter) {
+          if ((*iter)->Match(i)) next.insert((*iter)->transition().follow.begin(), (*iter)->transition().follow.end());
         }
       }
       if (next.empty()) {

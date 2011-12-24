@@ -41,10 +41,8 @@ Expr::SuperType Expr::SuperTypeOf(Expr *e)
 
 void Expr::Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst)
 {
-  std::set<StateExpr*>::iterator iter = src.begin();
-  while (iter != src.end()) {
+  for (std::set<StateExpr*>::iterator iter = src.begin(); iter != src.end(); ++iter) {
     (*iter)->transition().follow.insert(dst.begin(), dst.end());
-    ++iter;
   }
 }
 

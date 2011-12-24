@@ -331,13 +331,53 @@ Expr* Regex::e5(Lexer *lexer, ExprPool *pool)
   return e;
 }
 
+std::size_t UTF8ByteLength(const unsigned char c)
+{
+  static const std::size_t len[] = {
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
+    3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,
+    4,4,4,4,4,4,4,4,
+    0,0,0,0,0,0,0,0
+  };
+  return len[c];
+}
+
+bool IsReagalUTF8Sequence(const unsigned char *s)
+{
+  std::size_t len = UTF8ByteLength(*s);
+  if (len == 0) return false;
+  for (std::size_t i = 1; i < len; i++) {
+    if (!(0x80 <= *(s+i) && *(s+i) < 0xC0)) return false;
+  }
+  return true;
+}
+
 Expr* Regex::e6(Lexer *lexer, ExprPool *pool)
 { 
   Expr *e;
 
   switch(lexer->token()) {
     case Lexer::kLiteral:
-      e = pool->alloc<Literal>(lexer->literal());
+      if (flag_.encoding_utf8()) {
+        std::size_t len = UTF8ByteLength(lexer->literal());
+        if (IsReagalUTF8Sequence(lexer->ptr()-1)) {
+          e = pool->alloc<Literal>(lexer->literal());
+          while (--len > 0) {
+            lexer->Consume();
+            e = pool->alloc<Concat>(pool->alloc<Literal>(lexer->literal()), e, flag_.reverse_regex());
+          }
+        } else {
+          exitmsg("Invalid UTF8 byte sequence.");
+        }
+      } else {
+        e = pool->alloc<Literal>(lexer->literal());
+      }
       break;
     case Lexer::kBegLine:
       e = pool->alloc<BegLine>();
