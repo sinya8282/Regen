@@ -51,10 +51,14 @@ int main(int argc, char *argv[]) {
     printf("DFA state num: %"PRIuS"\n", r.dfa().size());
   }
   if (s) {
+#ifdef REGEN_ENABLE_PARALLEL
     r.Compile(Regen::Options::O0);
     if (m) r.MinimizeDFA();
     regen::SSFA ssfa(r.dfa());
     printf("SSFA(from DFA) state num: %"PRIuS"\n", ssfa.size());
+#else
+    exitmsg("SSFA is not supported.\n");
+#endif
   }
 
   return 0;

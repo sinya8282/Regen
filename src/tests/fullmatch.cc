@@ -75,6 +75,7 @@ int main(int argc, char *argv[]) {
       matching_time += rdtsc();
       if (print) printf("%s\n", std::string(context.begin(), context.end()-context.begin()).c_str());
     } else {
+#ifdef REGEN_ENABLE_PARALLEL
       compile_time -= rdtsc();
       regen::Regex r = regen::Regex(regex);
       r.Compile(Regen::Options::O0);
@@ -84,6 +85,9 @@ int main(int argc, char *argv[]) {
       matching_time -= rdtsc();
       match = ssfa.Match(mm.ptr, mm.ptr+mm.size);
       matching_time += rdtsc();
+#else
+      exitmsg("SSFA is not supported.\n");
+#endif
     }
 
     printf("compile time = %llu, matching time = %llu, %s\n",

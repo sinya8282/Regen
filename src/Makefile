@@ -7,6 +7,9 @@ endif
 ifeq ($(REGEN_ENABLE_PARALLEL),yes)
 REGENFLAGS+=-DREGEN_ENABLE_PARALLEL
 LIBTHREAD=-lboost_thread-mt
+SRC=regen.cc regex.cc lexer.cc expr.cc exprutil.cc nfa.cc dfa.cc ssfa.cc generator.cc
+else
+SRC=regen.cc regex.cc lexer.cc expr.cc exprutil.cc nfa.cc dfa.cc generator.cc
 endif
 
 ifeq ($(shell uname),Darwin)
@@ -17,7 +20,6 @@ endif
 
 CC=g++
 CFLAGS=-fPIC -O3 -Wall -g3 -fno-operator-names $(REGENFLAGS)
-SRC=regen.cc regex.cc lexer.cc expr.cc exprutil.cc nfa.cc dfa.cc ssfa.cc generator.cc 
 OBJS=$(SRC:.cc=.o)
 
 all: libregen recon fullmatch state_num regengrep test.o bench.o

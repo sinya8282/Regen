@@ -146,8 +146,7 @@ int main(int argc, char *argv[]) {
       pdfa.Compile(olevel);
       result[i] = pdfa.Match(test[i].text) == test[i].result;
 #else
-      fprintf(stderr, "not support regen::SSFA, define REGEN_ENABLE_PARALLEL\n");
-      exit(1);
+      exitmsg("SSFA is not supported.");
 #endif
     }
   }

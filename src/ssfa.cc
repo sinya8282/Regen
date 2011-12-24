@@ -252,8 +252,7 @@ SSFA::SSFA(const DFA &dfa, std::size_t thread_num):
   complete_ = true;
 }
 
-void
-SSFA::MatchTask(TaskArg targ) const
+void SSFA::MatchTask(TaskArg targ) const
 {
   const unsigned char *str = targ.str;
   const unsigned char *end = targ.end;
@@ -271,8 +270,7 @@ SSFA::MatchTask(TaskArg targ) const
   return;
 }
 
-bool
-SSFA::Match(const unsigned char *str, const unsigned char *end, Regen::Context *context) const
+bool SSFA::Match(const unsigned char *str, const unsigned char *end, Regen::Context *context) const
 {
   if (!complete_) return false;
 

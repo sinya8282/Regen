@@ -312,8 +312,7 @@ void DFA::state2label(state_t state, char* labelbuf) const
   }
 }
 
-bool
-DFA::Minimize()
+bool DFA::Minimize()
 {
   if (!complete_) return false;
   if (minimum_) return true;
@@ -412,8 +411,7 @@ DFA::Minimize()
   return true;
 }
 
-void
-DFA::Complementify()
+void DFA::Complementify()
 {
   state_t reject = REJECT;
   for (iterator state_iter = begin(); state_iter != end(); ++state_iter) {
