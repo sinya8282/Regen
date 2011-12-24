@@ -11,16 +11,12 @@ Regex::Regex(const std::string &regex, const Regen::Options flags):
     dfa_failure_(false),
     dfa_(flags)
 {
-  const unsigned char *begin = (const unsigned char*)regex.c_str(),
-      *end = begin + regex.length();
-  Lexer lexer(begin, end, flags);
-  expr_root_ = Parse(&lexer, &pool_);
-  NumberingStateExprVisitor::Numbering(expr_root_, &state_exprs_);
-  dfa_.set_expr_root(expr_root_);
+  Parse();
+  NumberingStateExprVisitor::Numbering(expr_info_.expr_root, &state_exprs_);
+  dfa_.set_expr_info(expr_info_);
 }
 
-StateExpr*
-Regex::CombineStateExpr(StateExpr *e1, StateExpr *e2, ExprPool *p)
+StateExpr* Regex::CombineStateExpr(StateExpr *e1, StateExpr *e2, ExprPool *p)
 {
   StateExpr *s;
   CharClass *cc = p->alloc<CharClass>(e1, e2);
@@ -101,33 +97,34 @@ Expr* Regex::PatchBackRef(Lexer *lexer, Expr *e, ExprPool *p)
   return e;
 }
 
-Expr* Regex::Parse(Lexer *lexer, ExprPool *pool)
+void Regex::Parse()
 {
+  const unsigned char *begin = (const unsigned char*)regex_.c_str(),
+      *end = begin + regex_.length();
+  Lexer lexer(begin, end, flag_);
+  lexer.Consume();
   Expr* e;
 
-  lexer->Consume();
-
   do {
-    e = e0(lexer, pool);
+    e = e0(&lexer, &pool_);
   } while (e->type() == Expr::kNone);
 
-  if (lexer->token() != Lexer::kEOP) exitmsg("expected end of pattern.");
+  if (lexer.token() != Lexer::kEOP) exitmsg("expected end of pattern.");
 
-  if (!lexer->backrefs().empty()) e = PatchBackRef(lexer, e, pool);
+  if (!lexer.backrefs().empty()) e = PatchBackRef(&lexer, e, &pool_);
   
   if (!flag_.prefix_match()) {
     //add '.*?' to top of regular expression for non-Prefix Match(Partial Match)
-    Expr* dotstar = pool->alloc<Star>(pool_.alloc<Dot>(), true);
-    e = pool->alloc<Concat>(dotstar, e, flag_.reverse_regex());
+    Expr* dotstar = pool_.alloc<Star>(pool_.alloc<Dot>(), true);
+    e = pool_.alloc<Concat>(dotstar, e, flag_.reverse_regex());
   }
 
-  StateExpr *eop = pool->alloc<EOP>();
-  e = pool->alloc<Concat>(e, eop);
+  expr_info_.eop = pool_.alloc<EOP>();
+  e = pool_.alloc<Concat>(e, expr_info_.eop);
+  expr_info_.expr_root = e;
   ExprInfo info;
   e->FillPosition(&info);
   e->FillTransition();
-
-  return e;
 }
 
 /* Regen parsing rules
@@ -208,8 +205,7 @@ Expr* Regex::e2(Lexer *lexer, ExprPool *pool)
   return e;
 }
 
-Expr *
-Regex::e3(Lexer *lexer, ExprPool *pool)
+Expr* Regex::e3(Lexer *lexer, ExprPool *pool)
 {
   Expr *e, *f;
   e = e4(lexer, pool);
@@ -231,8 +227,7 @@ Regex::e3(Lexer *lexer, ExprPool *pool)
   return e;
 }
 
-Expr *
-Regex::e4(Lexer *lexer, ExprPool *pool)
+Expr* Regex::e4(Lexer *lexer, ExprPool *pool)
 {
   Expr *e, *f;
   e = e5(lexer, pool);
@@ -252,8 +247,7 @@ Regex::e4(Lexer *lexer, ExprPool *pool)
   return e;
 }
 
-Expr *
-Regex::e5(Lexer *lexer, ExprPool *pool)
+Expr* Regex::e5(Lexer *lexer, ExprPool *pool)
 {
   Expr *e;
   e = e6(lexer, pool);
@@ -337,8 +331,7 @@ Regex::e5(Lexer *lexer, ExprPool *pool)
   return e;
 }
 
-Expr *
-Regex::e6(Lexer *lexer, ExprPool *pool)
+Expr* Regex::e6(Lexer *lexer, ExprPool *pool)
 { 
   Expr *e;
 
@@ -460,8 +453,8 @@ Regex::e6(Lexer *lexer, ExprPool *pool)
   return e;
 }
 
-CharClass*
-Regex::BuildCharClass(Lexer *lexer, CharClass *cc) {
+CharClass* Regex::BuildCharClass(Lexer *lexer, CharClass *cc)
+{
   std::bitset<256>& table = cc->table();
   bool range;
   unsigned char lastc = '\0';
@@ -516,7 +509,7 @@ Regex::BuildCharClass(Lexer *lexer, CharClass *cc) {
 
 // Converte DFA to Regular Expression using GNFA.
 // see http://en.wikipedia.org/wiki/Generalized_nondeterministic_finite-state_machine
-Expr* Regex::CreateRegexFromDFA(const DFA &dfa, ExprPool *p)
+void Regex::CreateRegexFromDFA(const DFA &dfa, ExprInfo *info, ExprPool *p)
 {
   int GSTART  = dfa.size();
   int GACCEPT = GSTART+1;
@@ -643,21 +636,13 @@ Expr* Regex::CreateRegexFromDFA(const DFA &dfa, ExprPool *p)
         }
       }
     }
-    /*
-    GNFATrans::iterator iter = gtransition.begin();
-    iter = gtransition.begin();
-    while (iter != gtransition.end()) {
-      delete (*iter).second;
-      ++iter;
-    }
-    delete loop;
-    */
   }
 
   if(gnfa_transition[GSTART][GACCEPT] == NULL) {
-    return p->alloc<None>();
+    info->expr_root = p->alloc<None>();
   } else {
-    return gnfa_transition[GSTART][GACCEPT];
+    info->eop = p->alloc<EOP>();
+    info->expr_root = p->alloc<Concat>(gnfa_transition[GSTART][GACCEPT], info->eop);
   }
 }
 
@@ -678,7 +663,7 @@ bool Regex::Compile(Regen::Options::CompileFlag olevel) {
     /* try create DFA.  */
     std::size_t limit = state_exprs_.size();
     limit = 10000; // default limitation is 10000 (it's may finish within a second).
-    dfa_failure_ = !dfa_.Construct(expr_root_, limit);
+    dfa_failure_ = !dfa_.Construct(limit);
   }
   if (dfa_failure_) {
     /* can not create DFA. (too many states) */
@@ -716,7 +701,7 @@ bool Regex::MatchNFA(const unsigned char *begin, const unsigned char *end, Regen
   NFA::iterator iter;
   std::set<StateExpr*>::iterator next_iter;
   NFA states, next_states;
-  states.insert(states.begin(), expr_root_->transition().first.begin(), expr_root_->transition().first.end());
+  states.insert(states.begin(), expr_info_.expr_root->transition().first.begin(), expr_info_.expr_root->transition().first.end());
 
   for (const unsigned char *p = begin; p < end; p++, step++) {
     for (iter = states.begin(); iter != states.end(); ++iter) {
@@ -752,34 +737,36 @@ void Regex::PrintRegex() const
 {
   if (dfa_.Complete()) {
     ExprPool p;
-    Expr* e = CreateRegexFromDFA(dfa_, &p);
-    PrintRegexVisitor::Print(e);
+    ExprInfo i;
+    CreateRegexFromDFA(dfa_, &i, &p);
+    PrintRegexVisitor::Print(i.expr_root);
   } else {
-    PrintRegexVisitor::Print(expr_root_);
+    PrintRegexVisitor::Print(expr_info_.expr_root);
   }
 }
 
 void Regex::PrintRegex(const DFA &dfa)
 {
   ExprPool p;
-  Expr* e = CreateRegexFromDFA(dfa, &p);
-  PrintRegexVisitor::Print(e);
+  ExprInfo i;
+  CreateRegexFromDFA(dfa, &i, &p);
+  PrintRegexVisitor::Print(i.expr_root);
 }
 
 void Regex::PrintParseTree() const
 {
-  PrintParseTreeVisitor::Print(expr_root_);
+  PrintParseTreeVisitor::Print(expr_info_.expr_root);
 }
 
 void Regex::DumpExprTree() const
 {
-  DumpExprVisitor::Dump(expr_root_);
+  DumpExprVisitor::Dump(expr_info_.expr_root);
 }
 
 void Regex::PrintText() const
 {
   std::set<std::string> g;
-  expr_root_->Generate(g);
+  expr_info_.expr_root->Generate(g);
   for (std::set<std::string>::iterator iter = g.begin(); iter != g.end(); ++iter) {
     printf("%s\n", iter->c_str());
   }

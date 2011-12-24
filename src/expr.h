@@ -40,8 +40,10 @@ public:
 };
 
 struct ExprInfo {
-  ExprInfo(): xor_num(0) {}
+  ExprInfo(): xor_num(0), expr_root(NULL), eop(NULL) {}
   std::size_t xor_num;
+  Expr *expr_root;
+  EOP *eop;
 };
 
 struct Must {

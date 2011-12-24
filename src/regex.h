@@ -6,6 +6,7 @@
 #include "lexer.h"
 #include "expr.h"
 #include "exprutil.h"
+#include "generator.h"
 #include "nfa.h"
 #include "dfa.h"
 #ifdef REGEN_ENABLE_PARALLEL
@@ -22,7 +23,7 @@ public:
   static void PrintRegex(const DFA &);
   void PrintParseTree() const;
   void PrintText() const;
-  static Expr* CreateRegexFromDFA(const DFA &dfa, ExprPool *p);
+  static void CreateRegexFromDFA(const DFA &dfa, ExprInfo *info, ExprPool *p);
   void DumpExprTree() const;
   bool Compile(Regen::Options::CompileFlag olevel = Regen::Options::O3);
   bool MinimizeDFA() { if (dfa_.Complete()) { dfa_.Minimize(); return true; } else return false; }
@@ -32,18 +33,19 @@ public:
   bool MatchNFA(const unsigned char *begin, const unsigned char *end, Regen::Context *context = NULL) const;
   const std::string& regex() const { return regex_; }
   const Must& must() const { return must_; }
-  std::size_t max_lenlgth() const { return expr_root_->max_length(); }
-  std::size_t min_lenlgth() const { return expr_root_->min_length(); }
+  std::size_t max_lenlgth() const { return expr_info_.expr_root->max_length(); }
+  std::size_t min_lenlgth() const { return expr_info_.expr_root->min_length(); }
   std::size_t must_max_length() const { return must_max_length_; }
   const std::string& must_max_word() const { return must_max_word_; }
   const DFA& dfa() const { return dfa_; }
   Regen::Options::CompileFlag olevel() const { return olevel_; }
-  Expr* expr_root() const { return expr_root_; }
+  Expr* expr_root() const { return expr_info_.expr_root; }
+  const ExprInfo& expr_info() const { return expr_info_; }
   const std::vector<StateExpr*> &state_exprs() const { return state_exprs_; }
   static CharClass* BuildCharClass(Lexer *, CharClass *);
 
 private:
-  Expr* Parse(Lexer *, ExprPool *);
+  void Parse();
   Expr* e0(Lexer *, ExprPool *);
   Expr* e1(Lexer *, ExprPool *);
   Expr* e2(Lexer *, ExprPool *);
@@ -56,7 +58,7 @@ private:
 
   const std::string regex_;
   Regen::Options flag_;
-  Expr *expr_root_;
+  ExprInfo expr_info_;
   ExprPool pool_;
   std::size_t recursion_depth_;
   std::vector<StateExpr*> state_exprs_;

@@ -2,17 +2,17 @@
 
 namespace regen {
 
-DFA::DFA(Expr *expr_root, std::size_t limit):
-    expr_root_(expr_root), complete_(false), minimum_(false), olevel_(Regen::Options::O0)
+DFA::DFA(const ExprInfo &expr_info, std::size_t limit):
+    expr_info_(expr_info), complete_(false), minimum_(false), olevel_(Regen::Options::O0)
 #ifdef REGEN_ENABLE_XBYAK
     , xgen_(NULL)
 #endif
 {
-  complete_ = Construct(expr_root, limit);
+  complete_ = Construct(limit);
 }
 
 DFA::DFA(const NFA &nfa, std::size_t limit):
-    expr_root_(NULL), complete_(false), minimum_(false), olevel_(Regen::Options::O0)
+    complete_(false), minimum_(false), olevel_(Regen::Options::O0)
 #ifdef REGEN_ENABLE_XBYAK
     , xgen_(NULL)
 #endif
@@ -20,20 +20,19 @@ DFA::DFA(const NFA &nfa, std::size_t limit):
   complete_ = Construct(nfa, limit);
 }
 
-bool DFA::Construct(Expr *expr_root, std::size_t limit)
+bool DFA::Construct(std::size_t limit)
 {
+  if (expr_info_.expr_root == NULL) return false;
   typedef std::set<StateExpr*> NFA;
   std::queue<NFA> queue;
 
-  expr_root_ = expr_root;
-  
   state_t dfa_id = 0;
   bool limit_over = false;
 
-  nfa_map_[0] = expr_root->transition().first;
-  dfa_map_[expr_root->transition().first] = dfa_id++;
+  nfa_map_[0] = expr_info_.expr_root->transition().first;
+  dfa_map_[expr_info_.expr_root->transition().first] = dfa_id++;
 
-  queue.push(expr_root->transition().first);
+  queue.push(expr_info_.expr_root->transition().first);
 
   std::vector<NFA> transition(256);
   std::set<Operator*> intersects;
@@ -779,7 +778,7 @@ bool DFA::OnTheFlyMatch(const unsigned char *str, const unsigned char *end, Rege
 {
   state_t state = 0, next = UNDEF;
   if (empty()) {
-    std::set<StateExpr*> &first_states = expr_root_->transition().first;
+    std::set<StateExpr*> &first_states = expr_info_.expr_root->transition().first;
     std::set<StateExpr*>::iterator iter;
     bool accept = false;
     for (iter = first_states.begin(); iter != first_states.end(); ++iter) {

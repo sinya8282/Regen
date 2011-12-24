@@ -91,7 +91,7 @@ DFA(const Regen::Options flag = Regen::Options::NoParseFlags): complete_(false),
   , xgen_(NULL)
 #endif
   {}
-  DFA(Expr *expr_root, std::size_t limit = std::numeric_limits<size_t>::max());
+  DFA(const ExprInfo &expr_info, std::size_t limit = std::numeric_limits<size_t>::max());
   DFA(const NFA &nfa, std::size_t limit = std::numeric_limits<size_t>::max());
   #if REGEN_ENABLE_XBYAK
   virtual ~DFA() { delete xgen_; }
@@ -106,8 +106,8 @@ DFA(const Regen::Options flag = Regen::Options::NoParseFlags): complete_(false),
   bool Complete() const { return complete_; }
 
   State& get_new_state() const;
-  const Expr* expr_root() const { return expr_root_; }
-  void set_expr_root(Expr* expr_root) { expr_root_ = expr_root; }
+  const ExprInfo &expr_info() const { return expr_info_; }
+  void set_expr_info(const ExprInfo &expr_info) { expr_info_ = expr_info; }
   const Regen::Options &flag() const { return flag_; }
   std::size_t inline_level(std::size_t i) const { return states_[i].inline_level; }
   const std::set<state_t> &src_states(std::size_t i) const { return states_[i].src_states; }
@@ -116,7 +116,7 @@ DFA(const Regen::Options flag = Regen::Options::NoParseFlags): complete_(false),
   const Transition &GetTransition(std::size_t state) const { return transition_[state]; }
   bool IsAcceptState(std::size_t state) const { return state == REJECT ? false : states_[state].accept; }
 
-  bool Construct(Expr *expr_root, std::size_t limit = std::numeric_limits<size_t>::max());
+  bool Construct(std::size_t limit = std::numeric_limits<size_t>::max());
   bool Construct(const NFA &nfa, std::size_t limit = std::numeric_limits<size_t>::max());
   state_t OnTheFlyConstructWithChar(state_t state, unsigned char input, Regen::Context *context) const;
   std::pair<state_t, const unsigned char *> OnTheFlyConstructWithString(state_t state, const unsigned char *begin, const unsigned char *end, Regen::Context *context) const;
@@ -142,7 +142,7 @@ protected:
   mutable std::deque<State> states_;
   mutable std::map<std::set<StateExpr*>, state_t> dfa_map_;
   mutable std::map<state_t, std::set<StateExpr*> > nfa_map_;
-  Expr* expr_root_;
+  ExprInfo expr_info_;
   bool complete_;
   bool minimum_;
   Regen::Options flag_;
