@@ -389,30 +389,34 @@ private:
 
 class UnaryExpr: public Expr {
 public:
-  UnaryExpr(Expr* lhs): lhs_(lhs) { lhs->set_parent(this); }
+  UnaryExpr(Expr* lhs, double probability): lhs_(lhs), probability_(probability) { lhs->set_parent(this); }
   ~UnaryExpr() {}
   Expr* lhs() { return lhs_; }
   void  set_lhs(Expr *lhs) { lhs_ = lhs; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   void NonGreedify()  { lhs_->NonGreedify(); }
   void PatchBackRef(Expr *e, std::size_t i, ExprPool *p) { lhs_->PatchBackRef(e, i, p); }
+  double probability() { return probability_; }
+  void set_probability(double p) { probability_ = p; }
 protected:
   Expr *lhs_;
+  double probability_;
 private:
   DISALLOW_COPY_AND_ASSIGN(UnaryExpr);
 };
 
 class Qmark: public UnaryExpr {
 public:
-  Qmark(Expr *lhs, bool non_greedy = false): UnaryExpr(lhs), non_greedy_(non_greedy) {}
+  Qmark(Expr *lhs, bool non_greedy = false, double probability = 0.0): UnaryExpr(lhs, probability), non_greedy_(non_greedy) {}
+Qmark(Expr *lhs, double probability): UnaryExpr(lhs, probability), non_greedy_(false) {}
   ~Qmark() {}
   void FillPosition(ExprInfo *);
   void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kQmark; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  Expr* Clone(ExprPool *p) { return p->alloc<Qmark>(lhs_->Clone(p)); };
+  Expr* Clone(ExprPool *p) { return p->alloc<Qmark>(lhs_->Clone(p), non_greedy_, probability_); };
   void Serialize(std::vector<Expr*> &v, ExprPool *p) { v.push_back(p->alloc<Epsilon>()); lhs_->Serialize(v, p); }
-  void Generate(std::set<std::string> &g) { lhs_->Generate(g); g.insert(""); }
+  void Generate(std::set<std::string> &g);
 private:
   bool non_greedy_;
   DISALLOW_COPY_AND_ASSIGN(Qmark);
@@ -420,13 +424,14 @@ private:
 
 class Star: public UnaryExpr {
 public:
-  Star(Expr *lhs, bool non_greedy = false): UnaryExpr(lhs), non_greedy_(non_greedy) {}
+Star(Expr *lhs, bool non_greedy = false, double probability = 0.0): UnaryExpr(lhs, probability), non_greedy_(non_greedy) {}
+Star(Expr *lhs, double probability): UnaryExpr(lhs, probability), non_greedy_(false) {}
   ~Star() {}
   void FillPosition(ExprInfo *);
   void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kStar; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  Expr* Clone(ExprPool *p) { return p->alloc<Star>(lhs_->Clone(p), non_greedy_); };
+  Expr* Clone(ExprPool *p) { return p->alloc<Star>(lhs_->Clone(p), non_greedy_, probability_); };
   void Generate(std::set<std::string> &g);
 private:
   bool non_greedy_;
@@ -435,13 +440,13 @@ private:
 
 class Plus: public UnaryExpr {
 public:
-  Plus(Expr *lhs): UnaryExpr(lhs) {}
+  Plus(Expr *lhs, double probability = 0.0): UnaryExpr(lhs, probability) {}
   ~Plus() {}
   void FillPosition(ExprInfo *);
   void FillTransition(bool reverse = false);
   Expr::Type type() { return Expr::kPlus; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  Expr* Clone(ExprPool* p) { return p->alloc<Plus>(lhs_->Clone(p)); };
+  Expr* Clone(ExprPool* p) { return p->alloc<Plus>(lhs_->Clone(p), probability_); };
   void Generate(std::set<std::string> &g);
 private:
   DISALLOW_COPY_AND_ASSIGN(Plus);

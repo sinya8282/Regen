@@ -470,6 +470,26 @@ void Qmark::FillTransition(bool reverse)
   lhs_->FillTransition(reverse);
 }
 
+double frand()
+{
+  double f = (double)rand() / RAND_MAX;
+  return f * 100.0;
+}
+
+void Qmark::Generate(std::set<std::string> &g)
+{
+  if (probability_ != 0.0) {
+    if (frand() < probability_) {
+      lhs_->Generate(g);
+    } else {
+      g.insert("");
+    }
+  } else {
+    lhs_->Generate(g);
+    g.insert("");
+  }
+}
+
 void Star::FillPosition(ExprInfo *info)
 {
   lhs_->FillPosition(info);
@@ -490,7 +510,21 @@ void Star::FillTransition(bool reverse)
 
 void Star::Generate(std::set<std::string> &g)
 {
-  g.insert("");
+  if (probability_ != 0.0 && frand() < probability_) {
+    lhs_->Generate(g);
+    std::set<std::string> h(g), r;
+    while (frand() < probability_) {
+      r.clear();
+      for (std::set<std::string>::iterator i = g.begin(); i != g.end(); ++i) {
+        for (std::set<std::string>::iterator j = h.begin(); j != h.end(); ++j) {
+          r.insert(*i+*j);
+        }
+      }
+      g.swap(r);
+    }
+  } else {
+    g.insert("");
+  }
 }
 
 void Plus::FillPosition(ExprInfo *info)
@@ -513,6 +547,18 @@ void Plus::FillTransition(bool reverse)
 void Plus::Generate(std::set<std::string> &g)
 {
   lhs_->Generate(g);
+  if (probability_ != 0.0) {
+    std::set<std::string> h(g), r;
+    while (frand() < probability_) {
+      r.clear();
+      for (std::set<std::string>::iterator i = g.begin(); i != g.end(); ++i) {
+        for (std::set<std::string>::iterator j = h.begin(); j != h.end(); ++j) {
+          r.insert(*i+*j);
+        }
+      }
+      g.swap(r);
+    }
+  }
 }
 
 } // namespace regen

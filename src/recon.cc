@@ -138,9 +138,10 @@ int main(int argc, char *argv[]) {
   bool automata = false;
   bool extended = false;
   int opt;
+  int seed = time(NULL);
   Generate generate = REGEN;
 
-  while ((opt = getopt(argc, argv, "amdcxEtf:")) != -1) {
+  while ((opt = getopt(argc, argv, "amdcxEtf:s:")) != -1) {
     switch(opt) {
       case 'E':
         extended = true;
@@ -164,6 +165,9 @@ int main(int argc, char *argv[]) {
         break;
       case 't': 
         generate = TEXTGEN;
+        break;
+      case 's':
+        seed = atoi(optarg);
         break;
       default: exitmsg("USAGE: regen [options] regexp\n");
     }
@@ -191,6 +195,7 @@ int main(int argc, char *argv[]) {
   option.extended(extended);
   regen::Regex r = regen::Regex(regex, option);
   if (generate == TEXTGEN) {
+    srand(seed);
     r.PrintText();
   } else if (generate == REGEN && !minimize) {
     r.PrintRegex();

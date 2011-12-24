@@ -36,9 +36,9 @@ Lexer::Type Lexer::Consume()
       }
       break;
     }      
-    case '?': token_ = kQmark;     break;
-    case '+': token_ = kPlus;      break;
-    case '*': token_ = kStar;      break;
+    case '?': token_ = kQmark; probability_ = 0.0; break;
+    case '+': token_ = kPlus;  probability_ = 0.0; break;
+    case '*': token_ = kStar;  probability_ = 0.0; break;
     case ')': token_ = kRpar;      break;
     case '^': token_ = kBegLine;   break;
     case '$': token_ = kEndLine;   break;
@@ -178,35 +178,88 @@ Lexer::Type Lexer::lex_repetition()
 {
   const unsigned char *ptr = ptr_;
   lower_repetition_ = 0;
+  probability_ = 0.0;
+  bool probability = false;
 
-  if ('0' <= *ptr && *ptr <= '9') {
-    do {
-      lower_repetition_ *= 10;
-      lower_repetition_ += *ptr++ - '0';
-    } while ('0' <= *ptr && *ptr <= '9');
+  if ('0' <= *ptr && *ptr <= '9' || *ptr == '.') {
+    if (*ptr != '.') {
+      do {
+        lower_repetition_ *= 10;
+        lower_repetition_ += *ptr++ - '0';
+      } while ('0' <= *ptr && *ptr <= '9');
+    }
+    if (*ptr == '.') {
+      probability = true;
+      ptr++;
+      double place = 0.1;
+      while ('0' <= *ptr && *ptr <= '9') {
+        probability_ += (*ptr++ - '0') * place;
+        place *= 0.1;
+      }
+      probability_ += lower_repetition_;
+      lower_repetition_ = 0;
+      if (probability_ >= 100.0) exitmsg("Invalid probabilistic repetition probability.");
+    }
   } else if (*ptr == ',') {
     lower_repetition_ = 0;
   } else {
     goto illformed;
   }
   if (*ptr == ',') {
-    upper_repetition_ = 0;
     ptr++;
-    if ('0' <= *ptr && *ptr <= '9') {
-      do {
-        upper_repetition_ *= 10;
-        upper_repetition_ += *ptr++ - '0';
-      } while ('0' <= *ptr && *ptr <= '9');
+    upper_repetition_ = 0;
+    if ('0' <= *ptr && *ptr <= '9' || *ptr == '.') {
+      if (*ptr != '.') {
+        do {
+          upper_repetition_ *= 10;
+          upper_repetition_ += *ptr++ - '0';
+        } while ('0' <= *ptr && *ptr <= '9');
+      }
+      if (*ptr == '.') {
+        if (probability) exitmsg("Invalid probabilistic repetition probability.");
+        probability = true;
+        ptr++;
+        double place = 0.1;
+        while ('0' <= *ptr && *ptr <= '9') {
+          probability_ += (*ptr++ - '0') * place;
+          place *= 0.1;
+        }
+        probability_ += upper_repetition_;
+        upper_repetition_ = lower_repetition_;
+        if (probability_ >= 100.0) exitmsg("Invalid probabilistic repetition probability.");
+      }
+      if (*ptr != '}' && *ptr != ',') {
+        goto illformed;
+      }
+    } else if (*ptr == '}' || *ptr == ',') {
+      upper_repetition_ = -1;
+    }
+    if (*ptr == ',') {
+      if (probability) exitmsg("Invalid probabilistic repetition probability.");
+      ptr++;
+      int iprobability = 0;
+      while ('0' <= *ptr && *ptr <= '9') {
+        iprobability *= 10;
+        iprobability += *ptr++ - '0';
+      }
+      probability_ = iprobability;
+      if (*ptr == '.') ptr++;
+      double place = 0.1;
+      while ('0' <= *ptr && *ptr <= '9') {
+        probability_ += (*ptr++ - '0') * place;
+        place *= 0.1;
+      }
+      if (probability_ >= 100.0) exitmsg("Invalid probabilistic repetition probability.");
       if (*ptr != '}') {
         goto illformed;
       }
-    } else if (*ptr == '}') {
-      upper_repetition_ = -1;
-    } else {
-      goto illformed;
     }
   } else if (*ptr == '}') {
-    upper_repetition_ = lower_repetition_;
+    if (probability_ != 0.0) {
+      upper_repetition_ = 1;
+    } else {
+      upper_repetition_ = lower_repetition_;
+    }
   } else {
     goto illformed;
   }

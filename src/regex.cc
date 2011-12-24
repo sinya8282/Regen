@@ -274,26 +274,28 @@ Regex::e5(Lexer *lexer, ExprPool *pool)
   while (lexer->Quantifier()) {
     bool non_greedy = false;
     Lexer::Type token = lexer->token();
+    double probability = lexer->probability();
     lexer->Consume();
     if (lexer->token() == Lexer::kQmark) {
       non_greedy = true;
       lexer->Consume();
     }
     switch (token) {
-      case Lexer::kStar:
-        e = pool->alloc<Star>(e, non_greedy);
+      case Lexer::kStar: {
+        e = pool->alloc<Star>(e, non_greedy, probability);
         break;
+      }
       case Lexer::kPlus: {
         if (non_greedy) {
           Expr* e_ = e->Clone(pool);
-          e = pool->alloc<Concat>(e_, pool->alloc<Star>(e, non_greedy));
+          e = pool->alloc<Concat>(e_, pool->alloc<Star>(e, non_greedy, probability));
         } else {
-          e = pool->alloc<Plus>(e);
+          e = pool->alloc<Plus>(e, probability);
         }
         break;
       }
       case Lexer::kQmark: {
-        e = pool->alloc<Qmark>(e, non_greedy);
+        e = pool->alloc<Qmark>(e, non_greedy, probability);
         break;
       }
       case Lexer::kRepetition: {
@@ -307,9 +309,14 @@ Regex::e5(Lexer *lexer, ExprPool *pool)
           for (int i = 0; i < lower_repetition - 1; i++) {
             e = pool->alloc<Concat>(e, f->Clone(pool));
           }
-          e = pool->alloc<Concat>(e, pool->alloc<Star>(f->Clone(pool), non_greedy));
+          e = pool->alloc<Concat>(e, pool->alloc<Star>(f->Clone(pool), non_greedy, probability));
         } else if (upper_repetition == lower_repetition) {
-          Expr* f = e;
+          Expr *f;
+          if (probability == 0.0) {
+            f = e;
+          } else {
+            f = pool->alloc<Qmark>(e, non_greedy, probability);
+          }
           for (int i = 0; i < lower_repetition - 1; i++) {
             e = pool->alloc<Concat>(e, f->Clone(pool));
           }
@@ -319,11 +326,11 @@ Regex::e5(Lexer *lexer, ExprPool *pool)
             e = pool->alloc<Concat>(e, f->Clone(pool));
           }
           if (lower_repetition == 0) {
-            e = pool->alloc<Qmark>(e, non_greedy);
-            lower_repetition = 1;
+            e = pool->alloc<Qmark>(e, non_greedy, probability);
+            lower_repetition++;
           }
           for (int i = 0; i < (upper_repetition - lower_repetition); i++) {
-            e = pool->alloc<Concat>(e, pool->alloc<Qmark>(f->Clone(pool), non_greedy));
+            e = pool->alloc<Concat>(e, pool->alloc<Qmark>(f->Clone(pool), non_greedy, probability));
           }
         }
         break;

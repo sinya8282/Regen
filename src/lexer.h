@@ -37,6 +37,8 @@ public:
   void literal(unsigned char l) { literal_ = l; }
   std::bitset<256> &table() { return table_; }
   std::pair<int, int> repetition() { return std::pair<int, int>(lower_repetition_, upper_repetition_); }
+  double probability() { return probability_; }
+  
 private:
   Type lex_repetition();
   Type lex_metachar();
@@ -44,6 +46,7 @@ private:
   const unsigned char *begin_;
   const unsigned char *end_;
   int lower_repetition_, upper_repetition_;
+  double probability_;
   std::size_t backref_;
   Type token_;
   std::bitset<256> table_;
