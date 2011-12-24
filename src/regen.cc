@@ -6,7 +6,7 @@ namespace regen {
 const Regen::Options Regen::DefaultOptions(Regen::Options::NoParseFlags);
 
 Regen::Options::Options(Regen::Options::ParseFlag flag):
-    shortest_match_(false), match_nl_(false), one_line_(false),
+    shortest_match_(false), match_nl_(false), one_line_(false), reverse_regex_(false),
     reverse_match_(false), noprefix_match_(false), nosuffix_match_(false), parallel_match_(false),
     captured_match_(false), complement_ext_(false), intersection_ext_(false),
     recursion_ext_(false), xor_ext_(false), shuffle_ext_(false),
@@ -15,6 +15,7 @@ Regen::Options::Options(Regen::Options::ParseFlag flag):
   shortest_match_ = flag & ShortestMatch;
   match_nl_ = flag & MatchNL;
   one_line_ = flag & OneLine;
+  reverse_regex_ = flag & ReverseRegex;
   reverse_match_ = flag & ReverseMatch;
   noprefix_match_ = flag & NoPrefixMatch;
   nosuffix_match_ = flag & NoSuffixMatch;
@@ -35,7 +36,7 @@ Regen::Regen(const std::string &regex, const Regen::Options options):
   regex_ = new Regex(regex, flag_);
   if (flag_.captured_match() && !flag_.prefix_match()) {
     Options opt(flag_);
-    opt.reverse_match(true);
+    opt.reverse(true);
     opt.prefix_match(true);
     opt.suffix_match(false);
     opt.longest_match(true);
@@ -65,6 +66,8 @@ bool Regen::Match(const char *beg, const char *end, Context *context) const
     bool match = regex_->Match(beg, end, context);
     if (context->end() != NULL) {
       if (flag_.full_match()) {
+        context->set_begin(beg);
+      } else if (flag_.prefix_match()) {
         context->set_begin(beg);
       } else {
         Regen::Context context_;

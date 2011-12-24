@@ -134,14 +134,13 @@ parse_transition:
 
 int main(int argc, char *argv[]) {
   std::string regex;
-  bool minimize = false;
-  bool automata = false;
-  bool extended = false;
+  bool minimize, automata, extended, reverse;
+  minimize = automata = extended = reverse = false;
   int opt;
   int seed = time(NULL);
   Generate generate = REGEN;
 
-  while ((opt = getopt(argc, argv, "amdcxEtf:s:")) != -1) {
+  while ((opt = getopt(argc, argv, "amdcxEtrf:s:")) != -1) {
     switch(opt) {
       case 'E':
         extended = true;
@@ -156,6 +155,9 @@ int main(int argc, char *argv[]) {
         break;
       case 'c':
         generate = CGEN;
+        break;
+      case 'r':
+        reverse = true;
         break;
       case 'm':
         minimize = true;
@@ -193,6 +195,7 @@ int main(int argc, char *argv[]) {
 
   regen::Regen::Options option;
   option.extended(extended);
+  option.reverse(reverse);
   regen::Regex r = regen::Regex(regex, option);
   if (generate == TEXTGEN) {
     srand(seed);

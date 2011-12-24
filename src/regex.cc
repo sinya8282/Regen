@@ -118,20 +118,14 @@ Expr* Regex::Parse(Lexer *lexer, ExprPool *pool)
   if (!flag_.prefix_match()) {
     //add '.*?' to top of regular expression for non-Prefix Match(Partial Match)
     Expr* dotstar = pool->alloc<Star>(pool_.alloc<Dot>(), true);
-    e = pool->alloc<Concat>(dotstar, e);
+    e = pool->alloc<Concat>(dotstar, e, flag_.reverse_regex());
   }
 
   StateExpr *eop = pool->alloc<EOP>();
+  e = pool->alloc<Concat>(e, eop);
   ExprInfo info;
-  if (flag_.reverse_match()) { 
-    e = pool->alloc<Concat>(eop, e);
-    e->FillPosition(&info);
-    e->FillReverseTransition();
-  } else {
-    e = pool->alloc<Concat>(e, eop);
-    e->FillPosition(&info);
-    e->FillTransition();
-  }
+  e->FillPosition(&info);
+  e->FillTransition();
 
   return e;
 }
@@ -251,7 +245,7 @@ Regex::e4(Lexer *lexer, ExprPool *pool)
   while (lexer->Concatenated()) {
     f = e5(lexer, pool);
     if (f->type() != Expr::kNone) {
-      e = pool->alloc<Concat>(e, f);
+      e = pool->alloc<Concat>(e, f, flag_.reverse_regex());
     }
   }
 
@@ -288,7 +282,7 @@ Regex::e5(Lexer *lexer, ExprPool *pool)
       case Lexer::kPlus: {
         if (non_greedy) {
           Expr* e_ = e->Clone(pool);
-          e = pool->alloc<Concat>(e_, pool->alloc<Star>(e, non_greedy, probability));
+          e = pool->alloc<Concat>(e_, pool->alloc<Star>(e, non_greedy, probability), flag_.reverse_regex());
         } else {
           e = pool->alloc<Plus>(e, probability);
         }
@@ -307,9 +301,9 @@ Regex::e5(Lexer *lexer, ExprPool *pool)
         } else if (upper_repetition == -1) {
           Expr* f = e;
           for (int i = 0; i < lower_repetition - 1; i++) {
-            e = pool->alloc<Concat>(e, f->Clone(pool));
+            e = pool->alloc<Concat>(e, f->Clone(pool), flag_.reverse_regex());
           }
-          e = pool->alloc<Concat>(e, pool->alloc<Star>(f->Clone(pool), non_greedy, probability));
+          e = pool->alloc<Concat>(e, pool->alloc<Star>(f->Clone(pool), non_greedy, probability), flag_.reverse_regex());
         } else if (upper_repetition == lower_repetition) {
           Expr *f;
           if (probability == 0.0) {
@@ -318,19 +312,19 @@ Regex::e5(Lexer *lexer, ExprPool *pool)
             f = pool->alloc<Qmark>(e, non_greedy, probability);
           }
           for (int i = 0; i < lower_repetition - 1; i++) {
-            e = pool->alloc<Concat>(e, f->Clone(pool));
+            e = pool->alloc<Concat>(e, f->Clone(pool), flag_.reverse_regex());
           }
         } else {
           Expr *f = e;
           for (int i = 0; i < lower_repetition - 1; i++) {
-            e = pool->alloc<Concat>(e, f->Clone(pool));
+            e = pool->alloc<Concat>(e, f->Clone(pool), flag_.reverse_regex());
           }
           if (lower_repetition == 0) {
             e = pool->alloc<Qmark>(e, non_greedy, probability);
             lower_repetition++;
           }
           for (int i = 0; i < (upper_repetition - lower_repetition); i++) {
-            e = pool->alloc<Concat>(e, pool->alloc<Qmark>(f->Clone(pool), non_greedy, probability));
+            e = pool->alloc<Concat>(e, pool->alloc<Qmark>(f->Clone(pool), non_greedy, probability), flag_.reverse_regex());
           }
         }
         break;

@@ -15,22 +15,24 @@ public:
       NoParseFlags = 0,
       MatchNL = 1 << 0,
       OneLine = 1 << 1,
-      ShortestMatch = 1 << 2,
-      ReverseMatch = 1 << 3,
-      NoPrefixMatch = 1 << 4,
-      NoSuffixMatch = 1 << 5,
+      ReverseRegex = 1 << 2,
+      ShortestMatch = 1 << 3,
+      ReverseMatch = 1 << 4,
+      Reverse = ReverseRegex | ReverseMatch,
+      NoPrefixMatch = 1 << 5,
+      NoSuffixMatch = 1 << 6,
       PartialMatch = NoPrefixMatch | NoSuffixMatch,
       FullMatch = 0,
-      ParallelMatch = 1 << 6, // Enable Parallel Matching (SSFA)
-      CapturedMatch = 1 << 7,
+      ParallelMatch = 1 << 7, // Enable Parallel Matching (SSFA)
+      CapturedMatch = 1 << 8,
       /* Regen-Extended syntax support (!, &, @, &&, ||, #, \1) */
-      ComplementExt = 1 << 8,
-      IntersectionExt = 1 << 9,
-      RecursionExt = 1 << 10,
-      XORExt = 1 << 11,
-      ShuffleExt = 1 << 12,
-      PermutationExt = 1 << 13,
-      WeakBackRefExt = 1 << 14,
+      ComplementExt = 1 << 9,
+      IntersectionExt = 1 << 10,
+      RecursionExt = 1 << 11,
+      XORExt = 1 << 12,
+      ShuffleExt = 1 << 13,
+      PermutationExt = 1 << 14,
+      WeakBackRefExt = 1 << 15,
       Extended =  ComplementExt | IntersectionExt | RecursionExt
       | XORExt | ShuffleExt | PermutationExt | WeakBackRefExt
     };
@@ -46,8 +48,12 @@ public:
     void match_nl(bool b) { match_nl_ = b; }
     bool one_line() const { return one_line_; }
     void one_line(bool b) { one_line_ = b; }
+    bool reverse_regex() const { return reverse_regex_; }
+    void reverse_regex(bool b) { reverse_regex_ = b; }
     bool reverse_match() const { return reverse_match_; }
     void reverse_match(bool b) { reverse_match_ = b; }
+    bool reverse() const { return reverse_match() && reverse_regex(); }
+    void reverse(bool b) { reverse_match(b); reverse_regex(b); }
     bool suffix_match() const { return !nosuffix_match_; }
     void suffix_match(bool b) { nosuffix_match_ = !b; }
     bool prefix_match() const { return !noprefix_match_; }
@@ -81,6 +87,7 @@ public:
     bool dot_nl_;
     bool match_nl_;
     bool one_line_;
+    bool reverse_regex_;
     bool reverse_match_;
     bool noprefix_match_;
     bool nosuffix_match_;

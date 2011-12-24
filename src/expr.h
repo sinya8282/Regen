@@ -91,8 +91,7 @@ public:
   virtual Expr* Clone(ExprPool *) = 0;
   virtual void NonGreedify() = 0;
   virtual void FillPosition(ExprInfo *) = 0;
-  virtual void FillTransition(bool reverse = false) = 0;
-  void FillReverseTransition() { FillTransition(true); transition_.first.swap(transition_.last); }
+  virtual void FillTransition() = 0;
   virtual void Serialize(std::vector<Expr*> &v, ExprPool *p) { v.push_back(Clone(p)); }
   virtual void Factorize(std::vector<Expr*> &v) { v.push_back(this); }
   virtual void Generate(std::set<std::string> &g) { g.insert(""); }
@@ -102,7 +101,7 @@ public:
   
   virtual void Accept(ExprVisitor* visit) { visit->Visit(this); };
 protected:
-  static void Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst, bool reverse = false);
+  static void Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst);
   static void _Shuffle(std::vector<Expr*>&, std::size_t, std::vector<Expr*>&, std::size_t, std::vector<Expr*>&, Expr *c, ExprPool *);
   static void _Permutation(std::vector<Expr*> &, std::bitset<8> &, std::vector<Expr*> &, std::vector<std::size_t> &, ExprPool *);
   std::size_t max_length_;
@@ -146,7 +145,7 @@ public:
   StateExpr(): state_id_(0), non_greedy_(false), non_greedy_pair_(NULL)
   { max_length_ = min_length_ = 1; nullable_ = false; }
   ~StateExpr() {}
-  void FillTransition(bool reverse = false) {}
+  void FillTransition() {}
   std::size_t state_id() { return state_id_; }
   void set_state_id(std::size_t id) { state_id_ = id; }
   bool non_greedy() { return non_greedy_; }
@@ -328,10 +327,10 @@ private:
 
 class Concat: public BinaryExpr {
 public:
-  Concat(Expr *lhs, Expr *rhs): BinaryExpr(lhs, rhs) {}
+Concat(Expr *lhs, Expr *rhs, bool reverse = false): BinaryExpr(lhs, rhs) { if (reverse) std::swap(lhs_, rhs_); }
   ~Concat() {}
   void FillPosition(ExprInfo *);
-  void FillTransition(bool reverse = false);
+  void FillTransition();
   Expr::Type type() { return Expr::kConcat; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool *p) { return p->alloc<Concat>(lhs_->Clone(p), rhs_->Clone(p)); };
@@ -347,7 +346,7 @@ public:
   Union(Expr *lhs, Expr *rhs): BinaryExpr(lhs, rhs) {}
   ~Union() {}
   void FillPosition(ExprInfo *);
-  void FillTransition(bool reverse = false);
+  void FillTransition();
   Expr::Type type() { return Expr::kUnion; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool *p) { return p->alloc<Union>(lhs_->Clone(p), rhs_->Clone(p)); };
@@ -362,7 +361,7 @@ public:
   Intersection(Expr *lhs, Expr *rhs, ExprPool *p);
   ~Intersection() {}
   void FillPosition(ExprInfo *);
-  void FillTransition(bool reverse = false);
+  void FillTransition();
   Expr::Type type() { return Expr::kIntersection; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool *p) { return p->alloc<Intersection>(lhs__->Clone(p), rhs__->Clone(p), p); };
@@ -378,7 +377,7 @@ public:
   XOR(Expr *lhs, Expr *rhs, ExprPool *p);
   ~XOR() {}
   void FillPosition(ExprInfo *);
-  void FillTransition(bool reverse = false);
+  void FillTransition();
   Expr::Type type() { return Expr::kXOR; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool *p) { return p->alloc<XOR>(lhs__->Clone(p), rhs__->Clone(p), p); }
@@ -413,7 +412,7 @@ public:
 Qmark(Expr *lhs, double probability): UnaryExpr(lhs, probability), non_greedy_(false) {}
   ~Qmark() {}
   void FillPosition(ExprInfo *);
-  void FillTransition(bool reverse = false);
+  void FillTransition();
   Expr::Type type() { return Expr::kQmark; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool *p) { return p->alloc<Qmark>(lhs_->Clone(p), non_greedy_, probability_); };
@@ -430,7 +429,7 @@ Star(Expr *lhs, bool non_greedy = false, double probability = 0.0): UnaryExpr(lh
 Star(Expr *lhs, double probability): UnaryExpr(lhs, probability), non_greedy_(false) {}
   ~Star() {}
   void FillPosition(ExprInfo *);
-  void FillTransition(bool reverse = false);
+  void FillTransition();
   Expr::Type type() { return Expr::kStar; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool *p) { return p->alloc<Star>(lhs_->Clone(p), non_greedy_, probability_); };
@@ -445,7 +444,7 @@ public:
   Plus(Expr *lhs, double probability = 0.0): UnaryExpr(lhs, probability) {}
   ~Plus() {}
   void FillPosition(ExprInfo *);
-  void FillTransition(bool reverse = false);
+  void FillTransition();
   Expr::Type type() { return Expr::kPlus; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool* p) { return p->alloc<Plus>(lhs_->Clone(p), probability_); };

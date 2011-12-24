@@ -43,20 +43,12 @@ Expr::SuperTypeOf(Expr *e)
 
 
 void
-Expr::Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst, bool reverse)
+Expr::Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst)
 {
-  if (reverse) {
-    std::set<StateExpr*>::iterator iter = dst.begin();
-    while (iter != dst.end()) {
-      (*iter)->transition().follow.insert(src.begin(), src.end());
-      ++iter;
-    }
-  } else {
-    std::set<StateExpr*>::iterator iter = src.begin();
-    while (iter != src.end()) {
-      (*iter)->transition().follow.insert(dst.begin(), dst.end());
-      ++iter;
-    }
+  std::set<StateExpr*>::iterator iter = src.begin();
+  while (iter != src.end()) {
+    (*iter)->transition().follow.insert(dst.begin(), dst.end());
+    ++iter;
   }
 }
 
@@ -260,11 +252,11 @@ void Concat::FillPosition(ExprInfo *info)
   }
 }
 
-void Concat::FillTransition(bool reverse)
+void Concat::FillTransition()
 {
-  Connect(lhs_->transition().last, rhs_->transition().first, reverse);
-  rhs_->FillTransition(reverse);
-  lhs_->FillTransition(reverse);
+  Connect(lhs_->transition().last, rhs_->transition().first);
+  rhs_->FillTransition();
+  lhs_->FillTransition();
 }
 
 void Concat::Serialize(std::vector<Expr*> &v, ExprPool *p)
@@ -319,10 +311,10 @@ void Union::FillPosition(ExprInfo *info)
                           rhs_->transition().last.end());
 }
 
-void Union::FillTransition(bool reverse)
+void Union::FillTransition()
 {
-  rhs_->FillTransition(reverse);
-  lhs_->FillTransition(reverse);
+  rhs_->FillTransition();
+  lhs_->FillTransition();
 }
 
 void Union::Serialize(std::vector<Expr*> &v, ExprPool *p)
@@ -373,10 +365,10 @@ void Intersection::FillPosition(ExprInfo* info)
                           rhs_->transition().last.end());
 }
 
-void Intersection::FillTransition(bool reverse)
+void Intersection::FillTransition()
 {
-  rhs_->FillTransition(reverse);
-  lhs_->FillTransition(reverse);
+  rhs_->FillTransition();
+  lhs_->FillTransition();
 }
 
 void Intersection::Generate(std::set<std::string> &g)
@@ -429,10 +421,10 @@ void XOR::FillPosition(ExprInfo *info)
   rop_->set_id(id);
 }
 
-void XOR::FillTransition(bool reverse)
+void XOR::FillTransition()
 {
-  rhs_->FillTransition(reverse);
-  lhs_->FillTransition(reverse);
+  rhs_->FillTransition();
+  lhs_->FillTransition();
 }
 
 void XOR::Generate(std::set<std::string> &g)
@@ -465,9 +457,9 @@ void Qmark::FillPosition(ExprInfo *info)
   if (non_greedy_) NonGreedify();
 }
 
-void Qmark::FillTransition(bool reverse)
+void Qmark::FillTransition()
 {
-  lhs_->FillTransition(reverse);
+  lhs_->FillTransition();
 }
 
 double frand()
@@ -502,10 +494,10 @@ void Star::FillPosition(ExprInfo *info)
   if (non_greedy_) NonGreedify();
 }
 
-void Star::FillTransition(bool reverse)
+void Star::FillTransition()
 {
-  Connect(lhs_->transition().last, lhs_->transition().first, reverse);
-  lhs_->FillTransition(reverse);
+  Connect(lhs_->transition().last, lhs_->transition().first);
+  lhs_->FillTransition();
 }
 
 void Star::Generate(std::set<std::string> &g)
@@ -538,10 +530,10 @@ void Plus::FillPosition(ExprInfo *info)
   transition_.last = lhs_->transition().last;
 }
 
-void Plus::FillTransition(bool reverse)
+void Plus::FillTransition()
 {
-  Connect(lhs_->transition().last, lhs_->transition().first, reverse);
-  lhs_->FillTransition(reverse);
+  Connect(lhs_->transition().last, lhs_->transition().first);
+  lhs_->FillTransition();
 }
 
 void Plus::Generate(std::set<std::string> &g)
