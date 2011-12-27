@@ -5,11 +5,14 @@
 int main(int argc, char *argv[]) {
   std::string regex;
   int opt;
-  bool n,d,s,m;
+  bool n,d,s,m,E;
   n = d = s = m = false;
 
-  while ((opt = getopt(argc, argv, "f:ndsm")) != -1) {
+  while ((opt = getopt(argc, argv, "Ef:ndsm")) != -1) {
     switch(opt) {
+      case 'E':
+        E = true;
+        break;
       case 'f': {
         std::ifstream ifs(optarg);
         ifs >> regex;
@@ -40,7 +43,9 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  regen::Regex r = regen::Regex(regex);
+  Regen::Options option;
+  option.extended(E);
+  regen::Regex r = regen::Regex(regex, option);
 
   if (n) {
     printf("NFA state num:  %"PRIuS"\n", r.state_exprs().size());

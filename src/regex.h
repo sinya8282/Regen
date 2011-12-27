@@ -22,7 +22,7 @@ public:
   void PrintRegex() const;
   static void PrintRegex(const DFA &);
   void PrintParseTree() const;
-  void PrintText() const;
+  void PrintText(Expr::GenOpt, std::size_t n = 1) const;
   static void CreateRegexFromDFA(const DFA &dfa, ExprInfo *info, ExprPool *p);
   void DumpExprTree() const;
   bool Compile(Regen::Options::CompileFlag olevel = Regen::Options::O3);

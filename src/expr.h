@@ -1,6 +1,7 @@
 #ifndef REGEN_EXPR_H_
 #define REGEN_EXPR_H_
 
+#include <list>
 #include "util.h"
 
 namespace regen {
@@ -71,7 +72,10 @@ public:
   enum SuperType {
     kStateExpr=0, kBinaryExpr, kUnaryExpr
   };
-
+  enum GenOpt {
+    GenRandom, GenLong, GenShort, GenAll
+  };
+  
   Expr(): parent_(NULL) {}
   virtual ~Expr() {}
 
@@ -96,7 +100,7 @@ public:
   virtual void FillTransition() = 0;
   virtual void Serialize(std::vector<Expr*> &v, ExprPool *p) { v.push_back(Clone(p)); }
   virtual void Factorize(std::vector<Expr*> &v) { v.push_back(this); }
-  virtual void Generate(std::set<std::string> &g) { g.insert(""); }
+  virtual void Generate(std::set<std::string> &g, GenOpt opt = GenAll, std::size_t n = 1) { g.insert(""); }
   virtual void PatchBackRef(Expr *, std::size_t, ExprPool *) = 0;
   static Expr* Shuffle(Expr *, Expr *, ExprPool *);
   static Expr* Permutation(Expr *, ExprPool *);
@@ -116,30 +120,28 @@ private:
 };
 
 struct ExprPool {
+  typedef std::list<Expr*> Pool;
  public:
-   ExprPool(): p_(NULL) {}
-  ~ExprPool() { for(std::vector<Expr*>::iterator i = pool.begin(); i != pool.end(); ++i) delete *i; delete p_; }
+  ~ExprPool() { for(Pool::iterator i = pool.begin(); i != pool.end(); ++i) delete *i; }
 
   template<class T> T* alloc()
-  { p_ = new T(); pool.push_back(p_); p_ = NULL; return (T*)pool.back(); }
+  { pool.push_back(0); Expr* &i = pool.back(); T* p = new T(); i = p; return p; }
   template<class T, class P1> T* alloc(P1 p1)
-  { p_ = new T(p1); pool.push_back(p_); p_ = NULL; return (T*)pool.back(); }
+  { pool.push_back(0); Expr* &i = pool.back(); T* p = new T(p1); i = p; return p; }
   template<class T, class P1, class P2> T* alloc(P1 p1, P2 p2)
-  { p_ = new T(p1, p2); pool.push_back(p_); p_ = NULL; return (T*)pool.back(); }
+  { pool.push_back(0); Expr* &i = pool.back(); T* p = new T(p1, p2); i = p; return p; }
   template<class T, class P1, class P2, class P3> T* alloc(P1 p1, P2 p2, P3 p3)
-  { p_ = new T(p1, p2, p3); pool.push_back(p_); p_ = NULL; return (T*)pool.back(); }
+  { pool.push_back(0); Expr* &i = pool.back(); T* p = new T(p1, p2, p3); i = p; return p; }
 
   void drain(ExprPool &p) { drain(&p); }
   void drain(ExprPool *p)
   {
-    pool.reserve(pool.size()+p->pool.size());
     pool.insert(pool.end(), p->pool.begin(), p->pool.end());
     p->pool.clear();
   }
 
  private:
-  std::vector<Expr*> pool;
-  Expr *p_;
+  Pool pool;
 };
 
 class StateExpr: public Expr {
@@ -177,7 +179,7 @@ public:
   bool Match(unsigned char c) { return c == literal_; };
   void FillTransition(std::vector<std::set<StateExpr*> > &t) { t[literal_].insert(transition_.follow.begin(), transition_.follow.end()); }
   Expr *Clone(ExprPool *p) { return p->alloc<Literal>(literal_); };
-  void Generate(std::set<std::string> &g) { g.insert(std::string(1, literal_)); }
+  void Generate(std::set<std::string> &g, GenOpt opt, std::size_t n) { g.insert(std::string(1, literal_)); }
 private:
   const unsigned char literal_;
   DISALLOW_COPY_AND_ASSIGN(Literal);
@@ -200,7 +202,7 @@ public:
   bool Match(const unsigned char c) { return Involve(c); };
   void FillTransition(std::vector<std::set<StateExpr*> > &t) { for (std::size_t i = 0; i < 256; i++) if (Match(i)) t[i].insert(transition_.follow.begin(), transition_.follow.end()); }
   Expr *Clone(ExprPool *p) { return p->alloc<CharClass>(table_, negative_); };
-  void Generate(std::set<std::string> &g) { for (std::size_t i = 0; i < 256; i++) if (Involve((unsigned char)i)) g.insert(std::string(1, (char)i)); }
+  void Generate(std::set<std::string> &g, GenOpt opt, std::size_t n);
 private:
   std::bitset<256> table_;
   bool negative_;
@@ -216,7 +218,7 @@ public:
   bool Match(const unsigned char c) { return true; };
   void FillTransition(std::vector<std::set<StateExpr*> > &t) { for (std::size_t i = 0; i < 256; i++) t[i].insert(transition_.follow.begin(), transition_.follow.end()); }
   Expr *Clone(ExprPool *p) { return p->alloc<Dot>(); };
-  void Generate(std::set<std::string> &g) { for (std::size_t i = 0; i < 256; i++) g.insert(std::string(1, (char)i)); }
+  void Generate(std::set<std::string> &g, GenOpt opt, std::size_t n);
 private:
   DISALLOW_COPY_AND_ASSIGN(Dot);
 };
@@ -338,7 +340,7 @@ Concat(Expr *lhs, Expr *rhs, bool reverse = false): BinaryExpr(lhs, rhs) { if (r
   Expr* Clone(ExprPool *p) { return p->alloc<Concat>(lhs_->Clone(p), rhs_->Clone(p)); };
   void Serialize(std::vector<Expr*> &v, ExprPool *p);
   void Factorize(std::vector<Expr*> &v) { lhs_->Factorize(v); rhs_->Factorize(v); }
-  void Generate(std::set<std::string> &g);
+  void Generate(std::set<std::string> &g, GenOpt opt, std::size_t n);
 private:
   DISALLOW_COPY_AND_ASSIGN(Concat);
 };
@@ -353,7 +355,7 @@ public:
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool *p) { return p->alloc<Union>(lhs_->Clone(p), rhs_->Clone(p)); };
   void Serialize(std::vector<Expr*> &v, ExprPool *p);
-  void Generate(std::set<std::string> &g);
+  void Generate(std::set<std::string> &g, GenOpt opt, std::size_t n);
 private:
   DISALLOW_COPY_AND_ASSIGN(Union);
 };
@@ -367,7 +369,7 @@ public:
   Expr::Type type() { return Expr::kIntersection; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool *p) { return p->alloc<Intersection>(lhs__->Clone(p), rhs__->Clone(p), p); };
-  void Generate(std::set<std::string> &g);
+  void Generate(std::set<std::string> &g, GenOpt opt, std::size_t n);
 private:
   Operator *rop_, *lop_;
   Expr *lhs__, *rhs__;
@@ -383,7 +385,7 @@ public:
   Expr::Type type() { return Expr::kXOR; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool *p) { return p->alloc<XOR>(lhs__->Clone(p), rhs__->Clone(p), p); }
-  void Generate(std::set<std::string> &g);
+  void Generate(std::set<std::string> &g, GenOpt opt, std::size_t n);
 private:
   Operator *lop_, *rop_;
   Expr *lhs__, *rhs__;
@@ -419,7 +421,7 @@ Qmark(Expr *lhs, double probability): UnaryExpr(lhs, probability), non_greedy_(f
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool *p) { return p->alloc<Qmark>(lhs_->Clone(p), non_greedy_, probability_); };
   void Serialize(std::vector<Expr*> &v, ExprPool *p) { v.push_back(p->alloc<Epsilon>()); lhs_->Serialize(v, p); }
-  void Generate(std::set<std::string> &g);
+  void Generate(std::set<std::string> &g, GenOpt opt, std::size_t n);
 private:
   bool non_greedy_;
   DISALLOW_COPY_AND_ASSIGN(Qmark);
@@ -435,7 +437,7 @@ Star(Expr *lhs, double probability): UnaryExpr(lhs, probability), non_greedy_(fa
   Expr::Type type() { return Expr::kStar; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool *p) { return p->alloc<Star>(lhs_->Clone(p), non_greedy_, probability_); };
-  void Generate(std::set<std::string> &g);
+  void Generate(std::set<std::string> &g, GenOpt opt, std::size_t n);
 private:
   bool non_greedy_;
   DISALLOW_COPY_AND_ASSIGN(Star);
@@ -450,7 +452,7 @@ public:
   Expr::Type type() { return Expr::kPlus; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool* p) { return p->alloc<Plus>(lhs_->Clone(p), probability_); };
-  void Generate(std::set<std::string> &g);
+  void Generate(std::set<std::string> &g, GenOpt opt, std::size_t n);
 private:
   DISALLOW_COPY_AND_ASSIGN(Plus);
 };

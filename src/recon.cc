@@ -203,7 +203,7 @@ int main(int argc, char *argv[]) {
   regen::Regex r = regen::Regex(regex, option);
   if (generate == TEXTGEN) {
     srand(seed);
-    r.PrintText();
+    r.PrintText(regen::Expr::GenAll);
   } else if (generate == REGEN && !minimize) {
     r.PrintRegex();
     return 0;

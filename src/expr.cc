@@ -190,6 +190,63 @@ top:
   }
 }
 
+class Shortp {
+public:
+  bool operator()( const std::string& lhs, const std::string& rhs ) const
+  {
+    return lhs.size() < rhs.size();
+  }
+};
+
+class Longp {
+public:
+  bool operator()( const std::string& lhs, const std::string& rhs ) const
+  {
+    return lhs.size() >= rhs.size();
+  }
+};
+
+void Trim(std::set<std::string> &g, Expr::GenOpt opt, std::size_t n)
+{
+  if (opt == Expr::GenAll || g.size() <= n) return;
+  std::vector<std::string> v(g.size());
+  std::copy(g.begin(), g.end(), v.begin());
+  switch (opt) {
+    case Expr::GenRandom:
+      random_shuffle(v.begin(), v.end());
+      break;
+    case Expr::GenLong:
+      std::sort(v.end(), v.begin(), Longp());
+      break;
+    case Expr::GenShort:
+      std::sort(v.end(), v.begin(), Shortp());
+      break;
+    default:
+      break;
+  }
+  v.resize(n);
+  g.clear();
+  g.insert(v.begin(), v.end());
+}
+
+void CharClass::Generate(std::set<std::string> &g, GenOpt opt, std::size_t n)
+{
+  for (std::size_t i = 32; i < 127; i++) {
+    if (Involve((unsigned char)i)) {
+      g.insert(std::string(1, (char)i));
+    }
+  }
+  Trim(g, opt, n);
+}
+
+void Dot::Generate(std::set<std::string> &g, GenOpt opt, std::size_t n)
+{
+  for (std::size_t i = 32; i < 127; i++){
+    g.insert(std::string(1, (char)i));
+  }
+  Trim(g, opt, n);
+}
+
 void Operator::PatchBackRef(Expr *patch, std::size_t i, ExprPool *p)
 {
   if (optype_ == kBackRef && id_ == i) {
@@ -274,7 +331,7 @@ void Concat::Serialize(std::vector<Expr*> &v, ExprPool *p)
   return;
 }
 
-void Concat::Generate(std::set<std::string> &g)
+void Concat::Generate(std::set<std::string> &g, GenOpt opt, std::size_t n)
 {
   std::set<std::string> h, r;
   lhs_->Generate(g);
@@ -285,6 +342,7 @@ void Concat::Generate(std::set<std::string> &g)
     }
   }
   g.swap(r);
+  Trim(g, opt, n);
 }
 
 void Union::FillPosition(ExprInfo *info)
@@ -317,7 +375,7 @@ void Union::Serialize(std::vector<Expr*> &v, ExprPool *p)
   rhs_->Serialize(v, p);
 }
 
-void Union::Generate(std::set<std::string> &g)
+void Union::Generate(std::set<std::string> &g, GenOpt opt, std::size_t n)
 {
   std::set<std::string> h;
   lhs_->Generate(g);
@@ -329,6 +387,7 @@ void Union::Generate(std::set<std::string> &g)
   }    
   g.clear();
   g.insert(r.begin(), r.end());
+  Trim(g, opt, n);
 }
 
 Intersection::Intersection(Expr *lhs, Expr *rhs, ExprPool *p):
@@ -365,7 +424,7 @@ void Intersection::FillTransition()
   lhs_->FillTransition();
 }
 
-void Intersection::Generate(std::set<std::string> &g)
+void Intersection::Generate(std::set<std::string> &g, GenOpt opt, std::size_t n)
 {
   std::set<std::string> h;
   lhs_->Generate(g);
@@ -377,6 +436,7 @@ void Intersection::Generate(std::set<std::string> &g)
   }    
   g.clear();
   g.insert(r.begin(), r.end());
+  Trim(g, opt, n);
 }
 
 XOR::XOR(Expr* lhs, Expr* rhs, ExprPool *p):
@@ -421,7 +481,7 @@ void XOR::FillTransition()
   lhs_->FillTransition();
 }
 
-void XOR::Generate(std::set<std::string> &g)
+void XOR::Generate(std::set<std::string> &g, GenOpt opt, std::size_t n)
 {
   std::set<std::string> h;
   lhs_->Generate(g);
@@ -437,6 +497,7 @@ void XOR::Generate(std::set<std::string> &g)
   g.clear();
   g.insert(r1.begin(), r1.end());
   g.insert(r2.begin(), r2.end());
+  Trim(g, opt, n);
 }
 
 void Qmark::FillPosition(ExprInfo *info)
@@ -462,7 +523,7 @@ double frand()
   return f * 100.0;
 }
 
-void Qmark::Generate(std::set<std::string> &g)
+void Qmark::Generate(std::set<std::string> &g, GenOpt opt, std::size_t n)
 {
   if (probability_ != 0.0) {
     if (frand() < probability_) {
@@ -474,6 +535,7 @@ void Qmark::Generate(std::set<std::string> &g)
     lhs_->Generate(g);
     g.insert("");
   }
+  Trim(g, opt, n);
 }
 
 void Star::FillPosition(ExprInfo *info)
@@ -494,7 +556,7 @@ void Star::FillTransition()
   lhs_->FillTransition();
 }
 
-void Star::Generate(std::set<std::string> &g)
+void Star::Generate(std::set<std::string> &g, GenOpt opt, std::size_t n)
 {
   if (probability_ != 0.0 && frand() < probability_) {
     lhs_->Generate(g);
@@ -511,6 +573,7 @@ void Star::Generate(std::set<std::string> &g)
   } else {
     g.insert("");
   }
+  Trim(g, opt, n);
 }
 
 void Plus::FillPosition(ExprInfo *info)
@@ -530,7 +593,7 @@ void Plus::FillTransition()
   lhs_->FillTransition();
 }
 
-void Plus::Generate(std::set<std::string> &g)
+void Plus::Generate(std::set<std::string> &g, GenOpt opt, std::size_t n)
 {
   lhs_->Generate(g);
   if (probability_ != 0.0) {
@@ -545,6 +608,7 @@ void Plus::Generate(std::set<std::string> &g)
       g.swap(r);
     }
   }
+  Trim(g, opt, n);
 }
 
 } // namespace regen

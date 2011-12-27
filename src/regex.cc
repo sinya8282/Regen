@@ -421,11 +421,14 @@ Expr* Regex::e6(Lexer *lexer, ExprPool *pool)
       }
       break;
     }
-    case Lexer::kLpar:
+    case Lexer::kLpar: {
       lexer->Consume();
+      std::size_t ngroup = lexer->groups().size();
+      lexer->groups().push_back(0);
       e = e0(lexer, pool);
       if (lexer->token() != Lexer::kRpar) exitmsg("expected a ')'");
-      lexer->groups().push_back(e);
+      lexer->groups()[ngroup] = e;
+    }
       break;
     case Lexer::kComplement: {
       bool complement = false;
@@ -803,10 +806,10 @@ void Regex::DumpExprTree() const
   DumpExprVisitor::Dump(expr_info_.expr_root);
 }
 
-void Regex::PrintText() const
+void Regex::PrintText(Expr::GenOpt opt, std::size_t n) const
 {
   std::set<std::string> g;
-  expr_info_.expr_root->Generate(g);
+  expr_info_.expr_root->Generate(g, opt, n);
   for (std::set<std::string>::iterator iter = g.begin(); iter != g.end(); ++iter) {
     printf("%s\n", iter->c_str());
   }
