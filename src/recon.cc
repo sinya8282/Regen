@@ -132,6 +132,22 @@ parse_transition:
   }
 }
 
+void die(bool help = false)
+{
+  printf("USAGE: regen [OPTIONS]* PATTERN\n");
+  if (help) {
+    printf("Regexp selection and interpretation:\n"
+           "  -E   PATTERN is an extended regular expression(&,!,&&,||,,,)\n"
+           "  -f   obtain PATTERN from FILE\n"
+           "Output control:\n"
+           "  -t   generate acceptable strings\n"
+           "  -d   generate DFA graph (Dot language)\n"
+           "  -m   minimizing DFA\n"
+           );
+  }
+  exit(0);
+}
+
 int main(int argc, char *argv[]) {
   std::string regex;
   bool minimize, automata, extended, reverse, encoding_utf8;
@@ -140,8 +156,10 @@ int main(int argc, char *argv[]) {
   int seed = time(NULL);
   Generate generate = REGEN;
 
-  while ((opt = getopt(argc, argv, "amdcxEtrf:s:U")) != -1) {
+  while ((opt = getopt(argc, argv, "amdchxEtrf:s:U")) != -1) {
     switch(opt) {
+      case 'h':
+        die(true);
       case 'E':
         extended = true;
         break;
@@ -174,13 +192,13 @@ int main(int argc, char *argv[]) {
       case 'U':
         encoding_utf8 = true;
         break;
-      default: exitmsg("USAGE: regen [options] regexp\n");
+      default: die();
     }
   }
 
   if (regex.empty()) {
     if (optind >= argc) {
-      exitmsg("USAGE: regen [options] regexp\n");
+      die();
     } else {
       regex = std::string(argv[optind]);
     }
