@@ -136,7 +136,7 @@ void die(bool help = false)
 {
   printf("USAGE: regen [OPTIONS]* PATTERN\n");
   if (help) {
-    printf("Regexp selection and interpretation:\n"
+    printf("Regex selection and interpretation:\n"
            "  -E   PATTERN is an extended regular expression(&,!,&&,||,,,)\n"
            "  -f   obtain PATTERN from FILE\n"
            "Output control:\n"
