@@ -10,7 +10,7 @@ Regen::Options::Options(Regen::Options::ParseFlag flag):
     reverse_match_(false), noprefix_match_(false), nosuffix_match_(false), parallel_match_(false),
     captured_match_(false), complement_ext_(false), intersection_ext_(false),
     recursion_ext_(false), xor_ext_(false), shuffle_ext_(false),
-    permutation_ext_(false), weakbackref_ext_(false),
+    permutation_ext_(false), reverse_ext_(false), weakbackref_ext_(false),
     encoding_utf8_(false)
 {
   shortest_match_ = flag & ShortestMatch;
@@ -28,6 +28,7 @@ Regen::Options::Options(Regen::Options::ParseFlag flag):
   xor_ext_ = flag & XORExt;
   shuffle_ext_ = flag & ShuffleExt;
   permutation_ext_ = flag & PermutationExt;
+  reverse_ext_ = flag & ReverseExt;
   weakbackref_ext_ = flag & WeakBackRefExt;
   encoding_utf8_ = flag & EncodingUTF8;
 }

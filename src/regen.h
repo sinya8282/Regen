@@ -32,11 +32,12 @@ public:
       XORExt = 1 << 12,
       ShuffleExt = 1 << 13,
       PermutationExt = 1 << 14,
-      WeakBackRefExt = 1 << 15,
+      ReverseExt = 1 << 15,
+      WeakBackRefExt = 1 << 16,
       Extended =  ComplementExt | IntersectionExt | RecursionExt
-      | XORExt | ShuffleExt | PermutationExt | WeakBackRefExt,
+      | XORExt | ShuffleExt | PermutationExt | ReverseExt | WeakBackRefExt,
       /* Encodings: UTF8 xor Ascii (default) */
-      EncodingUTF8 = 1 << 14,
+      EncodingUTF8 = 1 << 17,
       EncodingAscii = 0
     };
     enum CompileFlag {
@@ -81,10 +82,12 @@ public:
     void shuffle_ext(bool b) { shuffle_ext_ = b; }
     bool permutation_ext() const { return permutation_ext_; }
     void permutation_ext(bool b) { permutation_ext_ = b; }
+    bool reverse_ext() const { return reverse_ext_; }
+    void reverse_ext(bool b) { reverse_ext_ = b; }
     bool weakbackref_ext() const { return weakbackref_ext_; }
     void weakbackref_ext(bool b) { weakbackref_ext_ = b; }
-    bool extended() const { return complement_ext_ & intersection_ext_ & recursion_ext_ & xor_ext_ & shuffle_ext_ & permutation_ext_ & weakbackref_ext_; }
-    void extended(bool b) { complement_ext_ = intersection_ext_ = recursion_ext_ = xor_ext_ = shuffle_ext_ = permutation_ext_ = weakbackref_ext_ = b; }
+    bool extended() const { return complement_ext_ & intersection_ext_ & recursion_ext_ & xor_ext_ & shuffle_ext_ & permutation_ext_ & reverse_ext_ & weakbackref_ext_; }
+    void extended(bool b) { complement_ext_ = intersection_ext_ = recursion_ext_ = xor_ext_ = shuffle_ext_ = permutation_ext_ = reverse_ext_ = weakbackref_ext_ = b; }
     bool encoding_utf8() const { return encoding_utf8_; }
     void encoding_utf8(bool b) { encoding_utf8_ = b; }
     bool encoding_ascii() const { return !encoding_utf8(); }
@@ -106,6 +109,7 @@ public:
     bool xor_ext_;
     bool shuffle_ext_;
     bool permutation_ext_;
+    bool reverse_ext_;
     bool weakbackref_ext_;
     bool encoding_utf8_;
   };

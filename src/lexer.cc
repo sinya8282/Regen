@@ -14,6 +14,7 @@ Lexer::Type Lexer::Consume()
     case '@': token_ = flag_.recursion_ext() ? kRecursion : kLiteral; break;
     case '#': token_ = flag_.permutation_ext() ? kPermutation : kLiteral; break;
     case '!': token_ = flag_.complement_ext() ? kComplement : kLiteral; break;
+    case '~': token_ = flag_.reverse_ext() ? kReverse : kLiteral; break;
     case '&': {
       if (*ptr_ == '&' && flag_.xor_ext()) {
         ptr_++;

@@ -225,28 +225,29 @@ private:
 
 class BegLine: public StateExpr {
 public:
-  BegLine() {}
+  BegLine(const unsigned char delimiter = '\n'): delimiter_(delimiter) { max_length_ = min_length_ = 0; }
   ~BegLine() {}
   Expr::Type type() { return Expr::kBegLine; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  bool Match(const unsigned char c) { return c == '\n'; };
-  void FillTransition(std::vector<std::set<StateExpr*> > &t) { t['\n'].insert(transition_.follow.begin(), transition_.follow.end()); }
+  bool Match() { return false; }
   Expr *Clone(ExprPool *p) { return p->alloc<BegLine>(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(BegLine);
+  const unsigned char delimiter_;
 };
 
 class EndLine: public StateExpr {
 public:
-  EndLine() {}
+  EndLine(const unsigned char delimiter = '\n'): delimiter_(delimiter) { max_length_ = min_length_ = 0; }
   ~EndLine() {}
   Expr::Type type() { return Expr::kEndLine; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  bool Match(const unsigned char c) { return c == '\n'; };
-  void FillTransition(std::vector<std::set<StateExpr*> > &t) { t['\n'].insert(transition_.follow.begin(), transition_.follow.end()); }
+  bool Match(const unsigned char c) { return c == delimiter_; };
+  void FillTransition(std::vector<std::set<StateExpr*> > &t) { t[delimiter_].insert(transition_.follow.begin(), transition_.follow.end()); }
   Expr *Clone(ExprPool *p) { return p->alloc<EndLine>(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(EndLine);
+  const unsigned char delimiter_;
 };
 
 class Operator: public StateExpr {

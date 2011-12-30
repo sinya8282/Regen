@@ -458,6 +458,14 @@ Expr* Regex::e6(Lexer *lexer, ExprPool *pool)
       }
       return e;
     }
+    case Lexer::kReverse: {
+      lexer->Consume();
+      bool reverse = flag_.reverse_regex();
+      flag_.reverse_regex(!reverse);
+      e = e6(lexer, pool);
+      flag_.reverse_regex(reverse);
+      return e;
+    }
     case Lexer::kRecursion: {
       lexer->Consume();
       std::pair<int, int> recursion_limit;
