@@ -5,27 +5,13 @@
 
 namespace regen {
 
-class NumberingStateExprVisitor: public ExprVisitor {
-public:
-  void Visit(Expr*) {}
-  void Visit(StateExpr *e) { state_exprs_->push_back(e); e->set_state_id(state_id_++); }
-  void Visit(BinaryExpr *e) { e->lhs()->Accept(this); e->rhs()->Accept(this); }
-  void Visit(UnaryExpr *e) { e->lhs()->Accept(this); }
-  static void Numbering(Expr *e, std::vector<StateExpr*> *state_exprs);
- private:
-  std::size_t state_id_;
-  std::vector<StateExpr*> *state_exprs_;
-};
-
-  
 class PrintExprVisitor: public ExprVisitor {
 public:
   void Visit(Expr*) {}
   void Visit(Literal* e);
   void Visit(CharClass* e);
   void Visit(Dot* e) { printf("."); }
-  void Visit(BegLine* e) { printf("^"); }
-  void Visit(EndLine* e) { printf("$"); }
+  void Visit(Anchor* e) { if (e->atype() == Anchor::kBegLine) { printf("^"); } else { printf("$"); } }
   void Visit(None * e) { printf("[:None:]"); }
   void Visit(Concat* e) {}
   void Visit(Union* e) { printf("|"); }

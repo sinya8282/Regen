@@ -72,17 +72,6 @@ SSFA::SSFA(Expr *expr_root, const std::vector<StateExpr*> &state_exprs, std::siz
             }
             break;
           }
-          case Expr::kBegLine: {
-            for (NFA::iterator ni = next.begin(); ni != next.end(); ++ni) {
-              transition['\n'][start].insert((*ni)->state_id());
-            }
-            break;
-          }
-          case Expr::kEndLine: {
-            for (NFA::iterator ni = next.begin(); ni != next.end(); ++ni) {
-              transition['\n'][start].insert((*ni)->state_id());
-            }
-          }
           case Expr::kEOP: {
             fa_accepts_[(s)->state_id()] = true;
             break;

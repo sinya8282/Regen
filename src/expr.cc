@@ -6,7 +6,7 @@ const char* Expr::TypeString(Expr::Type type)
 {
   static const char* const type_strings[] = {
     "Literal", "CharClass", "Dot",
-    "BegLine", "EndLine", "EOP", "Operator",
+    "Anchor", "EOP", "Operator",
     "Concat", "Union", "Intersection", "XOR",
     "Qmark", "Star", "Plus",
     "Epsilon", "None"
@@ -28,7 +28,7 @@ Expr::SuperType Expr::SuperTypeOf(Expr *e)
 {
   switch (e->type()) {
     case kLiteral: case kCharClass: case kDot:
-    case kBegLine: case kEndLine: case kEOP: case kOperator:
+    case kAnchor: case kEOP: case kOperator:
     case kEpsilon: case kNone:
       return kStateExpr;
     case kConcat: case kUnion: case kIntersection: case kXOR:
@@ -174,9 +174,6 @@ top:
     case Expr::kDot:
       table_.set();
       return;
-    case Expr::kBegLine: case Expr::kEndLine:
-      table_.set('\n');
-      break;
     default: exitmsg("Invalid Expr Type: %d", e->type());
   }
   if (e == e1) {

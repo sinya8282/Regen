@@ -72,7 +72,7 @@ public:
     state_t next2;
   };
   struct State {
-   State(): transitions(NULL), accept(false), id(UNDEF), inline_level(0) {}
+    State(): transitions(NULL), accept(false), id(UNDEF), inline_level(0) {}
     std::vector<Transition> *transitions;
     bool accept;
     state_t id;
@@ -86,7 +86,7 @@ public:
   typedef std::deque<State>::iterator iterator;
   typedef std::deque<State>::const_iterator const_iterator;
   
-DFA(const Regen::Options flag = Regen::Options::NoParseFlags): complete_(false), minimum_(false), flag_(flag), olevel_(Regen::Options::O0)
+DFA(const Regen::Options flag = Regen::Options::NoParseFlags): endline_accept_(UNDEF), complete_(false), minimum_(false), flag_(flag), olevel_(Regen::Options::O0)
 #ifdef REGEN_ENABLE_XBYAK
   , xgen_(NULL)
 #endif
@@ -142,6 +142,7 @@ protected:
   mutable std::deque<State> states_;
   mutable std::map<std::set<StateExpr*>, state_t> dfa_map_;
   mutable std::map<state_t, std::set<StateExpr*> > nfa_map_;
+  mutable state_t endline_accept_;
   ExprInfo expr_info_;
   bool complete_;
   bool minimum_;

@@ -12,7 +12,6 @@ Regex::Regex(const std::string &regex, const Regen::Options flags):
     dfa_(flags)
 {
   Parse();
-  NumberingStateExprVisitor::Numbering(expr_info_.expr_root, &state_exprs_);
   dfa_.set_expr_info(expr_info_);
 }
 
@@ -29,9 +28,6 @@ StateExpr* Regex::CombineStateExpr(StateExpr *e1, StateExpr *e2, ExprPool *p)
     switch (e1->type()) {
       case Expr::kLiteral:
         c = ((Literal*)e1)->literal();
-        break;
-      case Expr::kBegLine: case Expr::kEndLine:
-        c = '\n';
         break;
       default: exitmsg("Invalid Expr Type: %d", e1->type());
     }
@@ -122,8 +118,7 @@ void Regex::Parse()
   expr_info_.eop = pool_.alloc<EOP>();
   e = pool_.alloc<Concat>(e, expr_info_.eop);
   expr_info_.expr_root = e;
-  ExprInfo info;
-  e->FillPosition(&info);
+  e->FillPosition(&expr_info_);
   e->FillTransition();
 }
 
@@ -380,10 +375,10 @@ Expr* Regex::e6(Lexer *lexer, ExprPool *pool)
       }
       break;
     case Lexer::kBegLine:
-      e = pool->alloc<BegLine>();
+      e = pool->alloc<Anchor>(Anchor::kBegLine);
       break;
     case Lexer::kEndLine:
-      e = pool->alloc<EndLine>();
+      e = pool->alloc<Anchor>(Anchor::kEndLine);
       break;
     case Lexer::kDot:
       e = pool->alloc<Dot>();

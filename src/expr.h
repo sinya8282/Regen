@@ -8,7 +8,7 @@ namespace regen {
 
 class Expr;
 class StateExpr;
-class Literal; class CharClass; class Dot; class BegLine; class EndLine;
+class Literal; class CharClass; class Dot; class Anchor;
 class None; class Epsilon; class Operator; class EOP;
 class BinaryExpr;
 class Concat; class Union; class Intersection; class XOR;
@@ -23,8 +23,7 @@ public:
   virtual void Visit(Literal *e) { Visit((StateExpr*)e); }
   virtual void Visit(CharClass *e) { Visit((StateExpr*)e); }
   virtual void Visit(Dot *e) { Visit((StateExpr*)e); }
-  virtual void Visit(BegLine *e) { Visit((StateExpr*)e); }
-  virtual void Visit(EndLine *e) { Visit((StateExpr*)e); }
+  virtual void Visit(Anchor *e) { Visit((StateExpr*)e); }
   virtual void Visit(None *e) { Visit((StateExpr*)e); }
   virtual void Visit(Epsilon *e) { Visit((StateExpr*)e); }
   virtual void Visit(Operator *e) { Visit((StateExpr*)e); }
@@ -45,6 +44,7 @@ struct ExprInfo {
   std::size_t xor_num;
   Expr *expr_root;
   EOP *eop;
+  std::bitset<256> involve;
 };
 
 struct Must {
@@ -64,7 +64,7 @@ class Expr {
 public:
   enum Type {
     kLiteral=0, kCharClass, kDot,
-    kBegLine, kEndLine, kEOP, kOperator,
+    kAnchor, kEOP, kOperator,
     kConcat, kUnion, kIntersection, kXOR,
     kQmark, kStar, kPlus,
     kEpsilon, kNone
@@ -86,6 +86,9 @@ public:
   bool nullable() { return nullable_; }
   void set_nullable(bool b = true) { nullable_ = b; }
   Transition& transition() { return transition_; }
+  std::set<StateExpr*>& first() { return transition_.first; }
+  std::set<StateExpr*>& last() { return transition_.last; }
+  std::set<StateExpr*>& follow() { return transition_.follow; }
 
   Expr* parent() { return parent_; }
   void set_parent(Expr *parent) { parent_ = parent; }
@@ -158,8 +161,8 @@ public:
   void set_non_greedy(bool non_greedy = true) { non_greedy_ = non_greedy; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   void NonGreedify()  { non_greedy_ = true; }
-  void FillPosition(ExprInfo *) { transition_.first.insert(this); transition_.last.insert(this); }
   virtual bool Match(const unsigned char c) { return false; }
+  void FillPosition(ExprInfo *) { transition_.first.insert(this); transition_.last.insert(this); }
   virtual void FillTransition(std::vector<std::set<StateExpr*> > &) {}
   void PatchBackRef(Expr *, std::size_t, ExprPool *) {}
 private:
@@ -177,6 +180,7 @@ public:
   Expr::Type type() { return Expr::kLiteral; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   bool Match(unsigned char c) { return c == literal_; };
+  void FillPosition(ExprInfo *info) { transition_.first.insert(this); transition_.last.insert(this); info->involve.set(literal_); }
   void FillTransition(std::vector<std::set<StateExpr*> > &t) { t[literal_].insert(transition_.follow.begin(), transition_.follow.end()); }
   Expr *Clone(ExprPool *p) { return p->alloc<Literal>(literal_); };
   void Generate(std::set<std::string> &g, GenOpt opt, std::size_t n) { g.insert(std::string(1, literal_)); }
@@ -200,6 +204,7 @@ public:
   Expr::Type type() { return Expr::kCharClass; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   bool Match(const unsigned char c) { return Involve(c); };
+  void FillPosition(ExprInfo *info) { transition_.first.insert(this); transition_.last.insert(this); if (negative_) { std::bitset<256> table__ = table_; table__.flip(); info->involve |= table__; } else { info->involve |= table_; } }
   void FillTransition(std::vector<std::set<StateExpr*> > &t) { for (std::size_t i = 0; i < 256; i++) if (Match(i)) t[i].insert(transition_.follow.begin(), transition_.follow.end()); }
   Expr *Clone(ExprPool *p) { return p->alloc<CharClass>(table_, negative_); };
   void Generate(std::set<std::string> &g, GenOpt opt, std::size_t n);
@@ -223,31 +228,19 @@ private:
   DISALLOW_COPY_AND_ASSIGN(Dot);
 };
 
-class BegLine: public StateExpr {
-public:
-  BegLine(const unsigned char delimiter = '\n'): delimiter_(delimiter) { max_length_ = min_length_ = 0; }
-  ~BegLine() {}
-  Expr::Type type() { return Expr::kBegLine; }
-  void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  bool Match() { return false; }
-  Expr *Clone(ExprPool *p) { return p->alloc<BegLine>(); };
-private:
-  DISALLOW_COPY_AND_ASSIGN(BegLine);
-  const unsigned char delimiter_;
-};
+/* Zero-width oprators */
 
-class EndLine: public StateExpr {
+class Anchor: public StateExpr {
 public:
-  EndLine(const unsigned char delimiter = '\n'): delimiter_(delimiter) { max_length_ = min_length_ = 0; }
-  ~EndLine() {}
-  Expr::Type type() { return Expr::kEndLine; }
+  enum Type { kBegLine, kEndLine };
+  Anchor(Type type): atype_(type) { min_length_ = max_length_ = 0; }
+  Expr::Type type() { return Expr::kAnchor; }
+  Anchor::Type atype() { return atype_; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  bool Match(const unsigned char c) { return c == delimiter_; };
-  void FillTransition(std::vector<std::set<StateExpr*> > &t) { t[delimiter_].insert(transition_.follow.begin(), transition_.follow.end()); }
-  Expr *Clone(ExprPool *p) { return p->alloc<EndLine>(); };
+  Expr *Clone(ExprPool *p) { return p->alloc<Anchor>(atype_); };
 private:
-  DISALLOW_COPY_AND_ASSIGN(EndLine);
-  const unsigned char delimiter_;
+  DISALLOW_COPY_AND_ASSIGN(Anchor);
+  Type atype_;
 };
 
 class Operator: public StateExpr {
@@ -255,7 +248,7 @@ public:
   enum Type {
     kIntersection, kXOR, kBackRef
   };
-  Operator(Type type = kIntersection): pair_(NULL), optype_(type), active_(false), id_(0) { min_length_ = max_length_ = 0; }
+  Operator(Type type): pair_(NULL), optype_(type), active_(false), id_(0) { min_length_ = max_length_ = 0; }
   Operator(Operator *o): pair_(NULL), optype_(o->optype()), active_(o->active()), id_(o->id()) { min_length_ = max_length_ = 0; }
   ~Operator() {}
   Expr::Type type() { return Expr::kOperator; }  
