@@ -38,11 +38,10 @@ Expr::SuperType Expr::SuperTypeOf(Expr *e)
   }
 }
 
-
 void Expr::Connect(std::set<StateExpr*> &src, std::set<StateExpr*> &dst)
 {
   for (std::set<StateExpr*>::iterator iter = src.begin(); iter != src.end(); ++iter) {
-    (*iter)->transition().follow.insert(dst.begin(), dst.end());
+    (*iter)->follow().insert(dst.begin(), dst.end());
   }
 }
 
@@ -285,24 +284,22 @@ void Concat::FillPosition(ExprInfo *info)
   min_length_ = lhs_->min_length() + rhs_->min_length();
   nullable_ = lhs_->nullable() && rhs_->nullable();
 
-  transition_.first = lhs_->transition().first;
+  first() = lhs_->first();
 
   if (lhs_->nullable()) {
-    transition_.first.insert(rhs_->transition().first.begin(),
-                             rhs_->transition().first.end());
+    first().insert(rhs_->first().begin(), rhs_->first().end());
   }
 
-  transition_.last = rhs_->transition().last;
+  last() = rhs_->last();
 
   if (rhs_->nullable()) {
-    transition_.last.insert(lhs_->transition().last.begin(),
-                            lhs_->transition().last.end());
+    last().insert(lhs_->last().begin(), lhs_->last().end());
   }
 }
 
 void Concat::FillTransition()
 {
-  Connect(lhs_->transition().last, rhs_->transition().first);
+  Connect(lhs_->last(), rhs_->first());
   rhs_->FillTransition();
   lhs_->FillTransition();
 }
@@ -351,13 +348,11 @@ void Union::FillPosition(ExprInfo *info)
   min_length_ = std::min(lhs_->min_length(), rhs_->min_length());
   nullable_ = lhs_->nullable() || rhs_->nullable();
 
-  transition_.first = lhs_->transition().first;
-  transition_.first.insert(rhs_->transition().first.begin(),
-                           rhs_->transition().first.end());
+  first() = lhs_->first();
+  first().insert(rhs_->first().begin(), rhs_->first().end());
 
-  transition_.last = lhs_->transition().last;
-  transition_.last.insert(rhs_->transition().last.begin(),
-                          rhs_->transition().last.end());
+  last() = lhs_->last();
+  last().insert(rhs_->last().begin(), rhs_->last().end());
 }
 
 void Union::FillTransition()
@@ -406,13 +401,11 @@ void Intersection::FillPosition(ExprInfo* info)
   max_length_ = std::min(lhs_->max_length(), rhs_->max_length());
   min_length_ = std::max(lhs_->min_length(), rhs_->min_length());
 
-  transition_.first = lhs_->transition().first;
-  transition_.first.insert(rhs_->transition().first.begin(),
-                           rhs_->transition().first.end());
+  first() = first();
+  first().insert(rhs_->first().begin(), rhs_->first().end());
 
-  transition_.last = lhs_->transition().last;
-  transition_.last.insert(rhs_->transition().last.begin(),
-                          rhs_->transition().last.end());
+  last() = lhs_->last();
+  last().insert(rhs_->last().begin(), rhs_->last().end());
 }
 
 void Intersection::FillTransition()
@@ -459,13 +452,11 @@ void XOR::FillPosition(ExprInfo *info)
     min_length_ = std::min(lhs_->min_length(), rhs_->min_length());
   }
   
-  transition_.first = lhs_->transition().first;
-  transition_.first.insert(rhs_->transition().first.begin(),
-                           rhs_->transition().first.end());
+  first() = lhs_->first();
+  first().insert(rhs_->first().begin(), rhs_->first().end());
 
-  transition_.last = lhs_->transition().last;
-  transition_.last.insert(rhs_->transition().last.begin(),
-                          rhs_->transition().last.end());
+  last() = lhs_->last();
+  last().insert(rhs_->last().begin(), rhs_->last().end());
 
   std::size_t id = info->xor_num++;
   lop_->set_id(id);
@@ -504,8 +495,8 @@ void Qmark::FillPosition(ExprInfo *info)
   max_length_ = lhs_->min_length();
   min_length_ = 0;
   nullable_ = true;
-  transition_.first = lhs_->transition().first;
-  transition_.last = lhs_->transition().last;
+  first() = lhs_->first();
+  last() = lhs_->last();
   if (non_greedy_) NonGreedify();
 }
 
@@ -542,14 +533,14 @@ void Star::FillPosition(ExprInfo *info)
   max_length_ = std::numeric_limits<size_t>::max();
   min_length_ = 0;
   nullable_ = true;
-  transition_.first = lhs_->transition().first;
-  transition_.last = lhs_->transition().last;
+  first() = lhs_->first();
+  last() = lhs_->last();
   if (non_greedy_) NonGreedify();
 }
 
 void Star::FillTransition()
 {
-  Connect(lhs_->transition().last, lhs_->transition().first);
+  Connect(lhs_->last(), lhs_->first());
   lhs_->FillTransition();
 }
 
@@ -580,13 +571,13 @@ void Plus::FillPosition(ExprInfo *info)
   max_length_ = std::numeric_limits<size_t>::max();
   min_length_ = lhs_->min_length();
   nullable_ = lhs_->nullable();
-  transition_.first = lhs_->transition().first;
-  transition_.last = lhs_->transition().last;
+  first() = lhs_->first();
+  last() = lhs_->last();
 }
 
 void Plus::FillTransition()
 {
-  Connect(lhs_->transition().last, lhs_->transition().first);
+  Connect(lhs_->last(), lhs_->first());
   lhs_->FillTransition();
 }
 

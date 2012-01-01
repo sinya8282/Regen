@@ -165,7 +165,7 @@ public:
   void FillPosition(ExprInfo *) { transition_.first.insert(this); transition_.last.insert(this); }
   virtual void FillTransition(std::vector<std::set<StateExpr*> > &) {}
   void PatchBackRef(Expr *, std::size_t, ExprPool *) {}
-private:
+protected:
   std::size_t state_id_;
   bool non_greedy_;
   StateExpr* non_greedy_pair_;
@@ -274,7 +274,7 @@ private:
 
 class EOP: public StateExpr {
 public:
-  EOP() { min_length_ = max_length_ = 0; nullable_ = true; }
+  EOP() { min_length_ = max_length_ = 0; nullable_ = true; non_greedy_pair_ = this; }
   ~EOP() {}
   Expr::Type type() { return Expr::kEOP; }  
   void Accept(ExprVisitor* visit) { visit->Visit(this); };

@@ -86,7 +86,7 @@ public:
   typedef std::deque<State>::iterator iterator;
   typedef std::deque<State>::const_iterator const_iterator;
   
-DFA(const Regen::Options flag = Regen::Options::NoParseFlags): endline_accept_(UNDEF), complete_(false), minimum_(false), flag_(flag), olevel_(Regen::Options::O0)
+DFA(const Regen::Options flag = Regen::Options::NoParseFlags): endline_state_(UNDEF), complete_(false), minimum_(false), flag_(flag), olevel_(Regen::Options::O0)
 #ifdef REGEN_ENABLE_XBYAK
   , xgen_(NULL)
 #endif
@@ -116,6 +116,7 @@ DFA(const Regen::Options flag = Regen::Options::NoParseFlags): endline_accept_(U
   const Transition &GetTransition(std::size_t state) const { return transition_[state]; }
   bool IsAcceptState(std::size_t state) const { return state == REJECT ? false : states_[state].accept; }
 
+  void ExpandStates(bool, std::set<StateExpr*> &, bool &, bool &, std::set<Operator*> &, std::map<std::size_t, Operator*> &);
   bool Construct(std::size_t limit = std::numeric_limits<size_t>::max());
   bool Construct(const NFA &nfa, std::size_t limit = std::numeric_limits<size_t>::max());
   state_t OnTheFlyConstructWithChar(state_t state, unsigned char input, Regen::Context *context) const;
@@ -142,7 +143,7 @@ protected:
   mutable std::deque<State> states_;
   mutable std::map<std::set<StateExpr*>, state_t> dfa_map_;
   mutable std::map<state_t, std::set<StateExpr*> > nfa_map_;
-  mutable state_t endline_accept_;
+  mutable state_t endline_state_;
   ExprInfo expr_info_;
   bool complete_;
   bool minimum_;

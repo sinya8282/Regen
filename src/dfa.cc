@@ -3,7 +3,7 @@
 namespace regen {
 
 DFA::DFA(const ExprInfo &expr_info, std::size_t limit):
-    endline_accept_(UNDEF), expr_info_(expr_info), complete_(false), minimum_(false), olevel_(Regen::Options::O0)
+    endline_state_(UNDEF), expr_info_(expr_info), complete_(false), minimum_(false), olevel_(Regen::Options::O0)
 #ifdef REGEN_ENABLE_XBYAK
     , xgen_(NULL)
 #endif
@@ -12,7 +12,7 @@ DFA::DFA(const ExprInfo &expr_info, std::size_t limit):
 }
 
 DFA::DFA(const NFA &nfa, std::size_t limit):
-    endline_accept_(UNDEF), complete_(false), minimum_(false), olevel_(Regen::Options::O0)
+    endline_state_(UNDEF), complete_(false), minimum_(false), olevel_(Regen::Options::O0)
 #ifdef REGEN_ENABLE_XBYAK
     , xgen_(NULL)
 #endif
@@ -20,124 +20,128 @@ DFA::DFA(const NFA &nfa, std::size_t limit):
   complete_ = Construct(nfa, limit);
 }
 
+void DFA::ExpandStates(bool first, std::set<StateExpr*> &nfa_states, bool &accept, bool &endline, std::set<Operator*> &intersections, std::map<std::size_t, Operator*> &exclusives)
+{
+  typedef std::set<StateExpr*> NFA;
+top:
+  for (NFA::iterator iter = nfa_states.begin(); iter != nfa_states.end(); ++iter) {
+    switch ((*iter)->type()) {
+      case Expr::kOperator: {
+        Operator *op = static_cast<Operator*>(*iter);
+        switch (op->optype()) {
+          case Operator::kIntersection:
+            if (op->pair()->active()) {
+              std::size_t presize = nfa_states.size();    
+              nfa_states.insert(op->transition().follow.begin(),
+                                op->transition().follow.end());
+              if (presize < nfa_states.size()) {
+                iter = nfa_states.begin();
+                continue;
+              }
+            } else {
+              op->set_active(true);
+              intersections.insert(op);
+            }
+            break;
+          case Operator::kXOR:
+            op->set_active(true);
+            exclusives[op->id()] = op;
+            break;
+          default:
+            break;
+        }
+        break;
+      }
+      case Expr::kAnchor: {
+        switch (static_cast<Anchor*>(*iter)->atype()) {
+          case Anchor::kBegLine:
+            if (first) {
+              std::size_t presize = nfa_states.size();
+              nfa_states.insert((*iter)->follow().begin(), (*iter)->follow().end());
+              if (presize < nfa_states.size()) {
+                iter = nfa_states.begin();
+                continue;
+              }
+            }
+            break;
+          case Anchor::kEndLine:
+            endline |= std::find((*iter)->follow().begin(), (*iter)->follow().end(), expr_info_.eop) != (*iter)->follow().end();
+            break;
+        }
+        break;
+      }
+      case Expr::kEOP:
+        accept = true;
+        break;
+      default:
+        break;
+    }
+  }
+  std::size_t presize = nfa_states.size();    
+  for (std::map<std::size_t, Operator*>::iterator iter = exclusives.begin();
+       iter != exclusives.end(); ++iter) {
+    Operator *op = static_cast<Operator *>(iter->second);
+    if (!(op->pair()->active())) {
+      nfa_states.insert(op->transition().follow.begin(),
+                        op->transition().follow.end());
+    }
+    if (presize < nfa_states.size()) goto top;
+  }
+
+  for (std::set<Operator*>::iterator iter = intersections.begin();
+       iter != intersections.end(); ++iter) {
+    (*iter)->set_active(false);
+  }
+  for (std::map<std::size_t, Operator*>::iterator iter = exclusives.begin();
+       iter != exclusives.end(); ++iter) {
+    iter->second->set_active(false);
+    iter->second->pair()->set_active(false);
+  }
+  intersections.clear();
+  exclusives.clear();
+}
+
 bool DFA::Construct(std::size_t limit)
 {
   if (expr_info_.expr_root == NULL) return false;
   typedef std::set<StateExpr*> NFA;
   std::queue<NFA> queue;
+  std::vector<NFA> transition(256);
+  std::set<Operator*> intersections;
+  std::map<std::size_t, Operator*> exclusives;
 
   state_t dfa_id = 0;
   bool limit_over = false;
+  bool accept = false;
+  bool endline = false;
 
   queue.push(expr_info_.expr_root->transition().first);
   nfa_map_[dfa_id] = queue.front();
   dfa_map_[queue.front()] = dfa_id++;
 
-  std::vector<NFA> transition(256);
-  std::set<Operator*> intersects;
-  std::map<std::size_t, Operator*> exclusives;
-  NFA next_non_greedy;
-  
   while (!queue.empty()) {
     NFA nfa_states = queue.front();
     queue.pop();
-    
-    std::fill(transition.begin(), transition.end(), NFA());
-    intersects.clear();
-    exclusives.clear();
-    next_non_greedy.clear();
-    bool is_accept = false;
-    bool endline = false;
 
-pretransition:
-    for (NFA::iterator iter = nfa_states.begin(); iter != nfa_states.end(); ++iter) {
-      switch ((*iter)->type()) {
-        case Expr::kOperator: {
-          Operator *op = static_cast<Operator*>(*iter);
-          switch (op->optype()) {
-            case Operator::kIntersection:
-              if (op->pair()->active()) {
-                std::size_t presize = nfa_states.size();    
-                nfa_states.insert(op->transition().follow.begin(),
-                                  op->transition().follow.end());
-                if (presize < nfa_states.size()) {
-                  iter = nfa_states.begin();
-                  continue;
-                }
-              } else {
-                op->set_active(true);
-                intersects.insert(op);
-              }
-              break;
-            case Operator::kXOR:
-              op->set_active(true);
-              exclusives[op->id()] = op;
-              break;
-            default:
-              break;
-          }
-          break;
-        }
-        case Expr::kAnchor: {
-          switch (static_cast<Anchor*>(*iter)->atype()) {
-            case Anchor::kBegLine:
-              if (dfa_id == 1) {
-                std::size_t presize = nfa_states.size();
-                nfa_states.insert((*iter)->follow().begin(), (*iter)->follow().end());
-                if (presize < nfa_states.size()) {
-                  iter = nfa_states.begin();
-                  continue;
-                }
-              }
-              break;
-            case Anchor::kEndLine:
-              endline |= std::find((*iter)->follow().begin(), (*iter)->follow().end(), expr_info_.eop) != (*iter)->follow().end();
-              break;
-          }
-          break;
-        }
-        case Expr::kEOP:
-          is_accept = true;
-          break;
-        default:
-          break;
-      }
-    }
-    std::size_t presize = nfa_states.size();    
-    for (std::map<std::size_t, Operator*>::iterator iter = exclusives.begin();
-         iter != exclusives.end(); ++iter) {
-      Operator *op = static_cast<Operator *>(iter->second);
-      if (!(op->pair()->active())) {
-        nfa_states.insert(op->transition().follow.begin(),
-                          op->transition().follow.end());
-      }
-      if (presize < nfa_states.size()) goto pretransition;
-    }
+    std::fill(transition.begin(), transition.end(), NFA());
+    accept = false;
+    endline = false;
+
+    ExpandStates(true, nfa_states, accept, endline, intersections, exclusives);
     
     for (NFA::iterator iter = nfa_states.begin(); iter != nfa_states.end(); ++iter) {
-      if ((*iter)->non_greedy()) {
-        if (!is_accept) next_non_greedy.insert(*iter);
+      if ((*iter)->non_greedy() && accept) {
         continue;
       }
-      NFA next = (*iter)->transition().follow;
+
       (*iter)->FillTransition(transition);
     }
 
-    for (std::set<Operator*>::iterator iter = intersects.begin();
-         iter != intersects.end(); ++iter) {
-      (*iter)->set_active(false);
-    }
-    for (std::map<std::size_t, Operator*>::iterator iter = exclusives.begin();
-         iter != exclusives.end(); ++iter) {
-      iter->second->set_active(false);
-      iter->second->pair()->set_active(false);
-    }
-    
     State &state = get_new_state();
     Transition &trans = transition_[state.id];
-    state.accept = is_accept;
+    state.accept = accept;
     //only Leftmost-Shortest matching
-    if (flag_.shortest_match() && is_accept) {
+    if (flag_.shortest_match() && accept) {
       trans.fill(REJECT);
       state.dst_states.insert(REJECT);
       continue;
@@ -146,7 +150,7 @@ pretransition:
     for (state_t i = 0; i < 256; i++) {
       if (i == '\n') {
         if (endline) {
-          if (endline_accept_ == UNDEF) {
+          if (endline_state_ == UNDEF) {
             std::set<StateExpr*> s;
             s.insert(expr_info_.eop);
             if (dfa_map_.find(s) == dfa_map_.end()) {
@@ -154,26 +158,23 @@ pretransition:
               dfa_map_[s] = dfa_id++;
               queue.push(s);
             }
-            endline_accept_ = dfa_map_[s];
+            endline_state_ = dfa_map_[s];
           }
-          trans['\n'] = endline_accept_;
+          trans['\n'] = endline_state_;
         } else {
           trans['\n'] = REJECT;
         }
         continue;
       }
+
       NFA &next = transition[i];
-      bool to_accept = std::find(next.begin(), next.end(), expr_info_.eop) != next.end();
-      if (!to_accept && !next_non_greedy.empty()) {
-        for(NFA::iterator iter = next_non_greedy.begin(); iter != next_non_greedy.end(); ++iter) {
-          if ((*iter)->Match(i)) next.insert((*iter)->transition().follow.begin(), (*iter)->transition().follow.end());
-        }
-      }
+      
       if (next.empty()) {
         trans[i] = REJECT;
         state.dst_states.insert(REJECT);
         continue;
       }
+      
       if (dfa_map_.find(next) == dfa_map_.end()) {
         if (dfa_id < limit) {
           nfa_map_[dfa_id] = next;
@@ -214,21 +215,21 @@ bool DFA::Construct(const NFA &nfa, size_t limit)
     NFA_ nfa_states = queue.front();
     queue.pop();
     std::vector<NFA_> transition(256);
-    bool is_accept = false;
+    bool accept = false;
 
     for (NFA_::iterator iter = nfa_states.begin(); iter != nfa_states.end(); ++iter) {
       const NFA::State &state = nfa[*iter];
       for (std::size_t i = 0; i < 256; i++) {
         transition[i].insert(state.transition[i].begin(), state.transition[i].end());
       }
-      is_accept |= state.accept;
+      accept |= state.accept;
     }
 
     State &state = get_new_state();
     Transition &trans = transition_[state.id];
-    state.accept = is_accept;
+    state.accept = accept;
     //only Leftmost-Shortest matching
-    if (flag_.shortest_match() && is_accept) {
+    if (flag_.shortest_match() && accept) {
       trans.fill(REJECT);
       continue;
     }
@@ -323,7 +324,8 @@ void DFA::Finalize()
   complete_ = true;
 }
 
-DFA::State& DFA::get_new_state() const {
+DFA::State& DFA::get_new_state() const
+{
   transition_.resize(states_.size()+1);
   states_.resize(states_.size()+1);
   State &new_state = states_.back();
@@ -332,7 +334,6 @@ DFA::State& DFA::get_new_state() const {
   new_state.alter_transition.next1 = UNDEF;
   return new_state;
 }
-
 
 void DFA::state2label(state_t state, char* labelbuf) const
 {
