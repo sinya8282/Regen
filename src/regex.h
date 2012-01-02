@@ -30,7 +30,7 @@ public:
   bool Match(const std::string &string, Regen::Context *context = NULL) const;
   bool Match(const char *begin, const char *end, Regen::Context *context = NULL) const;
   bool Match(const unsigned char *begin, const unsigned char *end, Regen::Context *context = NULL) const;
-  bool MatchNFA(const unsigned char *begin, const unsigned char *end, Regen::Context *context = NULL) const;
+  bool NFAMatch(const unsigned char *begin, const unsigned char *end, Regen::Context *context = NULL) const;
   const std::string& regex() const { return regex_; }
   const Must& must() const { return must_; }
   std::size_t max_lenlgth() const { return expr_info_.expr_root->max_length(); }

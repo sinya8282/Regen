@@ -28,7 +28,7 @@ void DotGenerate(const DFA &dfa)
 
   puts("digraph DFA {\n  rankdir=\"LR\"");
   for (std::size_t i = 0; i < dfa.size(); i++) {
-    printf("  q%"PRIuS" [shape=%s, %s]\n", i, (dfa.IsAcceptState(i) ? accept : normal), thema);
+    printf("  q%"PRIuS" [shape=%s, %s]\n", i, (dfa.IsAcceptOrEndlineState(i) ? accept : normal), thema);
   }
   printf("  start [shape=point]\n  start -> q0\n\n");
   for (std::size_t state = 0; state < dfa.size(); state++) {
@@ -61,7 +61,7 @@ void CGenerate(const DFA &dfa)
   for (std::size_t i = 0; i < dfa.size(); i++) {
     const DFA::Transition &transition = dfa.GetTransition(i);
     printf("void s%"PRIuS"(UCHARP beg, UCHARP buf, UCHARP end)\n{\n", i);
-    if (dfa.IsAcceptState(i)) {
+    if (dfa.IsAcceptOrEndlineState(i)) {
       puts("  return accept(beg, buf, end);");
     } else {
       printf("  static void (*table[256])(UCHARP, UCHARP, UCHARP) = { \n  ");

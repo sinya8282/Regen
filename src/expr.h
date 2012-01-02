@@ -149,26 +149,22 @@ struct ExprPool {
 
 class StateExpr: public Expr {
 public:
-  StateExpr(): state_id_(0), non_greedy_(false), non_greedy_pair_(NULL)
+  StateExpr(): state_id_(0), non_greedy_(false)
   { max_length_ = min_length_ = 1; nullable_ = false; }
   ~StateExpr() {}
   void FillTransition() {}
   std::size_t state_id() { return state_id_; }
   void set_state_id(std::size_t id) { state_id_ = id; }
   bool non_greedy() { return non_greedy_; }
-  StateExpr* non_greedy_pair() { return non_greedy_pair_; }
-  void set_non_greedy_pair(StateExpr* p) { non_greedy_pair_ = p; }
   void set_non_greedy(bool non_greedy = true) { non_greedy_ = non_greedy; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   void NonGreedify()  { non_greedy_ = true; }
   virtual bool Match(const unsigned char c) { return false; }
   void FillPosition(ExprInfo *) { transition_.first.insert(this); transition_.last.insert(this); }
-  virtual void FillTransition(std::vector<std::set<StateExpr*> > &) {}
   void PatchBackRef(Expr *, std::size_t, ExprPool *) {}
 protected:
   std::size_t state_id_;
   bool non_greedy_;
-  StateExpr* non_greedy_pair_;
   DISALLOW_COPY_AND_ASSIGN(StateExpr);
 };
 
@@ -181,7 +177,6 @@ public:
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   bool Match(unsigned char c) { return c == literal_; };
   void FillPosition(ExprInfo *info) { transition_.first.insert(this); transition_.last.insert(this); info->involve.set(literal_); }
-  void FillTransition(std::vector<std::set<StateExpr*> > &t) { t[literal_].insert(transition_.follow.begin(), transition_.follow.end()); }
   Expr *Clone(ExprPool *p) { return p->alloc<Literal>(literal_); };
   void Generate(std::set<std::string> &g, GenOpt opt, std::size_t n) { g.insert(std::string(1, literal_)); }
 private:
@@ -205,7 +200,6 @@ public:
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   bool Match(const unsigned char c) { return Involve(c); };
   void FillPosition(ExprInfo *info) { transition_.first.insert(this); transition_.last.insert(this); if (negative_) { std::bitset<256> table__ = table_; table__.flip(); info->involve |= table__; } else { info->involve |= table_; } }
-  void FillTransition(std::vector<std::set<StateExpr*> > &t) { for (std::size_t i = 0; i < 256; i++) if (Match(i)) t[i].insert(transition_.follow.begin(), transition_.follow.end()); }
   Expr *Clone(ExprPool *p) { return p->alloc<CharClass>(table_, negative_); };
   void Generate(std::set<std::string> &g, GenOpt opt, std::size_t n);
 private:
@@ -221,7 +215,6 @@ public:
   Expr::Type type() { return Expr::kDot; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   bool Match(const unsigned char c) { return true; };
-  void FillTransition(std::vector<std::set<StateExpr*> > &t) { for (std::size_t i = 0; i < 256; i++) t[i].insert(transition_.follow.begin(), transition_.follow.end()); }
   Expr *Clone(ExprPool *p) { return p->alloc<Dot>(); };
   void Generate(std::set<std::string> &g, GenOpt opt, std::size_t n);
 private:
@@ -274,7 +267,7 @@ private:
 
 class EOP: public StateExpr {
 public:
-  EOP() { min_length_ = max_length_ = 0; nullable_ = true; non_greedy_pair_ = this; }
+  EOP() { min_length_ = max_length_ = 0; nullable_ = true; }
   ~EOP() {}
   Expr::Type type() { return Expr::kEOP; }  
   void Accept(ExprVisitor* visit) { visit->Visit(this); };

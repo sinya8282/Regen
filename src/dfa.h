@@ -54,6 +54,13 @@ class DFA {
   };
 #endif  
 public:
+  struct Tracer {
+    Tracer(StateExpr *s = NULL, bool n = false): state(s), non_greedy(n) {}
+    StateExpr *state;
+    bool non_greedy;
+    bool operator<(const Tracer &other) const { if (state == other.state) { return non_greedy < other.non_greedy; } else { return state < other.state; } }
+  };
+  typedef std::set<Tracer> ExprNFA;
   typedef uint32_t state_t;
   enum StateType {
     REJECT = (state_t)-1,
@@ -72,9 +79,10 @@ public:
     state_t next2;
   };
   struct State {
-    State(): transitions(NULL), accept(false), id(UNDEF), inline_level(0) {}
+    State(): transitions(NULL), accept(false), endline(false), id(UNDEF), inline_level(0) {}
     std::vector<Transition> *transitions;
     bool accept;
+    bool endline;
     state_t id;
     std::set<state_t> dst_states;
     std::set<state_t> src_states;
@@ -106,6 +114,7 @@ DFA(const Regen::Options flag = Regen::Options::NoParseFlags): endline_state_(UN
   bool Complete() const { return complete_; }
 
   State& get_new_state() const;
+  state_t get_endline_state() const;
   const ExprInfo &expr_info() const { return expr_info_; }
   void set_expr_info(const ExprInfo &expr_info) { expr_info_ = expr_info; }
   const Regen::Options &flag() const { return flag_; }
@@ -115,8 +124,12 @@ DFA(const Regen::Options flag = Regen::Options::NoParseFlags): endline_state_(UN
   const AlterTrans &GetAlterTrans(std::size_t state) const { return states_[state].alter_transition; }
   const Transition &GetTransition(std::size_t state) const { return transition_[state]; }
   bool IsAcceptState(std::size_t state) const { return state == REJECT ? false : states_[state].accept; }
+  bool IsEndlineState(std::size_t state)  const { return state == REJECT ? false : states_[state].endline; }
+  bool IsAcceptOrEndlineState(std::size_t state)  const { return IsAcceptState(state) | IsEndlineState(state); }
 
-  void ExpandStates(bool, std::set<StateExpr*> &, bool &, bool &, std::set<Operator*> &, std::map<std::size_t, Operator*> &);
+  void ExpandStates(bool, ExprNFA &, bool &, bool &) const;
+  void ExprToExprNFA(std::set<StateExpr*> &, ExprNFA &, bool non_greedy = false) const;
+  void FillTransition(StateExpr *, bool, std::vector<ExprNFA> &);
   bool Construct(std::size_t limit = std::numeric_limits<size_t>::max());
   bool Construct(const NFA &nfa, std::size_t limit = std::numeric_limits<size_t>::max());
   state_t OnTheFlyConstructWithChar(state_t state, unsigned char input, Regen::Context *context) const;
@@ -141,8 +154,8 @@ DFA(const Regen::Options flag = Regen::Options::NoParseFlags): endline_state_(UN
 protected:
   mutable std::vector<Transition> transition_;
   mutable std::deque<State> states_;
-  mutable std::map<std::set<StateExpr*>, state_t> dfa_map_;
-  mutable std::map<state_t, std::set<StateExpr*> > nfa_map_;
+  mutable std::map<ExprNFA, state_t> dfa_map_;
+  mutable std::map<state_t, ExprNFA> nfa_map_;
   mutable state_t endline_state_;
   ExprInfo expr_info_;
   bool complete_;

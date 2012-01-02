@@ -111,7 +111,7 @@ void Regex::Parse()
   
   if (!flag_.prefix_match()) {
     //add '.*?' to top of regular expression for non-Prefix Match(Partial Match)
-    Expr* dotstar = pool_.alloc<Star>(pool_.alloc<Dot>(), true);
+    Expr* dotstar = pool_.alloc<Star>(pool_.alloc<Dot>());
     e = pool_.alloc<Concat>(dotstar, e, flag_.reverse_regex());
   }
 
@@ -708,7 +708,7 @@ bool Regex::Compile(Regen::Options::CompileFlag olevel) {
   if (!dfa_failure_ && !dfa_.Complete()) {
     /* try create DFA.  */
     std::size_t limit = state_exprs_.size();
-    limit = 10000; // default limitation is 10000 (it's may finish within a second).
+    limit = 1000; // default limitation is 1000 (it's may finish within a second).
     dfa_failure_ = !dfa_.Construct(limit);
   }
   if (dfa_failure_) {
@@ -738,7 +738,7 @@ bool Regex::Match(const unsigned char *begin, const unsigned char * end, Regen::
 }
 
 /* Thompson-NFA based matching */
-bool Regex::MatchNFA(const unsigned char *begin, const unsigned char *end, Regen::Context *context) const
+bool Regex::NFAMatch(const unsigned char *begin, const unsigned char *end, Regen::Context *context) const
 {
   typedef std::vector<StateExpr*> NFA;
   std::size_t nfa_size = state_exprs_.size();
