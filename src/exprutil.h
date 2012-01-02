@@ -13,14 +13,12 @@ public:
   void Visit(Dot* e) { printf("."); }
   void Visit(Anchor* e) { if (e->atype() == Anchor::kBegLine) { printf("^"); } else { printf("$"); } }
   void Visit(None * e) { printf("[:None:]"); }
-  void Visit(Concat* e) {}
   void Visit(Union* e) { printf("|"); }
   void Visit(Intersection* e) { printf("&"); }
   void Visit(XOR* e) { printf("&&"); }
   void Visit(Qmark* e) { printf("?"); }
   void Visit(Plus* e) { printf("+"); }
   void Visit(Star* e) { printf("*"); }
-  void Visit(EOP* e) {}
   static void Print(Expr *e);
 protected:
   PrintExprVisitor() {}

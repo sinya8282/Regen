@@ -40,26 +40,13 @@ Lexer::Type Lexer::Consume()
     case '?': token_ = kQmark; probability_ = 0.0; break;
     case '+': token_ = kPlus;  probability_ = 0.0; break;
     case '*': token_ = kStar;  probability_ = 0.0; break;
-    case ')': token_ = kRpar;      break;
     case '^': token_ = kBegLine;   break;
     case '$': token_ = kEndLine;   break;
-    case '(': {
-      if (*ptr_ == ')') {
-        ptr_++;
-        token_ = kNone;
-      } else {
-        token_ = kLpar;
-      }
-      break;
-    }
-    case '{':
-      token_ = lex_repetition();
-      break;
-    case '\\':
-      token_ = lex_metachar();
-      break;
-    default:
-      token_ = kLiteral;
+    case '(': token_ = kLpar;      break;
+    case ')': token_ = kRpar;      break;
+    case '{': token_ = lex_repetition(); break;
+    case '\\': token_ = lex_metachar();  break;
+    default: token_ = kLiteral;          break;
   }
 
   return token_;
@@ -290,7 +277,7 @@ bool Lexer::Concatenated()
 {
   switch (token_) {
     case kLiteral: case kCharClass: case kDot:
-    case kEndLine: case kBegLine: case kNone:
+    case kEndLine: case kBegLine: case kEpsilon: case kNone:
     case kLpar: case kComplement: case kRecursion:
     case kByteRange: case kBackRef:
       return true;

@@ -123,9 +123,9 @@ private:
 };
 
 struct ExprPool {
-  typedef std::list<Expr*> Pool;
+  typedef std::list<Expr *> Pool;
  public:
-  ~ExprPool() { for(Pool::iterator i = pool.begin(); i != pool.end(); ++i) delete *i; }
+  ~ExprPool() { for(Pool::iterator i = pool.begin(); i != pool.end(); ++i) { delete *i; } }
 
   template<class T> T* alloc()
   { pool.push_back(0); Expr* &i = pool.back(); T* p = new T(); i = p; return p; }
@@ -278,7 +278,7 @@ private:
 
 class None: public StateExpr {
 public:
-  None() { min_length_ = max_length_ = 0; nullable_ = true; }
+  None() { min_length_ = max_length_ = 0; nullable_ = false; }
   ~None() {}
   Expr::Type type() { return Expr::kNone; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };

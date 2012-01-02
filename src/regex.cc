@@ -101,11 +101,9 @@ void Regex::Parse()
   lexer.Consume();
   Expr* e;
 
-  do {
-    e = e0(&lexer, &pool_);
-  } while (e->type() == Expr::kNone);
-
-  if (lexer.token() != Lexer::kEOP) exitmsg("expected end of pattern.");
+  e = e0(&lexer, &pool_);
+  if (e->type() == Expr::kNone) exitmsg("Inavlid pattern.");
+  if (lexer.token() != Lexer::kEOP) exitmsg("Expected end of pattern.");
 
   if (!lexer.backrefs().empty()) e = PatchBackRef(&lexer, e, &pool_);
   
@@ -137,20 +135,11 @@ Expr* Regex::e0(Lexer *lexer, ExprPool *pool)
 {
   Expr *e, *f;
   e = e1(lexer, pool);
-  
-  while (e->type() == Expr::kNone &&
-         lexer->token() == Lexer::kShuffle) {
-    lexer->Consume();
-    e = e1(lexer, pool);
-  }
 
-  ExprPool tmp_pool;
   while (lexer->token() == Lexer::kShuffle) {
     lexer->Consume();
     f = e1(lexer, pool);
-    if (f->type() != Expr::kNone) {
-      e = Expr::Shuffle(f, e, pool);
-    }
+    e = Expr::Shuffle(e, f, pool);
   }
 
   return e;
@@ -160,20 +149,11 @@ Expr* Regex::e1(Lexer *lexer, ExprPool *pool)
 {
   Expr *e, *f;
   e = e2(lexer, pool);
-  
-  while (e->type() == Expr::kNone &&
-         lexer->token() == Lexer::kXOR) {
-    lexer->Consume();
-    e = e2(lexer, pool);
-  }
-  
+
   while (lexer->token() == Lexer::kXOR) {
     lexer->Consume();
     f = e2(lexer, pool);
-    if (f->type() != Expr::kNone) {
-      XOR *x = pool->alloc<XOR>(e, f, pool);
-      e = x;
-    }
+    e = pool->alloc<XOR>(e, f, pool);
   }
 
   return e;
@@ -184,19 +164,12 @@ Expr* Regex::e2(Lexer *lexer, ExprPool *pool)
   Expr *e, *f;
   e = e3(lexer, pool);
 
-  while (e->type() == Expr::kNone &&
-         lexer->token() == Lexer::kUnion) {
-    lexer->Consume();
-    e = e3(lexer, pool);
-  }
-  
   while (lexer->token() == Lexer::kUnion) {
     lexer->Consume();
     f = e3(lexer, pool);
-    if (f->type() != Expr::kNone) {
-      e = pool->alloc<Union>(e, f);
-    }
+    e = pool->alloc<Union>(e, f);
   }
+
   return e;
 }
 
@@ -204,19 +177,11 @@ Expr* Regex::e3(Lexer *lexer, ExprPool *pool)
 {
   Expr *e, *f;
   e = e4(lexer, pool);
-  bool null = e->type() == Expr::kNone;
 
   while (lexer->token() == Lexer::kIntersection) {
     lexer->Consume();
-    if (!null) {
-      f = e4(lexer, pool);
-      if (f->type() == Expr::kNone) {
-        e = f; //delete e;
-        null = true;
-      } else {
-        e = pool->alloc<Intersection>(e, f, pool);
-      }
-    }
+    f = e4(lexer, pool);
+    e = pool->alloc<Intersection>(e, f, pool);
   }
   
   return e;
@@ -226,17 +191,10 @@ Expr* Regex::e4(Lexer *lexer, ExprPool *pool)
 {
   Expr *e, *f;
   e = e5(lexer, pool);
-  
-  while (e->type() == Expr::kNone &&
-         lexer->Concatenated()) {
-    e = e5(lexer, pool);
-  }
 
   while (lexer->Concatenated()) {
     f = e5(lexer, pool);
-    if (f->type() != Expr::kNone) {
-      e = pool->alloc<Concat>(e, f, flag_.reverse_regex());
-    }
+    e = pool->alloc<Concat>(e, f, flag_.reverse_regex());
   }
 
   return e;
@@ -247,13 +205,6 @@ Expr* Regex::e5(Lexer *lexer, ExprPool *pool)
   Expr *e;
   e = e6(lexer, pool);
 
-  if (e->type() == Expr::kNone) {
-    while (lexer->Quantifier()) {
-      lexer->Consume();
-    }
-    return e;
-  }
-  
   while (lexer->Quantifier()) {
     bool non_greedy = false;
     Lexer::Type token = lexer->token();
@@ -286,7 +237,7 @@ Expr* Regex::e5(Lexer *lexer, ExprPool *pool)
         int lower_repetition = r.first, upper_repetition = r.second;
         if (lower_repetition == 0 && upper_repetition == 0) {
           //delete e;
-          e = pool->alloc<None>();
+          e = pool->alloc<Epsilon>();
         } else if (upper_repetition == -1) {
           Expr* f = e;
           for (int i = 0; i < lower_repetition - 1; i++) {
@@ -404,6 +355,9 @@ Expr* Regex::e6(Lexer *lexer, ExprPool *pool)
     case Lexer::kNone:
       e = pool->alloc<None>();
       break;
+    case Lexer::kEpsilon:
+      e = pool->alloc<Epsilon>();
+      break;
     case Lexer::kBackRef: {
       if (lexer->backref() >= lexer->groups().size()) exitmsg("Invalid back reference");
       if (lexer->weakref()) {
@@ -420,11 +374,15 @@ Expr* Regex::e6(Lexer *lexer, ExprPool *pool)
       lexer->Consume();
       std::size_t ngroup = lexer->groups().size();
       lexer->groups().push_back(0);
-      e = e0(lexer, pool);
+      if (lexer->token() == Lexer::kRpar) {
+        e = pool->alloc<Epsilon>();
+      } else {
+        e = e0(lexer, pool);
+      }
       if (lexer->token() != Lexer::kRpar) exitmsg("expected a ')'");
       lexer->groups()[ngroup] = e;
-    }
       break;
+    }
     case Lexer::kComplement: {
       bool complement = false;
       do {
@@ -446,11 +404,7 @@ Expr* Regex::e6(Lexer *lexer, ExprPool *pool)
       lexer->Consume();
       ExprPool tmp_pool;
       e = e6(lexer, &tmp_pool);
-      if (e->type() == Expr::kNone) {
-        pool->drain(tmp_pool);
-      } else {
-        e = Expr::Permutation(e, pool);
-      }
+      e = Expr::Permutation(e, pool);
       return e;
     }
     case Lexer::kReverse: {
@@ -482,7 +436,7 @@ Expr* Regex::e6(Lexer *lexer, ExprPool *pool)
         }
         recursion_depth_--;
       } else {
-        e = pool->alloc<None>();
+        e = pool->alloc<Epsilon>();
       }
       return e;
     }
