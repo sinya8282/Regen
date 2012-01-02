@@ -59,7 +59,7 @@ void DFA::VerifyStates(ExprNFA &nfa, bool &accept, bool &endline) const
       case Expr::kEOP:
         accept = true;
         break;
-      case Anchor::kEndLine: {
+      case Expr::kAnchor: {
         Anchor * an = static_cast<Anchor*>(iter->state);
         if (an->atype() == Anchor::kEndLine) {
           endline |= std::find(an->follow().begin(), an->follow().end(), expr_info_.eop) != an->follow().end();
@@ -71,14 +71,19 @@ void DFA::VerifyStates(ExprNFA &nfa, bool &accept, bool &endline) const
   }
 }
 
-void DFA::ExpandStates(bool begline, ExprNFA &nfa) const
+void DFA::ExpandStates(ExprNFA &nfa) const
 {
   std::set<Operator*> intersections;
   std::map<std::size_t, Operator*> exclusives;
+  std::set<Anchor*> beglines;
   bool accept = false;
+  bool begline = false;
 top:
   for (ExprNFA::iterator iter = nfa.begin(); iter != nfa.end(); ++iter) {
     switch (iter->state->type()) {
+      case Expr::kBOP:
+        begline = true;
+        break;
       case Expr::kEOP:
         accept = true;
         break;
@@ -108,11 +113,7 @@ top:
         Anchor * an = static_cast<Anchor*>(iter->state);
         switch (an->atype()) {
           case Anchor::kBegLine:
-            if (begline) {
-              std::size_t presize = nfa.size();
-              ExprToExprNFA(an->follow(), nfa, an->non_greedy());
-              if (presize < nfa.size()) goto top;
-            }
+            beglines.insert(an);
             break;
           default:
             break;
@@ -128,11 +129,17 @@ top:
        iter != exclusives.end(); ++iter) {
     Operator *op = static_cast<Operator *>(iter->second);
     if (!(op->pair()->active())) {
-      ExprToExprNFA(op->follow(), nfa, op->pair());
+      ExprToExprNFA(op->follow(), nfa, op->non_greedy());
     }
     if (presize < nfa.size()) goto top;
   }
 
+  if (begline) {
+    for (std::set<Anchor*>::iterator iter = beglines.begin(); iter != beglines.end(); ++iter) {
+      ExprToExprNFA((*iter)->follow(), nfa, (*iter)->non_greedy());
+      if (presize < nfa.size()) goto top;      
+    }
+  }
   if (accept) {
     std::vector<Tracer> v;
     for (ExprNFA::iterator iter = nfa.begin(); iter != nfa.end(); ++iter) {
@@ -157,6 +164,7 @@ top:
   }
   intersections.clear();
   exclusives.clear();
+  beglines.clear();
 }
 
 void DFA::FillTransition(StateExpr* state, bool non_greedy, std::vector<ExprNFA> &transition)
@@ -204,7 +212,7 @@ bool DFA::Construct(std::size_t limit)
   ExprNFA nfa;
 
   ExprToExprNFA(expr_info_.expr_root->first(), nfa);
-  ExpandStates(true, nfa);
+  ExpandStates(nfa);
   
   queue.push(nfa);
   
@@ -229,6 +237,7 @@ bool DFA::Construct(std::size_t limit)
     State &state = get_new_state();
     Transition &trans = transition_[state.id];
     state.accept = accept;
+    state.endline = endline;
     //only Leftmost-Shortest matching
     if (flag_.shortest_match() && accept) {
       trans.fill(REJECT);
@@ -239,7 +248,7 @@ bool DFA::Construct(std::size_t limit)
     for (state_t i = 0; i < 256; i++) {
       ExprNFA &next = transition[i];
 
-      ExpandStates(false, next);
+      ExpandStates(next);
       
       if (next.empty()) {
         trans[i] = REJECT;
@@ -341,7 +350,7 @@ DFA::state_t DFA::OnTheFlyConstructWithChar(state_t state, unsigned char input, 
 
   bool accept = false;
   bool endline = false;
-  ExpandStates(false, next);
+  ExpandStates(next);
   VerifyStates(next, accept, endline);
   
   if (next.empty()) {
@@ -880,7 +889,7 @@ bool DFA::OnTheFlyMatch(const unsigned char *str, const unsigned char *end, Rege
   if (empty()) {
     ExprNFA nfa;
     ExprToExprNFA(expr_info_.expr_root->first(), nfa);
-    ExpandStates(true, nfa);
+    ExpandStates(nfa);
     bool accept = false;
     bool endline = false;
     VerifyStates(nfa, accept, endline);

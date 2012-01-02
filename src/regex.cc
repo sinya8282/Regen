@@ -114,7 +114,9 @@ void Regex::Parse()
   }
 
   expr_info_.eop = pool_.alloc<EOP>();
+  expr_info_.bop = pool_.alloc<BOP>();
   e = pool_.alloc<Concat>(e, expr_info_.eop);
+  e = pool_.alloc<Concat>(expr_info_.bop, e);
   expr_info_.expr_root = e;
   e->FillPosition(&expr_info_);
   e->FillTransition();
@@ -565,8 +567,12 @@ void Regex::CreateRegexFromDFA(const DFA &dfa, ExprInfo *info, ExprPool *p)
   }
 
   for (std::size_t i = 0; i < dfa.size(); i++) {
-    if (dfa.IsAcceptState(i)) {
-      gnfa_transition[i][GACCEPT] = NULL;
+    if (dfa.IsAcceptOrEndlineState(i)) {
+      if (dfa.IsEndlineState(i)) {
+        gnfa_transition[i][GACCEPT] = p->alloc<Anchor>(Anchor::kEndLine);
+      } else {
+        gnfa_transition[i][GACCEPT] = NULL;
+      }
     }
   }
 
