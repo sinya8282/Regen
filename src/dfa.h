@@ -127,7 +127,8 @@ DFA(const Regen::Options flag = Regen::Options::NoParseFlags): endline_state_(UN
   bool IsEndlineState(std::size_t state)  const { return state == REJECT ? false : states_[state].endline; }
   bool IsAcceptOrEndlineState(std::size_t state)  const { return IsAcceptState(state) | IsEndlineState(state); }
 
-  void ExpandStates(bool, ExprNFA &, bool &, bool &) const;
+  void VerifyStates(ExprNFA &, bool &, bool &) const;
+  void ExpandStates(bool, ExprNFA &) const;
   void ExprToExprNFA(std::set<StateExpr*> &, ExprNFA &, bool non_greedy = false) const;
   void FillTransition(StateExpr *, bool, std::vector<ExprNFA> &);
   bool Construct(std::size_t limit = std::numeric_limits<size_t>::max());
