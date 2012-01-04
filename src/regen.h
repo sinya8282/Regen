@@ -25,19 +25,20 @@ public:
       FullMatch = 0,
       ParallelMatch = 1 << 7, // Enable Parallel Matching (SSFA)
       CapturedMatch = 1 << 8,
+      FilteredMatch = 1 << 9,
       /* Regen-Extended syntax support (!, &, @, &&, ||, #, \1) */
-      ComplementExt = 1 << 9,
-      IntersectionExt = 1 << 10,
-      RecursionExt = 1 << 11,
-      XORExt = 1 << 12,
-      ShuffleExt = 1 << 13,
-      PermutationExt = 1 << 14,
-      ReverseExt = 1 << 15,
-      WeakBackRefExt = 1 << 16,
+      ComplementExt = 1 << 10,
+      IntersectionExt = 1 << 11,
+      RecursionExt = 1 << 12,
+      XORExt = 1 << 13,
+      ShuffleExt = 1 << 14,
+      PermutationExt = 1 << 15,
+      ReverseExt = 1 << 16,
+      WeakBackRefExt = 1 << 17,
       Extended =  ComplementExt | IntersectionExt | RecursionExt
       | XORExt | ShuffleExt | PermutationExt | ReverseExt | WeakBackRefExt,
       /* Encodings: UTF8 xor Ascii (default) */
-      EncodingUTF8 = 1 << 17,
+      EncodingUTF8 = 1 << 18,
       EncodingAscii = 0
     };
     enum CompileFlag {
@@ -70,6 +71,8 @@ public:
     void parallel_match(bool b) { parallel_match_ = b; }
     bool captured_match() const { return captured_match_; }
     void captured_match(bool b) { captured_match_ = b; }
+    bool filtered_match() const { return filtered_match_ && !prefix_match(); }
+    void filtered_match(bool b) { filtered_match_ = b; }
     bool complement_ext() const { return complement_ext_; }
     void complement_ext(bool b) { complement_ext_ = b; }
     bool intersection_ext() const { return intersection_ext_; }
@@ -103,6 +106,7 @@ public:
     bool nosuffix_match_;
     bool parallel_match_;
     bool captured_match_;
+    bool filtered_match_;
     bool complement_ext_;
     bool intersection_ext_;
     bool recursion_ext_;

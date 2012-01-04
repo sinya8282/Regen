@@ -8,8 +8,8 @@ const Regen::Options Regen::DefaultOptions(Regen::Options::NoParseFlags);
 Regen::Options::Options(Regen::Options::ParseFlag flag):
     shortest_match_(false), match_nl_(false), one_line_(false), reverse_regex_(false),
     reverse_match_(false), noprefix_match_(false), nosuffix_match_(false), parallel_match_(false),
-    captured_match_(false), complement_ext_(false), intersection_ext_(false),
-    recursion_ext_(false), xor_ext_(false), shuffle_ext_(false),
+    captured_match_(false), filtered_match_(false),
+    complement_ext_(false), intersection_ext_(false), recursion_ext_(false), xor_ext_(false), shuffle_ext_(false),
     permutation_ext_(false), reverse_ext_(false), weakbackref_ext_(false),
     encoding_utf8_(false)
 {
@@ -22,6 +22,7 @@ Regen::Options::Options(Regen::Options::ParseFlag flag):
   nosuffix_match_ = flag & NoSuffixMatch;
   parallel_match_ = flag & ParallelMatch;
   captured_match_ = flag & CapturedMatch;
+  filtered_match_ = flag & FilteredMatch;
   complement_ext_ = flag & ComplementExt;
   intersection_ext_ = flag & IntersectionExt;
   recursion_ext_ = flag & RecursionExt;

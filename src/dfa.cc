@@ -632,7 +632,7 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
 
   DFA::state_t reset_state = DFA::UNDEF;
   
-  if (!dfa.flag().prefix_match() && dfa.expr_info().involve.count() < 126 && dfa.expr_info().min_length > 2) {
+  if (dfa.flag().filtered_match() && dfa.expr_info().involve.count() < 126 && dfa.expr_info().min_length > 2) {
     /* (very simple) quick filter */
     std::size_t len = dfa.expr_info().min_length;
     quick_filter_entry_ = getCurr();

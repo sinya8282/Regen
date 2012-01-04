@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
   Option opt;
   int opt_;
 
-  while ((opt_ = getopt(argc, argv, "cf:hHoO:U")) != -1) {
+  while ((opt_ = getopt(argc, argv, "cf:hHoO:qU")) != -1) {
     switch(opt_) {
       case 'c':
         opt.count_line = true;
@@ -48,6 +48,9 @@ int main(int argc, char *argv[])
         break;
       case 'O':
         opt.olevel = Regen::Options::CompileFlag(atoi(optarg));
+        break;
+      case 'q':
+        opt.pflag.filtered_match(true);
         break;
       case 'U':
         opt.pflag.encoding_utf8(true);
