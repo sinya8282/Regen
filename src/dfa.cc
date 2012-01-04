@@ -3,8 +3,8 @@
 namespace regen {
 
 DFA::DFA(const ExprInfo &expr_info, std::size_t limit):
-    endline_state_(UNDEF), expr_info_(expr_info), complete_(false), minimum_(false), olevel_(Regen::Options::O0)
-#ifdef REGEN_ENABLE_XBYAK
+    expr_info_(expr_info), complete_(false), minimum_(false), olevel_(Regen::Options::O0)
+#ifdef REGEN_ENABLE_JIT
     , xgen_(NULL)
 #endif
 {
@@ -12,8 +12,8 @@ DFA::DFA(const ExprInfo &expr_info, std::size_t limit):
 }
 
 DFA::DFA(const NFA &nfa, std::size_t limit):
-    endline_state_(UNDEF), complete_(false), minimum_(false), olevel_(Regen::Options::O0)
-#ifdef REGEN_ENABLE_XBYAK
+    complete_(false), minimum_(false), olevel_(Regen::Options::O0)
+#ifdef REGEN_ENABLE_JIT
     , xgen_(NULL)
 #endif
 {
@@ -553,7 +553,7 @@ void DFA::Complementify()
   }
 }
 
-#if REGEN_ENABLE_XBYAK
+#if REGEN_ENABLE_JIT
 JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
     /* code segment for state transition.
      *   each states code was 16byte alligned.
@@ -565,7 +565,7 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
     CodeGenerator(code_segment_size(dfa.size()) + data_segment_size(dfa.size())),
     code_segment_size_(code_segment_size(dfa.size())),
     data_segment_size_(data_segment_size(dfa.size())),
-    total_segment_size_(code_segment_size(dfa.size())+data_segment_size(dfa.size()))
+    total_segment_size_(code_segment_size(dfa.size())+data_segment_size(dfa.size())), quick_filter_entry_(NULL)
 {
   std::vector<const uint8_t*> states_addr(dfa.size());
 
@@ -609,7 +609,7 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
   // setup enviroment on register
   mov(tbl, (size_t)transition_table_ptr);
   mov(tmp2, 0);
-  jmp("s0");
+  jmp("s0", T_NEAR);
   L("reject");
   const uint8_t *reject_state_addr = getCurr();
   mov(reg_a, DFA::REJECT); // return false
@@ -629,6 +629,44 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
   align(16);
 
   const int sign = dfa.flag().reverse_match() ? -1 : 1;
+
+  DFA::state_t reset_state = DFA::UNDEF;
+  
+  if (!dfa.flag().prefix_match() && dfa.expr_info().involve.count() < 126 && dfa.expr_info().min_length > 2) {
+    /* (very simple) quick filter */
+    std::size_t len = dfa.expr_info().min_length;
+    quick_filter_entry_ = getCurr();
+    filter_table_.resize(256);
+    mov(reg_a, (size_t)&(filter_table_[0]));
+    const uint8_t *quick_filter_main = getCurr();
+    add(arg1, (len - 1) * sign);
+    if (dfa.flag().reverse_match()) {
+      cmp(arg2, arg1);
+    } else { 
+      cmp(arg1, arg2);
+    }
+    jge("reject", T_NEAR);
+    movzx(tmp1, byte[arg1]);
+    jmp(ptr[reg_a+tmp1*sizeof(uint8_t*)]);
+
+    const uint8_t *quick_filter_end = getCurr();
+    sub(arg1, (len - 1) * sign);
+    
+    for (std::size_t i = 0; i < 256; i++) {
+      if (dfa.expr_info().involve[i]) {
+        filter_table_[i] = quick_filter_end;
+      } else {
+        if (reset_state == DFA::UNDEF) reset_state = dfa[0][i];
+        filter_table_[i] = quick_filter_main;
+      }
+    }
+
+    char labelbuf[100];
+    dfa.state2label(reset_state, labelbuf);
+    jmp(labelbuf, T_NEAR);
+    
+    align(16);
+  }
   
   char labelbuf[100];
   // state code generation, and indexing every states address.
@@ -660,7 +698,7 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
         lea(tmp1, ptr[arg1 + inline_level * sign]);
         if (dfa.flag().reverse_match()) {
           cmp(arg2, tmp1);
-        } else { 
+        } else {
           cmp(tmp1, arg2);
         }
         jge(".ret", T_NEAR);
@@ -761,8 +799,13 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
     const DFA::Transition &trans = dfa.GetTransition(i);
     for (int c = 0; c < 256; c++) {
       DFA::state_t next = trans[c];
-      transition_table_ptr[i*256+c] =
-          (next  == DFA::REJECT ? reject_state_addr : states_addr[next]);
+      if (next == DFA::REJECT) {
+        transition_table_ptr[i*256+c] = reject_state_addr;
+      } else if (next == reset_state) {
+        transition_table_ptr[i*256+c] = quick_filter_entry_;
+      } else {
+        transition_table_ptr[i*256+c] = states_addr[next];
+      }
     }
   }
 }

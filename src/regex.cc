@@ -106,19 +106,24 @@ void Regex::Parse()
   if (lexer.token() != Lexer::kEOP) exitmsg("Expected end of pattern.");
 
   if (!lexer.backrefs().empty()) e = PatchBackRef(&lexer, e, &pool_);
+
+  expr_info_.orig_root = e;
   
   if (!flag_.prefix_match()) {
     //add '.*?' to top of regular expression for non-Prefix Match(Partial Match)
     Expr* dotstar = pool_.alloc<Star>(pool_.alloc<Dot>());
+    dotstar->set_extra(true);
     e = pool_.alloc<Concat>(dotstar, e, flag_.reverse_regex());
   }
 
   expr_info_.eop = pool_.alloc<EOP>();
-  expr_info_.bop = pool_.alloc<BOP>();
   e = pool_.alloc<Concat>(e, expr_info_.eop);
+  expr_info_.bop = pool_.alloc<BOP>();
   e = pool_.alloc<Concat>(expr_info_.bop, e);
+
   expr_info_.expr_root = e;
   e->FillPosition(&expr_info_);
+  expr_info_.min_length = expr_info_.orig_root->min_length();
   e->FillTransition();
 }
 

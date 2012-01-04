@@ -33,8 +33,8 @@ public:
   bool NFAMatch(const unsigned char *begin, const unsigned char *end, Regen::Context *context = NULL) const;
   const std::string& regex() const { return regex_; }
   const Must& must() const { return must_; }
-  std::size_t max_lenlgth() const { return expr_info_.expr_root->max_length(); }
-  std::size_t min_lenlgth() const { return expr_info_.expr_root->min_length(); }
+  std::size_t max_length() const { return expr_info_.orig_root->max_length(); }
+  std::size_t min_length() const { return expr_info_.orig_root->min_length(); }
   std::size_t must_max_length() const { return must_max_length_; }
   const std::string& must_max_word() const { return must_max_word_; }
   const DFA& dfa() const { return dfa_; }

@@ -4,13 +4,14 @@
 #include "util.h"
 #include "nfa.h"
 #include "expr.h"
-#if REGEN_ENABLE_XBYAK
+#if REGEN_ENABLE_JIT
+#include "jitter.h"
 #include <xbyak/xbyak.h>
 #endif
 
 namespace regen {
   
-#if REGEN_ENABLE_XBYAK
+#if REGEN_ENABLE_JIT
 class DFA;
 class JITCompiler: public Xbyak::CodeGenerator {
  public:
@@ -20,6 +21,8 @@ class JITCompiler: public Xbyak::CodeGenerator {
   std::size_t code_segment_size_;
   std::size_t data_segment_size_;
   std::size_t total_segment_size_;
+  std::vector<const uint8_t *> filter_table_;
+  const uint8_t *quick_filter_entry_;
   static std::size_t code_segment_size(std::size_t state_num) {
     const std::size_t setup_code_size_ = 16;
     const std::size_t state_code_size_ = 64;
@@ -32,27 +35,9 @@ class JITCompiler: public Xbyak::CodeGenerator {
   }
 };
 #endif
+
+class Jitter;
 class DFA {
-#ifdef REGEN_ENABLE_XBYAK
-  class Jitter: public Xbyak::CodeGenerator {
-    struct Transition {
-      void* t[256];
-      Transition(void* fill = NULL) { std::fill(t, t+256, fill); }
-      void* &operator[](std::size_t index) { return t[index]; }
-    };
-    struct CodeInfo {
-      CodeInfo(): data_addr(NULL), code_addr(NULL) {}
-      void** data_addr;
-      void** code_addr;
-    };
- public:
-    Jitter(std::size_t code_size = 4096): CodeGenerator(code_size), state_num_(0) {}
-    std::deque<Transition> data_segment_;
-    std::deque<Xbyak::CodeGenerator*> code_segments_;
-    std::deque<CodeInfo> code_info_;
-    std::size_t state_num_;
-  };
-#endif  
 public:
   struct Tracer {
     Tracer(StateExpr *s = NULL, bool n = false): state(s), non_greedy(n) {}
@@ -93,15 +78,15 @@ public:
   };
   typedef std::deque<State>::iterator iterator;
   typedef std::deque<State>::const_iterator const_iterator;
-  
-DFA(const Regen::Options flag = Regen::Options::NoParseFlags): endline_state_(UNDEF), complete_(false), minimum_(false), flag_(flag), olevel_(Regen::Options::O0)
-#ifdef REGEN_ENABLE_XBYAK
+
+  DFA(const Regen::Options flag = Regen::Options::NoParseFlags): complete_(false), minimum_(false), flag_(flag), olevel_(Regen::Options::O0)
+#ifdef REGEN_ENABLE_JIT
   , xgen_(NULL)
 #endif
   {}
   DFA(const ExprInfo &expr_info, std::size_t limit = std::numeric_limits<size_t>::max());
   DFA(const NFA &nfa, std::size_t limit = std::numeric_limits<size_t>::max());
-  #if REGEN_ENABLE_XBYAK
+  #if REGEN_ENABLE_JIT
   virtual ~DFA() { delete xgen_; }
   #else
   virtual ~DFA() { }
@@ -114,7 +99,6 @@ DFA(const Regen::Options flag = Regen::Options::NoParseFlags): endline_state_(UN
   bool Complete() const { return complete_; }
 
   State& get_new_state() const;
-  state_t get_endline_state() const;
   const ExprInfo &expr_info() const { return expr_info_; }
   void set_expr_info(const ExprInfo &expr_info) { expr_info_ = expr_info; }
   const Regen::Options &flag() const { return flag_; }
@@ -124,7 +108,7 @@ DFA(const Regen::Options flag = Regen::Options::NoParseFlags): endline_state_(UN
   const AlterTrans &GetAlterTrans(std::size_t state) const { return states_[state].alter_transition; }
   const Transition &GetTransition(std::size_t state) const { return transition_[state]; }
   bool IsAcceptState(std::size_t state) const { return state == REJECT ? false : states_[state].accept; }
-  bool IsEndlineState(std::size_t state)  const { return state == REJECT ? false : states_[state].endline; }
+  bool IsEndlineState(std::size_t state) const { return state == REJECT ? false : states_[state].endline; }
   bool IsAcceptOrEndlineState(std::size_t state)  const { return IsAcceptState(state) | IsEndlineState(state); }
 
   void VerifyStates(ExprNFA &, bool &, bool &) const;
@@ -157,7 +141,6 @@ protected:
   mutable std::deque<State> states_;
   mutable std::map<ExprNFA, state_t> dfa_map_;
   mutable std::map<state_t, ExprNFA> nfa_map_;
-  mutable state_t endline_state_;
   ExprInfo expr_info_;
   bool complete_;
   bool minimum_;
@@ -167,8 +150,9 @@ protected:
   bool EliminateBranch();
   bool Reduce();
   Regen::Options::CompileFlag olevel_;
-#if REGEN_ENABLE_XBYAK
+#if REGEN_ENABLE_JIT
   JITCompiler *xgen_;
+  mutable Jitter *jitter_;
 #endif
   std::vector<AlterTrans> alter_trans_;
   std::vector<std::size_t> inline_level_;

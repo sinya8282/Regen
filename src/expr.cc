@@ -277,10 +277,19 @@ void Operator::PatchBackRef(Expr *patch, std::size_t i, ExprPool *p)
 
 void Concat::FillPosition(ExprInfo *info)
 {
-  lhs_->FillPosition(info);
+  if (lhs_->extra()) {
+    ExprInfo dummy_info;
+    lhs_->FillPosition(&dummy_info);
+  } else {
+    lhs_->FillPosition(info);
+  }
   rhs_->FillPosition(info);
 
-  max_length_ = lhs_->max_length() + rhs_->max_length();
+  if (lhs_->max_length() == std::numeric_limits<size_t>::max() || rhs_->max_length() == std::numeric_limits<size_t>::max()) {
+    max_length_ = std::numeric_limits<size_t>::max();
+  } else {
+    max_length_ = lhs_->max_length() + rhs_->max_length();
+  }
   min_length_ = lhs_->min_length() + rhs_->min_length();
   nullable_ = lhs_->nullable() && rhs_->nullable();
 
@@ -394,8 +403,12 @@ Intersection::Intersection(Expr *lhs, Expr *rhs, ExprPool *p):
 
 void Intersection::FillPosition(ExprInfo* info)
 {
-  lhs_->FillPosition(info);
+  ExprInfo tmp_info = *info;
+  std::size_t xor_num = info->xor_num;
+  lhs_->FillPosition(&tmp_info);
   rhs_->FillPosition(info);
+  info->involve &= tmp_info.involve;
+  info->xor_num += tmp_info.xor_num - xor_num;
 
   nullable_ = lhs__->nullable() && rhs__->nullable();
   max_length_ = std::min(lhs_->max_length(), rhs_->max_length());
@@ -440,14 +453,14 @@ XOR::XOR(Expr* lhs, Expr* rhs, ExprPool *p):
 }
 
 void XOR::FillPosition(ExprInfo *info)
-{  
+{
   lhs_->FillPosition(info);
   rhs_->FillPosition(info);
 
   nullable_ = lhs__->nullable() ^ rhs__->nullable();
-  max_length_ = std::numeric_limits<size_t>::max();
-  if (lhs_->min_length() == 0 && rhs_->min_length() == 0) {
-    min_length_ = std::numeric_limits<size_t>::max();
+  max_length_ = std::max(lhs_->max_length(), rhs_->max_length());
+  if (lhs_->min_length() == rhs_->min_length() == 0) {
+    min_length_ = 1; // not zero, unknown.
   } else {
     min_length_ = std::min(lhs_->min_length(), rhs_->min_length());
   }

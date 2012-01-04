@@ -41,11 +41,13 @@ public:
 };
 
 struct ExprInfo {
-  ExprInfo(): xor_num(0), expr_root(NULL), eop(NULL) {}
+  ExprInfo(): xor_num(0), expr_root(NULL), orig_root(NULL), bop(NULL), eop(NULL), min_length(0) {}
   std::size_t xor_num;
   Expr *expr_root;
+  Expr *orig_root;
   BOP *bop;
   EOP *eop;
+  std::size_t min_length;
   std::bitset<256> involve;
 };
 
@@ -87,6 +89,8 @@ public:
   void set_min_length(int len) { min_length_ = len; }
   bool nullable() { return nullable_; }
   void set_nullable(bool b = true) { nullable_ = b; }
+  bool extra() { return extra_; }
+  void set_extra(bool b = true) { extra_ = b; }
   Transition& transition() { return transition_; }
   std::set<StateExpr*>& first() { return transition_.first; }
   std::set<StateExpr*>& last() { return transition_.last; }
@@ -118,6 +122,7 @@ protected:
   std::size_t max_length_;
   std::size_t min_length_;
   bool nullable_;
+  bool extra_;
   Transition transition_;
   Expr *parent_;
 private:
@@ -217,6 +222,7 @@ public:
   Expr::Type type() { return Expr::kDot; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   bool Match(const unsigned char c) { return true; };
+  void FillPosition(ExprInfo *info) { transition_.first.insert(this); transition_.last.insert(this); info->involve.set(); }
   Expr *Clone(ExprPool *p) { return p->alloc<Dot>(); };
   void Generate(std::set<std::string> &g, GenOpt opt, std::size_t n);
 private:

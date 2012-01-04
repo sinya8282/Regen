@@ -150,16 +150,19 @@ void die(bool help = false)
 
 int main(int argc, char *argv[]) {
   std::string regex;
-  bool minimize, automata, extended, reverse, encoding_utf8;
-  minimize = automata = extended = reverse = encoding_utf8 = false;
+  bool info, minimize, automata, extended, reverse, encoding_utf8;
+  info = minimize = automata = extended = reverse = encoding_utf8 = false;
   int opt;
   int seed = time(NULL);
   Generate generate = REGEN;
 
-  while ((opt = getopt(argc, argv, "amdchxEtrf:s:U")) != -1) {
+  while ((opt = getopt(argc, argv, "amdchixEtrf:s:U")) != -1) {
     switch(opt) {
       case 'h':
         die(true);
+      case 'i':
+        info = true;
+        break;
       case 'E':
         extended = true;
         break;
@@ -212,14 +215,18 @@ int main(int argc, char *argv[]) {
     regen::DFA dfa(nfa);
     Dispatch(generate, dfa);
     return 0;
-  }  
+  }
 
   regen::Regen::Options option;
   option.extended(extended);
   option.reverse(reverse);
   option.encoding_utf8(encoding_utf8);
   regen::Regex r = regen::Regex(regex, option);
-  if (generate == TEXTGEN) {
+
+  if (info) {
+    printf("%"PRIuS" chars involved. min length = %"PRIuS", max length = %"PRIuS"\n", r.expr_info().involve.count(), r.min_length(), r.max_length());
+    return 0;
+  } else if (generate == TEXTGEN) {
     srand(seed);
     r.PrintText(regen::Expr::GenAll);
   } else if (generate == REGEN && !minimize) {
