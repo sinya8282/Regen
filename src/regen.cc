@@ -37,7 +37,8 @@ Regen::Regen(const std::string &regex, const Regen::Options options):
     regex_(NULL), reverse_regex_(NULL), flag_(options)
 {
   regex_ = new Regex(regex, flag_);
-  if (flag_.captured_match() && !flag_.prefix_match()) {
+  if (flag_.captured_match() && !flag_.prefix_match()
+      && regex_->min_length() != regex_->max_length()) {
     Options opt(flag_);
     opt.reverse(true);
     opt.prefix_match(true);
@@ -72,6 +73,8 @@ bool Regen::Match(const char *beg, const char *end, Context *context) const
         context->set_begin(beg);
       } else if (flag_.prefix_match()) {
         context->set_begin(beg);
+      } else if (reverse_regex_ == NULL) {
+        context->set_begin(context->end() - regex_->min_length());
       } else {
         Regen::Context context_;
         reverse_regex_->Match(context->end()-1, beg-1, &context_);
