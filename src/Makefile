@@ -1,15 +1,16 @@
-REGEN_ENABLE_XBYAK=yes
+REGEN_ENABLE_JIT=yes
 REGEN_ENABLE_PARALLEL=yes
 
-ifeq ($(REGEN_ENABLE_XBYAK),yes)
-REGENFLAGS=-DREGEN_ENABLE_XBYAK
+ifeq ($(REGEN_ENABLE_JIT),yes)
+REGENFLAGS=-DREGEN_ENABLE_JIT
+SRC_=jitter.cc
 endif
 ifeq ($(REGEN_ENABLE_PARALLEL),yes)
 REGENFLAGS+=-DREGEN_ENABLE_PARALLEL
 LIBTHREAD=-lboost_thread-mt
-SRC=regen.cc regex.cc lexer.cc expr.cc exprutil.cc nfa.cc dfa.cc ssfa.cc generator.cc
+SRC=regen.cc regex.cc lexer.cc expr.cc exprutil.cc nfa.cc dfa.cc ssfa.cc generator.cc $(SRC_)
 else
-SRC=regen.cc regex.cc lexer.cc expr.cc exprutil.cc nfa.cc dfa.cc generator.cc
+SRC=regen.cc regex.cc lexer.cc expr.cc exprutil.cc nfa.cc dfa.cc generator.cc $(SRC_)
 endif
 
 ifeq ($(shell uname),Darwin)
