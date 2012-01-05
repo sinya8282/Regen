@@ -679,7 +679,7 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
       cmp(arg3, 0);
       je(".ret");
       mov(tmp2, arg1);
-      if (!dfa.flag().shortest_match()) jmp("@f");
+      if (dfa.flag().longest_match()) jmp("@f");
       L(".ret");
       mov(reg_a, i);
       jmp("return");

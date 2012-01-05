@@ -110,8 +110,8 @@ void Regex::Parse()
   expr_info_.orig_root = e;
   
   if (!flag_.prefix_match()) {
-    //add '.*?' to top of regular expression for non-Prefix Match(Partial Match)
-    Expr* dotstar = pool_.alloc<Star>(pool_.alloc<Dot>());
+    //add '.*?' to top of regular expression for Prefix-free Match
+    Expr* dotstar = pool_.alloc<Star>(pool_.alloc<Dot>(), true);
     dotstar->set_extra(true);
     e = pool_.alloc<Concat>(dotstar, e, flag_.reverse_regex());
   }

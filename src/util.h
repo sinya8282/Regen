@@ -123,6 +123,7 @@ struct mmap_t{
     struct stat statbuf;
     fstat(f, &statbuf);
     ptr = (unsigned char *)mmap(0, statbuf.st_size, PROT, flags, f, 0);
+    if (ptr == MAP_FAILED) exitmsg("can't mmap %s\n", path);
     size=statbuf.st_size;
     close(f);
   }

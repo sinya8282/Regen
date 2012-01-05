@@ -44,6 +44,7 @@ int main(int argc, char *argv[])
         break;
       case 'o':
         opt.only_matching = true;
+        opt.pflag.longest_match(true);
         opt.pflag.captured_match(true);
         break;
       case 'O':
@@ -96,9 +97,13 @@ void grep(const Regen &re, const regen::Util::mmap_t &buf, const Option &opt)
   Regen::Context context;
   while (re.Match(str, end, &context)) {
     if (opt.only_matching) {
-      write(1, context.begin(), context.end()-context.begin());
-      write(1, newline, 1);
-      str = context.end();
+      if (context.begin() == context.end()) {
+        str = context.end() + 1;
+      } else {
+        write(1, context.begin(), context.end()-context.begin());
+        write(1, newline, 1);
+        str = context.end();
+      }
     } else {
       const char *end_ = (const char*)memchr(context.end(), '\n', end-context.end());
       if (end_ == NULL) end_ = end;
