@@ -419,7 +419,7 @@ private:
 class Qmark: public UnaryExpr {
 public:
   Qmark(Expr *lhs, bool non_greedy = false, double probability = 0.0): UnaryExpr(lhs, probability), non_greedy_(non_greedy) {}
-Qmark(Expr *lhs, double probability): UnaryExpr(lhs, probability), non_greedy_(false) {}
+  Qmark(Expr *lhs, double probability): UnaryExpr(lhs, probability), non_greedy_(false) {}
   ~Qmark() {}
   void FillPosition(ExprInfo *);
   void FillTransition();
@@ -435,8 +435,8 @@ private:
 
 class Star: public UnaryExpr {
 public:
-Star(Expr *lhs, bool non_greedy = false, double probability = 0.0): UnaryExpr(lhs, probability), non_greedy_(non_greedy) {}
-Star(Expr *lhs, double probability): UnaryExpr(lhs, probability), non_greedy_(false) {}
+  Star(Expr *lhs, bool non_greedy = false, double probability = 0.0): UnaryExpr(lhs, probability), non_greedy_(non_greedy) {}
+  Star(Expr *lhs, double probability): UnaryExpr(lhs, probability), non_greedy_(false) {}
   ~Star() {}
   void FillPosition(ExprInfo *);
   void FillTransition();

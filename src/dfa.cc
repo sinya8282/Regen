@@ -233,11 +233,12 @@ bool DFA::Construct(std::size_t limit)
       if (iter->non_greedy && accept) continue;
       FillTransition(iter->state, iter->non_greedy, transition);
     }
-    
+
     State &state = get_new_state();
     Transition &trans = transition_[state.id];
     state.accept = accept;
     state.endline = endline;
+
     //only Leftmost-Shortest matching
     if (flag_.shortest_match() && accept) {
       trans.fill(REJECT);
@@ -614,7 +615,7 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
   const uint8_t *reject_state_addr = getCurr();
   mov(reg_a, DFA::REJECT); // return false
   L("return");
-  cmp(arg3, 0);
+  test(arg3, arg3);
   je("finalize");
   mov(ptr[arg3+sizeof(uint8_t*)], tmp2);
   L("finalize");
@@ -676,7 +677,7 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
     states_addr[i] = getCurr();
     if (dfa.IsAcceptState(i) && !dfa.flag().suffix_match()) {
       inLocalLabel();
-      cmp(arg3, 0);
+      test(arg3, arg3);
       je(".ret");
       mov(tmp2, arg1);
       if (dfa.flag().longest_match()) jmp("@f");

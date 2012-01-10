@@ -119,13 +119,14 @@ public:
   };
   static const Options DefaultOptions;
   struct Context {
-    Context() { ptr[0] = ptr[1] = NULL; }
+    Context() { clear(); }
     const char *ptr[2];
     const char * begin() const { return ptr[0]; }
     void set_begin(const char* p) { ptr[0] = p; }
     const char * end() const { return ptr[1]; }
     void set_end(const char* p) { ptr[1] = p; }
     const char * operator[](std::size_t index) const { return ptr[index]; }
+    void clear() { ptr[0] = ptr[1] = NULL; }
   };
   Regen(const std::string &, Regen::Options = Regen::Options::NoParseFlags);
   ~Regen();
