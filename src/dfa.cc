@@ -23,19 +23,12 @@ DFA::DFA(const NFA &nfa, std::size_t limit):
 void DFA::ExprToExprNFA(std::set<StateExpr *> &states, ExprNFA &nfa, bool non_greedy) const
 {
   struct Tracer t;
-  bool accept = false;
-cont:
   for (std::set<StateExpr *>::iterator iter = states.begin(); iter != states.end(); ++iter) {
     t.state = *iter;
-    if (accept || (*iter)->type() == Expr::kEOP) {
-      if (!accept) {
-        accept = true;
-        goto cont;
-      } else {
-        t.non_greedy = false;
-      }
+    if ((*iter)->type() == Expr::kEOP) {
+      t.non_greedy = false;
     } else {
-      t.non_greedy = non_greedy || (*iter)->non_greedy();
+      t.non_greedy = non_greedy | (*iter)->non_greedy();
     }
     if (t.non_greedy) {
       t.non_greedy = false;
@@ -226,11 +219,12 @@ bool DFA::Construct(std::size_t limit)
     std::fill(transition.begin(), transition.end(), ExprNFA());
     bool accept = false;
     bool endline = false;
+    bool exist_non_greedy = false;
 
     VerifyStates(nfa, accept, endline);
     
     for (ExprNFA::iterator iter = nfa.begin(); iter != nfa.end(); ++iter) {
-      if (iter->non_greedy && accept) continue;
+      exist_non_greedy |= iter->non_greedy;
       FillTransition(iter->state, iter->non_greedy, transition);
     }
 
@@ -250,6 +244,29 @@ bool DFA::Construct(std::size_t limit)
       ExprNFA &next = transition[i];
 
       ExpandStates(next);
+
+      accept = false;
+      VerifyStates(next, accept, endline);
+      if (accept && exist_non_greedy) {
+        ExprNFA next_;
+        next_.insert(Tracer(expr_info_.eop, false));
+        for (ExprNFA::iterator iter = nfa.begin(); iter != nfa.end(); ++iter) {
+          if (iter->state->Match(i)) {
+            if (iter->non_greedy) {
+              next.erase(Tracer(expr_info_.eop, false));
+              ExprToExprNFA(iter->state->follow(), next);
+              accept = false;
+              VerifyStates(next, accept, endline);
+              if (accept) {
+                ExprToExprNFA(iter->state->follow(), next_);
+              }
+            } else {
+              ExprToExprNFA(iter->state->follow(), next_);
+            }
+          }
+        }
+        next.swap(next_);
+      }
       
       if (next.empty()) {
         trans[i] = REJECT;

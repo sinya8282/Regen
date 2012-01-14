@@ -110,10 +110,17 @@ void Regex::Parse()
   expr_info_.orig_root = e;
   
   if (!flag_.prefix_match()) {
-    //add '.*?' to top of regular expression for Prefix-free Match
-    Expr* dotstar = pool_.alloc<Star>(pool_.alloc<Dot>(), true);
-    dotstar->set_extra(true);
-    e = pool_.alloc<Concat>(dotstar, e, flag_.reverse_regex());
+    // rewrite expression R when Prefix-free required
+    // if R matches epsilon -> R
+    // else -> !(.*R.*)R
+    Expr *dotstar1 = pool_.alloc<Star>(pool_.alloc<Dot>());
+    Expr *dotstar2 = pool_.alloc<Star>(pool_.alloc<Dot>());
+    Expr *dotstar3 = pool_.alloc<Star>(pool_.alloc<Dot>());
+    Expr *etop = e->Clone(&pool_);
+    etop = pool_.alloc<Concat>(etop, dotstar1, flag_.reverse_regex());
+    etop = pool_.alloc<Concat>(dotstar2, etop, flag_.reverse_regex());
+    etop = pool_.alloc<XOR>(etop, dotstar3, &pool_);
+    e = pool_.alloc<Concat>(etop, e, flag_.reverse_regex());
   }
 
   expr_info_.eop = pool_.alloc<EOP>();
