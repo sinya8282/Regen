@@ -6,6 +6,7 @@
 #include "exprutil.h"
 #include "nfa.h"
 #include "dfa.h"
+#include "ssfa.h"
 #include "generator.h"
 
 enum Generate { DOTGEN, REGEN, CGEN, TEXTGEN };
@@ -142,6 +143,7 @@ void die(bool help = false)
            "Output control:\n"
            "  -t   generate acceptable strings\n"
            "  -d   generate DFA graph (Dot language)\n"
+           "  -s   generate SFA graph (Dot language)\n"
            "  -m   minimizing DFA\n"
            );
   }
@@ -150,13 +152,13 @@ void die(bool help = false)
 
 int main(int argc, char *argv[]) {
   std::string regex;
-  bool info, minimize, automata, extended, reverse, encoding_utf8;
-  info = minimize = automata = extended = reverse = encoding_utf8 = false;
+  bool info, minimize, automata, extended, reverse, encoding_utf8, sfa;
+  info = minimize = automata = extended = reverse = encoding_utf8 = sfa = false;
   int opt;
   int seed = time(NULL);
   Generate generate = REGEN;
 
-  while ((opt = getopt(argc, argv, "amdchixEtrf:s:U")) != -1) {
+  while ((opt = getopt(argc, argv, "amdchixEtrsSf:U")) != -1) {
     switch(opt) {
       case 'h':
         die(true);
@@ -189,8 +191,12 @@ int main(int argc, char *argv[]) {
       case 't': 
         generate = TEXTGEN;
         break;
-      case 's':
+      case 'S':
         seed = atoi(optarg);
+        break;
+      case 's':
+        sfa = true;
+        generate = DOTGEN;
         break;
       case 'U':
         encoding_utf8 = true;
@@ -240,7 +246,15 @@ int main(int argc, char *argv[]) {
   if (generate == REGEN) {
     r.PrintRegex();
   } else {
-    Dispatch(generate, r.dfa());
+#ifdef REGEN_ENABLE_PARALLEL
+    if (sfa) {
+      regen::SSFA s(r.dfa());
+      Dispatch(generate, s);
+    } else
+#endif REGEN_ENABLE_PARALLEL
+    {
+      Dispatch(generate, r.dfa());
+    }
   }
   
   return 0;
