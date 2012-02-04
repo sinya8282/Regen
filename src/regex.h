@@ -10,7 +10,7 @@
 #include "nfa.h"
 #include "dfa.h"
 #ifdef REGEN_ENABLE_PARALLEL
-#include "ssfa.h"
+#include "sfa.h"
 #endif
 
 namespace regen {

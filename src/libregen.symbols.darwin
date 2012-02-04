@@ -11,7 +11,7 @@ __ZNK5regen3NFA*
 __ZN5regen3DFA*
 __ZNK5regen3DFA*
 __ZTVN5regen3DFA*
-# regen::SSFA*
-__ZN5regen4SSFA*
-__ZNK5regen4SSFA*
-__ZTVN5regen4SSFA*
+# regen::SFA*
+__ZN5regen4SFA*
+__ZNK5regen4SFA*
+__ZTVN5regen4SFA*

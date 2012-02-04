@@ -1,5 +1,5 @@
 #include "../regex.h"
-#include "../ssfa.h"
+#include "../sfa.h"
 
 static inline uint64_t rdtsc()
 {
@@ -79,14 +79,14 @@ int main(int argc, char *argv[]) {
       compile_time -= rdtsc();
       regen::Regex r = regen::Regex(regex);
       r.Compile(Regen::Options::O0);
-      regen::SSFA ssfa(r.expr_root(), r.state_exprs(), thread_num);
-      ssfa.Compile(olevel);
+      regen::SFA sfa(r.expr_root(), r.state_exprs(), thread_num);
+      sfa.Compile(olevel);
       compile_time += rdtsc();
       matching_time -= rdtsc();
-      match = ssfa.Match(mm.ptr, mm.ptr+mm.size);
+      match = sfa.Match(mm.ptr, mm.ptr+mm.size);
       matching_time += rdtsc();
 #else
-      exitmsg("SSFA is not supported.\n");
+      exitmsg("SFA is not supported.\n");
 #endif
     }
 

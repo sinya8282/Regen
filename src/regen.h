@@ -23,7 +23,7 @@ public:
       NoSuffixMatch = 1 << 6,
       PartialMatch = NoPrefixMatch | NoSuffixMatch,
       FullMatch = 0,
-      ParallelMatch = 1 << 7, // Enable Parallel Matching (SSFA)
+      ParallelMatch = 1 << 7, // Enable Parallel Matching (SFA)
       CapturedMatch = 1 << 8,
       FilteredMatch = 1 << 9,
       /* Regen-Extended syntax support (!, &, @, &&, ||, #, \1) */

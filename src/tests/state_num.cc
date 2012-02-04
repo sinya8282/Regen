@@ -1,6 +1,6 @@
 #include "../regen.h"
 #include "../regex.h"
-#include "../ssfa.h"
+#include "../sfa.h"
 
 int main(int argc, char *argv[]) {
   std::string regex;
@@ -59,10 +59,10 @@ int main(int argc, char *argv[]) {
 #ifdef REGEN_ENABLE_PARALLEL
     r.Compile(Regen::Options::O0);
     if (m) r.MinimizeDFA();
-    regen::SSFA ssfa(r.dfa());
-    printf("SSFA(from DFA) state num: %"PRIuS"\n", ssfa.size());
+    regen::SFA sfa(r.dfa());
+    printf("SFA(from DFA) state num: %"PRIuS"\n", sfa.size());
 #else
-    exitmsg("SSFA is not supported.\n");
+    exitmsg("SFA is not supported.\n");
 #endif
   }
 

@@ -13,10 +13,10 @@
 				_ZN5regen3DFA*;
 				_ZNK5regen3DFA*;
 				_ZTVN5regen3DFA*;
-				# regen::SSFA*
-				_ZN5regen4SSFA*;
-				_ZNK5regen4SSFA*;
-				_ZTVN5regen4SSFA*;
+				# regen::SFA*
+				_ZN5regen4SFA*;
+				_ZNK5regen4SFA*;
+				_ZTVN5regen4SFA*;
         local:
                 *;
 };

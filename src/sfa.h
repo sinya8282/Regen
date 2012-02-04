@@ -1,5 +1,5 @@
-#ifndef REGEN_SSFA_H_
-#define  REGEN_SSFA_H_
+#ifndef REGEN_SFA_H_
+#define  REGEN_SFA_H_
 #ifdef REGEN_ENABLE_PARALLEL
 #include "regen.h"
 #include "regex.h"
@@ -12,11 +12,11 @@ class Regex;
 
 namespace regen {
 
-class SSFA: public DFA {
+class SFA: public DFA {
 public:
-  SSFA(Expr* expr_root, const std::vector<StateExpr*> &state_exprs, std::size_t thread_num = 2);
-  SSFA(const NFA &nfa, std::size_t thread_num = 2);  
-  SSFA(const DFA &dfa, std::size_t thread_num = 2);
+  SFA(Expr* expr_root, const std::vector<StateExpr*> &state_exprs, std::size_t thread_num = 2);
+  SFA(const NFA &nfa, std::size_t thread_num = 2);  
+  SFA(const DFA &dfa, std::size_t thread_num = 2);
   std::size_t thread_num() const { return thread_num_; }
   void thread_num(std::size_t thread_num) { thread_num_ = thread_num; }
   typedef std::map<state_t, std::set<state_t> > SSTransition;
@@ -42,4 +42,4 @@ private:
 
 } // namespace regen
 #endif // REGEN_ENABLE_PARALLEL
-#endif // REGEN_SSFA_H_
+#endif // REGEN_SFA_H_

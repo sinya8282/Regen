@@ -142,11 +142,11 @@ int main(int argc, char *argv[]) {
       result[i] = r.Match(test[i].text) == test[i].result;
     } else {
 #ifdef REGEN_ENABLE_PARALLEL
-      regen::SSFA pdfa(r.expr_root(), r.state_exprs(), thread_num);
+      regen::SFA pdfa(r.expr_root(), r.state_exprs(), thread_num);
       pdfa.Compile(olevel);
       result[i] = pdfa.Match(test[i].text) == test[i].result;
 #else
-      exitmsg("SSFA is not supported.");
+      exitmsg("SFA is not supported.");
 #endif
     }
   }

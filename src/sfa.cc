@@ -1,11 +1,11 @@
 #ifdef REGEN_ENABLE_PARALLEL
-#include "ssfa.h"
+#include "sfa.h"
 #include <boost/thread.hpp>
 #include <boost/bind.hpp>
 
 namespace regen {
 
-SSFA::SSFA(Expr *expr_root, const std::vector<StateExpr*> &state_exprs, std::size_t thread_num):
+SFA::SFA(Expr *expr_root, const std::vector<StateExpr*> &state_exprs, std::size_t thread_num):
     nfa_size_(state_exprs.size()),
     dfa_size_(0),
     thread_num_(thread_num)
@@ -17,18 +17,18 @@ SSFA::SSFA(Expr *expr_root, const std::vector<StateExpr*> &state_exprs, std::siz
   }
 
   SSTransition sst;
-  std::map<SSTransition, state_t> ssfa_map;
+  std::map<SSTransition, state_t> sfa_map;
   std::queue<SSTransition> queue;
   SSTransition::iterator iter;
-  state_t ssfa_id = 0;
+  state_t sfa_id = 0;
 
-  ssfa_map[sst] = DFA::REJECT;
+  sfa_map[sst] = DFA::REJECT;
 
   for (std::size_t i = 0; i < nfa_size_; i++) {
     sst[i].insert(i);
   }
 
-  ssfa_map[sst] = ssfa_id++;
+  sfa_map[sst] = sfa_id++;
   queue.push(sst);
 
   while (!queue.empty()) {
@@ -92,19 +92,19 @@ SSFA::SSFA(Expr *expr_root, const std::vector<StateExpr*> &state_exprs, std::siz
         state.dst_states.insert(REJECT);
         continue;
       }
-      if (ssfa_map.find(next) == ssfa_map.end()) {
-        ssfa_map[next] = ssfa_id++;
+      if (sfa_map.find(next) == sfa_map.end()) {
+        sfa_map[next] = sfa_id++;
         queue.push(next);
       }
-      state[c] = ssfa_map[next];
-      state.dst_states.insert(ssfa_map[next]);
+      state[c] = sfa_map[next];
+      state.dst_states.insert(sfa_map[next]);
     }
   }
 
   complete_ = true;
 }
 
-SSFA::SSFA(const NFA &nfa, std::size_t thread_num):
+SFA::SFA(const NFA &nfa, std::size_t thread_num):
     nfa_size_(nfa.size()),
     dfa_size_(0),
     thread_num_(thread_num)
@@ -114,18 +114,18 @@ SSFA::SSFA(const NFA &nfa, std::size_t thread_num):
     fa_accepts_[(*state_iter).id] = (*state_iter).accept;
 
   SSTransition sst;
-  std::map<SSTransition, state_t> ssfa_map;
+  std::map<SSTransition, state_t> sfa_map;
   std::queue<SSTransition> queue;
   SSTransition::iterator iter;
-  state_t ssfa_id = 0;
+  state_t sfa_id = 0;
 
-  ssfa_map[sst] = DFA::REJECT;
+  sfa_map[sst] = DFA::REJECT;
 
   for (std::size_t i = 0; i < nfa_size_; i++) {
     sst[i].insert(i);
   }
 
-  ssfa_map[sst] = ssfa_id++;
+  sfa_map[sst] = sfa_id++;
   queue.push(sst);
 
   while (!queue.empty()) {
@@ -154,19 +154,19 @@ SSFA::SSFA(const NFA &nfa, std::size_t thread_num):
         state[c] = REJECT;
         state.dst_states.insert(REJECT);
       }
-      if (ssfa_map.find(next) == ssfa_map.end()) {
-        ssfa_map[next] = ssfa_id++;
+      if (sfa_map.find(next) == sfa_map.end()) {
+        sfa_map[next] = sfa_id++;
         queue.push(next);
       }
-      state[c] = ssfa_map[next];
-      state.dst_states.insert(ssfa_map[next]);
+      state[c] = sfa_map[next];
+      state.dst_states.insert(sfa_map[next]);
     }
   }
 
   complete_ = true;
 }
 
-SSFA::SSFA(const DFA &dfa, std::size_t thread_num):
+SFA::SFA(const DFA &dfa, std::size_t thread_num):
     nfa_size_(0),
     dfa_size_(dfa.size()),
     thread_num_(thread_num)
@@ -181,18 +181,18 @@ SSFA::SSFA(const DFA &dfa, std::size_t thread_num):
   start_states_.insert(0);
   
   SSDTransition ssdt;
-  std::map<SSDTransition, state_t> ssfa_map;
+  std::map<SSDTransition, state_t> sfa_map;
   std::queue<SSDTransition> queue;
   SSDTransition::iterator iter;
-  state_t ssfa_id = 0;
+  state_t sfa_id = 0;
 
-  ssfa_map[ssdt] = DFA::REJECT;
+  sfa_map[ssdt] = DFA::REJECT;
 
   for (std::size_t i = 0; i < dfa_size_; i++) {
     ssdt[i] = i;
   }
 
-  ssfa_map[ssdt] = ssfa_id++;
+  sfa_map[ssdt] = sfa_id++;
   queue.push(ssdt);
 
   while (!queue.empty()) {
@@ -229,19 +229,19 @@ SSFA::SSFA(const DFA &dfa, std::size_t thread_num):
         continue;
       }
 
-      if (ssfa_map.find(next) == ssfa_map.end()) {
-        ssfa_map[next] = ssfa_id++;
+      if (sfa_map.find(next) == sfa_map.end()) {
+        sfa_map[next] = sfa_id++;
         queue.push(next);
       }
-      state[c] = ssfa_map[next];
-      state.dst_states.insert(ssfa_map[next]);
+      state[c] = sfa_map[next];
+      state.dst_states.insert(sfa_map[next]);
     }
   }
 
   complete_ = true;
 }
 
-void SSFA::MatchTask(TaskArg targ) const
+void SFA::MatchTask(TaskArg targ) const
 {
   const unsigned char *str = targ.str;
   const unsigned char *end = targ.end;
@@ -259,7 +259,7 @@ void SSFA::MatchTask(TaskArg targ) const
   return;
 }
 
-bool SSFA::Match(const unsigned char *str, const unsigned char *end, Regen::Context *context) const
+bool SFA::Match(const unsigned char *str, const unsigned char *end, Regen::Context *context) const
 {
   if (!complete_) return false;
 
@@ -284,7 +284,7 @@ bool SSFA::Match(const unsigned char *str, const unsigned char *end, Regen::Cont
     targ.task_id = i;
     threads[i] = new boost::thread(
         boost::bind(
-            boost::bind(&regen::SSFA::MatchTask, this, _1),
+            boost::bind(&regen::SFA::MatchTask, this, _1),
             targ));
     str_ = end_;
   }

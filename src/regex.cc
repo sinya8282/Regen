@@ -110,9 +110,8 @@ void Regex::Parse()
   expr_info_.orig_root = e;
   
   if (!flag_.prefix_match()) {
-    // rewrite expression R when Prefix-free required
-    // if R matches epsilon -> R
-    // else -> !(.*R.*)R
+    // rewrite expression R when Prefix-free Matching is required
+    // if R can matches epsilon -> R, else -> !(.*R.*)R
     Expr *dotstar1 = pool_.alloc<Star>(pool_.alloc<Dot>());
     Expr *dotstar2 = pool_.alloc<Star>(pool_.alloc<Dot>());
     Expr *dotstar3 = pool_.alloc<Star>(pool_.alloc<Dot>());

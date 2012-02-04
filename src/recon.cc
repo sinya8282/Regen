@@ -6,7 +6,7 @@
 #include "exprutil.h"
 #include "nfa.h"
 #include "dfa.h"
-#include "ssfa.h"
+#include "sfa.h"
 #include "generator.h"
 
 enum Generate { DOTGEN, REGEN, CGEN, TEXTGEN };
@@ -248,7 +248,7 @@ int main(int argc, char *argv[]) {
   } else {
 #ifdef REGEN_ENABLE_PARALLEL
     if (sfa) {
-      regen::SSFA s(r.dfa());
+      regen::SFA s(r.dfa());
       Dispatch(generate, s);
     } else
 #endif REGEN_ENABLE_PARALLEL
