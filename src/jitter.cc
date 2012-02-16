@@ -3,7 +3,7 @@
 
 namespace regen {
 
-Emitter::Emitter(const DFA &dfa, Jitter &jitter, std::size_t code_segment_size):
+CodeSegment::CodeSegment(const DFA &dfa, Jitter &jitter, std::size_t code_segment_size):
     CodeGenerator(code_segment_size),
     dfa_(dfa), jitter_(jitter), code_segment_size_(code_segment_size),
     reject_addr_(NULL), return_addr_(NULL),
@@ -35,7 +35,7 @@ Emitter::Emitter(const DFA &dfa, Jitter &jitter, std::size_t code_segment_size):
 {
 }
 
-const void* Emitter::EmitFunc()
+const void* CodeSegment::EmitFunc()
 {
   const void* func_ptr = getCurr();
 #ifdef XBYAK32
@@ -71,7 +71,7 @@ const void* Emitter::EmitFunc()
   return func_ptr;
 }
 
-const void* Emitter::EmitState(std::size_t state)
+const void* CodeSegment::EmitState(std::size_t state)
 {
   const void* state_ptr = getCurr();
   return state_ptr;

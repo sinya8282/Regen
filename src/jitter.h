@@ -2,7 +2,7 @@
 #define  REGEN_JITTER_H_
 
 #include <xbyak/xbyak.h>
-#include <deque>
+#include <vector>
 #include <list>
 
 namespace regen {
@@ -10,9 +10,9 @@ namespace regen {
 class Jitter;
 class DFA;
   
-class Emitter: public Xbyak::CodeGenerator {
+class CodeSegment: public Xbyak::CodeGenerator {
 public:
-  Emitter(const DFA &dfa, Jitter &jitter, std::size_t code_segment_size);
+  CodeSegment(const DFA &dfa, Jitter &jitter, std::size_t code_segment_size);
   const void* EmitFunc();
   const void* EmitState(std::size_t state);
   const DFA &dfa_;
@@ -53,18 +53,18 @@ public:
     Transition &transition;
   };
   Jitter(const DFA &dfa, std::size_t code_segment_size = 4096): dfa_(dfa), code_segment_size_(code_segment_size), func_ptr_(NULL)  {}
-  ~Jitter() { for (std::deque<Emitter *>::iterator i = code_segments_.begin(); i != code_segments_.end(); ++i) delete *i; }
+  ~Jitter() { for (std::vector<CodeSegment *>::iterator i = code_segments_.begin(); i != code_segments_.end(); ++i) delete *i; }
 
-  Emitter * CS() { return code_segments_.back(); }
-  Emitter * NewCS() { code_segments_.push_back(0); code_segments_.back() = new Emitter(dfa_, *this, code_segment_size_); return code_segments_.back(); }
+  CodeSegment * CS() { return code_segments_.back(); }
+  CodeSegment * NewCS() { code_segments_.push_back(0); code_segments_.back() = new CodeSegment(dfa_, *this, code_segment_size_); return code_segments_.back(); }
   StateInfo &state_info(std::size_t state) { return state_info_[state]; }
   void Init();
 private:
   const DFA &dfa_;
   std::size_t code_segment_size_;
-  std::deque<Emitter *> code_segments_;
+  std::vector<CodeSegment *> code_segments_;
   std::list<Transition> data_segment_;
-  std::deque<StateInfo> state_info_;
+  std::vector<StateInfo> state_info_;
   std::size_t state_num_;
   const void *func_ptr_;
 };
