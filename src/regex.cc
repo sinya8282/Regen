@@ -124,8 +124,6 @@ void Regex::Parse()
 
   expr_info_.eop = pool_.alloc<EOP>();
   e = pool_.alloc<Concat>(e, expr_info_.eop);
-  expr_info_.bop = pool_.alloc<BOP>();
-  e = pool_.alloc<Concat>(expr_info_.bop, e);
 
   expr_info_.expr_root = e;
   e->FillPosition(&expr_info_);

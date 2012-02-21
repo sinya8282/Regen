@@ -20,57 +20,47 @@ DFA::DFA(const NFA &nfa, std::size_t limit):
   complete_ = Construct(nfa, limit);
 }
 
-void DFA::VerifyStates(const Subset &states, bool &accept, bool &endline) const
+bool DFA::ContainAcceptState(const Subset &states) const
 {
   for (Subset::iterator iter = states.begin(); iter != states.end(); ++iter) {
-    switch ((*iter)->type()) {
-      case Expr::kEOP:
-        accept = true;
-        break;
-      case Expr::kAnchor: {
-        Anchor * an = static_cast<Anchor*>(*iter);
-        if (an->atype() == Anchor::kEndLine) {
-          endline |= std::find(an->follow().begin(), an->follow().end(), expr_info_.eop) != an->follow().end();
-          break;
-        }
-      }
-      default: break;
+    if ((*iter)->type() == Expr::kEOP) {
+      return true;
     }
   }
+  return false;
 }
 
-void DFA::ExpandStates(Subset* states) const
+void DFA::ExpandStates(Subset* states, bool begline, bool endline) const
 {
   std::set<Operator*> intersections;
-  std::map<std::size_t, Operator*> exclusives;
-  std::set<Anchor*> beglines;
-  bool accept = false;
-  bool begline = false;
-top:
+  std::set<Operator*> exclusives;
+  std::map<std::size_t, Operator*> exclusives_;
+entry:
   for (Subset::iterator iter = states->begin(); iter != states->end(); ++iter) {
     switch ((*iter)->type()) {
-      case Expr::kBOP:
-        begline = true;
-        break;
-      case Expr::kEOP:
-        accept = true;
-        break;
       case Expr::kOperator: {
         Operator *op = static_cast<Operator*>(*iter);
         switch (op->optype()) {
           case Operator::kIntersection:
-            if (op->pair()->active()) {
-              std::size_t presize = states->size();
-              states->insert(op->follow().begin(), op->follow().end());
-              if (presize < states->size()) goto top;
-            } else {
-              op->set_active(true);
+            if (intersections.find(op) == intersections.end()) {
               intersections.insert(op);
+              if (intersections.find(op->pair()) != intersections.end()) {
+                std::size_t presize = states->size();
+                states->insert(op->follow().begin(), op->follow().end());
+                if (presize < states->size()) goto entry;
+              }
             }
             break;
           case Operator::kXOR:
-            op->set_active(true);
-            exclusives[op->id()] = op;
+            if (exclusives.find(op) == exclusives.end()) {
+              exclusives.insert(op);
+              std::map<std::size_t, Operator*>::iterator iter = exclusives_.find(op->id());
+              if (iter != exclusives_.end()) {
+                exclusives_.erase(iter);
+              } else {
+                exclusives_[op->id()] = op;
+              }
+            }
             break;
           default:
             break;
@@ -81,8 +71,18 @@ top:
         Anchor * an = static_cast<Anchor*>(*iter);
         switch (an->atype()) {
           case Anchor::kBegLine:
-            beglines.insert(an);
+            if (begline) {
+              std::size_t presize = states->size();
+              states->insert(an->follow().begin(), an->follow().end());
+              if (presize < states->size()) goto entry;
+            }
             break;
+          case Anchor::kEndLine:
+            if (endline) {
+              std::size_t presize = states->size();
+              states->insert(an->follow().begin(), an->follow().end());
+              if (presize < states->size()) goto entry;
+            }
           default:
             break;
         }
@@ -92,36 +92,16 @@ top:
         break;
     }
   }
+
   std::size_t presize = states->size();
-  for (std::map<std::size_t, Operator*>::iterator iter = exclusives.begin();
-       iter != exclusives.end(); ++iter) {
+  for (std::map<std::size_t, Operator*>::iterator iter = exclusives_.begin();
+       iter != exclusives_.end(); ++iter) {
     Operator *op = static_cast<Operator *>(iter->second);
-    if (!(op->pair()->active())) {
+    if (exclusives.find(op->pair()) == exclusives.end()) {
       states->insert(op->follow().begin(), op->follow().end());
     }
-    if (presize < states->size()) goto top;
+    if (presize < states->size()) goto entry;
   }
-
-  if (begline) {
-    for (std::set<Anchor*>::iterator iter = beglines.begin(); iter != beglines.end(); ++iter) {
-      states->insert((*iter)->follow().begin(), (*iter)->follow().end());
-      if (presize < states->size()) goto top;      
-    }
-  }
-  
-  for (std::set<Operator*>::iterator iter = intersections.begin();
-       iter != intersections.end(); ++iter) {
-    (*iter)->set_active(false);
-  }
-  for (std::map<std::size_t, Operator*>::iterator iter = exclusives.begin();
-       iter != exclusives.end(); ++iter) {
-    iter->second->set_active(false);
-    iter->second->pair()->set_active(false);
-  }
-
-  intersections.clear();
-  exclusives.clear();
-  beglines.clear();
 }
 
 void DFA::FillTransition(StateExpr* state, std::vector<Subset>* transition)
@@ -145,7 +125,17 @@ void DFA::FillTransition(StateExpr* state, std::vector<Subset>* transition)
     case Expr::kDot: {
       Dot *dot = static_cast<Dot*>(state);
       for (std::size_t c = 0; c < 256; c++) {
-        (*transition)[c].insert(dot->follow().begin(), dot->follow().end());
+        if (c != flag_.delimiter() || !flag_.one_line()) {
+          (*transition)[c].insert(dot->follow().begin(), dot->follow().end());
+        }
+      }
+      break;
+    }
+    case Expr::kAnchor:
+      if (!flag_.one_line()) {
+      Anchor* an = static_cast<Anchor*>(state);
+      if (!flag_.one_line()) {
+        (*transition)[flag_.delimiter()].insert(an->follow().begin(), an->follow().end());
       }
       break;
     }
@@ -161,10 +151,10 @@ bool DFA::Construct(std::size_t limit)
   std::vector<Subset> transition(256);
 
   state_t dfa_id = 0;
-  bool limit_over = false;
+  bool limit_over = false, begline = true;
   Subset states = expr_info_.expr_root->first();
 
-  ExpandStates(&states);
+  ExpandStates(&states, begline);
   queue.push(states);
   
   nfa_map_[dfa_id] = states;
@@ -175,36 +165,42 @@ bool DFA::Construct(std::size_t limit)
     queue.pop();
 
     std::fill(transition.begin(), transition.end(), Subset());
-    bool accept = false;
-    bool endline = false;
-
-    VerifyStates(states, accept, endline);
     for (Subset::iterator iter = states.begin(); iter != states.end(); ++iter) {
       FillTransition(*iter, &transition);
     }
 
     State &state = get_new_state();
     Transition &trans = transition_[state.id];
-    state.accept = accept;
-    state.endline = endline;
+    state.accept = ContainAcceptState(states);
 
     //only Leftmost-Shortest matching
-    if (flag_.shortest_match() && accept) {
+    if (flag_.shortest_match() && state.accept) {
       trans.fill(REJECT);
       state.dst_states.insert(REJECT);
       continue;
     }
 
-    for (state_t i = 0; i < 256; i++) {
-      Subset& next = transition[i];
-      ExpandStates(&next);
-      accept = false;
-      VerifyStates(next, accept, endline);
-
+    for (std::size_t c = 0; c < 256; c++) {
+      Subset& next = transition[c];
+      
       if (next.empty()) {
-        trans[i] = REJECT;
+        trans[c] = REJECT;
         state.dst_states.insert(REJECT);
         continue;
+      }
+
+      ExpandStates(&next);
+      
+      if (c == flag_.delimiter() && !flag_.one_line()) {
+        ExpandStates(&next, begline, true);
+        if (ContainAcceptState(next)) {
+          next.clear();
+          next.insert(expr_info_.eop);
+        } else {
+          trans[c] = REJECT;
+          state.dst_states.insert(REJECT);
+          continue;
+        }
       }
       
       if (dfa_map_.find(next) == dfa_map_.end()) {
@@ -217,9 +213,11 @@ bool DFA::Construct(std::size_t limit)
           continue;
         }
       }
-      trans[i] = dfa_map_[next];
+      trans[c] = dfa_map_[next];
       state.dst_states.insert(dfa_map_[next]);
     }
+
+    begline = false;
   }
 
   if (limit_over) {
@@ -816,11 +814,18 @@ bool DFA::Match(const Regen::StringPiece &string, Regen::StringPiece *result) co
   state_t state = 0;
 
   if (olevel_ >= Regen::Options::O1) {
-    state = CompiledMatch(string._udata(), result->_udata());
+    Regen::StringPiece string_(string);
+    state = CompiledMatch(string_._udata(), result->_udata());
+    bool accept = IsAcceptState(state);
+    if (!accept && state != REJECT && string_.empty()) {
+      Subset endstates = nfa_map_[state];
+      ExpandStates(&endstates, string.begin() == string_.begin(), true);
+      accept = ContainAcceptState(endstates);
+    }
     if (result == NULL) {
-      return IsAcceptState(state);
+      return accept;
     } else {
-      if (flag_.suffix_match() && IsAcceptState(state)) {
+      if (flag_.suffix_match() && accept) {
         result->set_end(string.end());
         return true;
       } else {
@@ -848,15 +853,12 @@ bool DFA::OnTheFlyMatch(const Regen::StringPiece& string, Regen::StringPiece* re
 {
   if (empty()) {
     Subset states = expr_info_.expr_root->first();
-    ExpandStates(&states);
-    bool accept = false;
-    bool endline = false;
-    VerifyStates(states, accept, endline);
+    ExpandStates(&states, true);
+    bool accept = ContainAcceptState(states);
     State& s = get_new_state();
     dfa_map_[states] = s.id;
     nfa_map_[s.id] = states;
     s.accept = accept;
-    s.endline = endline;
   }
 
   int dir = 1;  
@@ -887,8 +889,7 @@ bool DFA::OnTheFlyMatch(const Regen::StringPiece& string, Regen::StringPiece* re
         if (nexts.empty()) {
           next = transition_[state][*str] = REJECT;
         } else if (dfa_map_.find(nexts) == dfa_map_.end()) {
-          bool accept = false, endline = false;
-          VerifyStates(nexts, accept, endline);
+          bool accept = ContainAcceptState(nexts);
           State& s = get_new_state();
           dfa_map_[nexts] = s.id;
           nfa_map_[s.id] = nexts;
@@ -906,7 +907,13 @@ bool DFA::OnTheFlyMatch(const Regen::StringPiece& string, Regen::StringPiece* re
     }
   }
 
-  return state != DFA::REJECT ? IsAcceptOrEndlineState(state) : false;
+  if (IsAcceptState(state)) return true;
+  if (str == end && state != REJECT) {
+    Subset endstates = nfa_map_[state];
+    ExpandStates(&endstates, str == string.ubegin(), true);
+    return ContainAcceptState(endstates);
+  }
+  return false;
 }
 
 } // namespace regen

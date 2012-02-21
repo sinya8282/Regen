@@ -105,8 +105,8 @@ public:
   bool IsEndlineState(std::size_t state) const { return state == REJECT ? false : states_[state].endline; }
   bool IsAcceptOrEndlineState(std::size_t state)  const { return IsAcceptState(state) | IsEndlineState(state); }
 
-  void VerifyStates(const Subset&, bool&, bool&) const;
-  void ExpandStates(Subset*) const;
+  bool ContainAcceptState(const Subset&) const;
+  void ExpandStates(Subset*, bool begline = false, bool endline = false) const;
   void FillTransition(StateExpr*, std::vector<Subset>*);
 
   void Complementify();

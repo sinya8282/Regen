@@ -6,7 +6,7 @@ const char* Expr::TypeString(Expr::Type type)
 {
   static const char* const type_strings[] = {
     "Literal", "CharClass", "Dot",
-    "Anchor", "EOP", "BOP", "Operator",
+    "Anchor", "EOP", "Operator",
     "Concat", "Union", "Intersection", "XOR",
     "Qmark", "Star", "Plus",
     "Epsilon", "None"

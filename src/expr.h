@@ -9,7 +9,7 @@ namespace regen {
 class Expr;
 class StateExpr;
 class Literal; class CharClass; class Dot; class Anchor;
-class None; class Epsilon; class Operator; class EOP; class BOP;
+class None; class Epsilon; class Operator; class EOP;
 class BinaryExpr;
 class Concat; class Union; class Intersection; class XOR;
 class UnaryExpr;
@@ -28,7 +28,6 @@ public:
   virtual void Visit(Epsilon *e) { Visit((StateExpr*)e); }
   virtual void Visit(Operator *e) { Visit((StateExpr*)e); }
   virtual void Visit(EOP *e) { Visit((StateExpr*)e); }
-  virtual void Visit(BOP *e) { Visit((StateExpr*)e); }
   virtual void Visit(BinaryExpr *e) { Visit((Expr*)e); }
   virtual void Visit(Concat *e) { Visit((BinaryExpr*)e); }
   virtual void Visit(Union *e) { Visit((BinaryExpr*)e); }
@@ -41,11 +40,10 @@ public:
 };
 
 struct ExprInfo {
-  ExprInfo(): xor_num(0), expr_root(NULL), orig_root(NULL), bop(NULL), eop(NULL), min_length(0) {}
+  ExprInfo(): xor_num(0), expr_root(NULL), orig_root(NULL), eop(NULL), min_length(0) {}
   std::size_t xor_num;
   Expr *expr_root;
   Expr *orig_root;
-  BOP *bop;
   EOP *eop;
   std::size_t min_length;
   std::bitset<256> involve;
@@ -68,7 +66,7 @@ class Expr {
 public:
   enum Type {
     kLiteral=0, kCharClass, kDot,
-    kAnchor, kEOP, kBOP, kOperator,
+    kAnchor, kEOP, kOperator,
     kConcat, kUnion, kIntersection, kXOR,
     kQmark, kStar, kPlus,
     kEpsilon, kNone
@@ -282,17 +280,6 @@ public:
   Expr* Clone(ExprPool *p) { return p->alloc<EOP>(); };
 private:
   DISALLOW_COPY_AND_ASSIGN(EOP);
-};
-
-class BOP: public StateExpr {
-public:
-  BOP() { min_length_ = max_length_ = 0; nullable_ = true; }
-  ~BOP() {}
-  Expr::Type type() { return Expr::kBOP; }
-  void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  Expr* Clone(ExprPool *p) { return p->alloc<BOP>(); };
-private:
-  DISALLOW_COPY_AND_ASSIGN(BOP);
 };
 
 class None: public StateExpr {
