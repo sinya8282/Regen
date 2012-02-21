@@ -20,40 +20,15 @@ DFA::DFA(const NFA &nfa, std::size_t limit):
   complete_ = Construct(nfa, limit);
 }
 
-void DFA::ExprToExprNFA(std::set<StateExpr *> &states, ExprNFA &nfa, bool non_greedy) const
+void DFA::VerifyStates(const Subset &states, bool &accept, bool &endline) const
 {
-  struct Tracer t;
-  for (std::set<StateExpr *>::iterator iter = states.begin(); iter != states.end(); ++iter) {
-    t.state = *iter;
-    if ((*iter)->type() == Expr::kEOP) {
-      t.non_greedy = false;
-    } else {
-      t.non_greedy = non_greedy | (*iter)->non_greedy();
-    }
-    if (t.non_greedy) {
-      t.non_greedy = false;
-      if (nfa.find(t) == nfa.end()) {
-        t.non_greedy = true;
-        nfa.insert(t);
-      }
-    } else {
-      t.non_greedy = true;
-      nfa.erase(t);
-      t.non_greedy = false;
-      nfa.insert(t);
-    }
-  }
-}
-
-void DFA::VerifyStates(ExprNFA &nfa, bool &accept, bool &endline) const
-{
-  for (ExprNFA::iterator iter = nfa.begin(); iter != nfa.end(); ++iter) {
-    switch (iter->state->type()) {
+  for (Subset::iterator iter = states.begin(); iter != states.end(); ++iter) {
+    switch ((*iter)->type()) {
       case Expr::kEOP:
         accept = true;
         break;
       case Expr::kAnchor: {
-        Anchor * an = static_cast<Anchor*>(iter->state);
+        Anchor * an = static_cast<Anchor*>(*iter);
         if (an->atype() == Anchor::kEndLine) {
           endline |= std::find(an->follow().begin(), an->follow().end(), expr_info_.eop) != an->follow().end();
           break;
@@ -64,7 +39,7 @@ void DFA::VerifyStates(ExprNFA &nfa, bool &accept, bool &endline) const
   }
 }
 
-void DFA::ExpandStates(ExprNFA &nfa) const
+void DFA::ExpandStates(Subset* states) const
 {
   std::set<Operator*> intersections;
   std::map<std::size_t, Operator*> exclusives;
@@ -72,8 +47,8 @@ void DFA::ExpandStates(ExprNFA &nfa) const
   bool accept = false;
   bool begline = false;
 top:
-  for (ExprNFA::iterator iter = nfa.begin(); iter != nfa.end(); ++iter) {
-    switch (iter->state->type()) {
+  for (Subset::iterator iter = states->begin(); iter != states->end(); ++iter) {
+    switch ((*iter)->type()) {
       case Expr::kBOP:
         begline = true;
         break;
@@ -81,13 +56,13 @@ top:
         accept = true;
         break;
       case Expr::kOperator: {
-        Operator *op = static_cast<Operator*>(iter->state);
+        Operator *op = static_cast<Operator*>(*iter);
         switch (op->optype()) {
           case Operator::kIntersection:
             if (op->pair()->active()) {
-              std::size_t presize = nfa.size();    
-              ExprToExprNFA(op->follow(), nfa, op->non_greedy());
-              if (presize < nfa.size()) goto top;
+              std::size_t presize = states->size();
+              states->insert(op->follow().begin(), op->follow().end());
+              if (presize < states->size()) goto top;
             } else {
               op->set_active(true);
               intersections.insert(op);
@@ -103,7 +78,7 @@ top:
         break;
       }
       case Expr::kAnchor: {
-        Anchor * an = static_cast<Anchor*>(iter->state);
+        Anchor * an = static_cast<Anchor*>(*iter);
         switch (an->atype()) {
           case Anchor::kBegLine:
             beglines.insert(an);
@@ -117,32 +92,20 @@ top:
         break;
     }
   }
-  std::size_t presize = nfa.size();
+  std::size_t presize = states->size();
   for (std::map<std::size_t, Operator*>::iterator iter = exclusives.begin();
        iter != exclusives.end(); ++iter) {
     Operator *op = static_cast<Operator *>(iter->second);
     if (!(op->pair()->active())) {
-      ExprToExprNFA(op->follow(), nfa, op->non_greedy());
+      states->insert(op->follow().begin(), op->follow().end());
     }
-    if (presize < nfa.size()) goto top;
+    if (presize < states->size()) goto top;
   }
 
   if (begline) {
     for (std::set<Anchor*>::iterator iter = beglines.begin(); iter != beglines.end(); ++iter) {
-      ExprToExprNFA((*iter)->follow(), nfa, (*iter)->non_greedy());
-      if (presize < nfa.size()) goto top;      
-    }
-  }
-  if (accept) {
-    std::vector<Tracer> v;
-    for (ExprNFA::iterator iter = nfa.begin(); iter != nfa.end(); ++iter) {
-      if (iter->non_greedy) {
-        v.push_back(*iter);
-      }
-    }
-    for (std::vector<Tracer>::iterator iter = v.begin(); iter != v.end(); ++iter)
-    {
-      nfa.erase(*iter);
+      states->insert((*iter)->follow().begin(), (*iter)->follow().end());
+      if (presize < states->size()) goto top;      
     }
   }
   
@@ -155,37 +118,34 @@ top:
     iter->second->set_active(false);
     iter->second->pair()->set_active(false);
   }
+
   intersections.clear();
   exclusives.clear();
   beglines.clear();
 }
 
-void DFA::FillTransition(StateExpr* state, bool non_greedy, std::vector<ExprNFA> &transition)
+void DFA::FillTransition(StateExpr* state, std::vector<Subset>* transition)
 {
   switch (state->type()) {
     case Expr::kLiteral: {
       Literal *lit = static_cast<Literal*>(state);
       unsigned char index = lit->literal();
-      ExprToExprNFA(lit->follow(), transition[index], non_greedy | lit->non_greedy());
+      (*transition)[index].insert(lit->follow().begin(), lit->follow().end());
       break;
     }
     case Expr::kCharClass: {
       CharClass *cc = static_cast<CharClass*>(state);
-      ExprNFA next;
-      ExprToExprNFA(cc->follow(), next, non_greedy | cc->non_greedy());
       for (std::size_t c = 0; c < 256; c++) {
         if (cc->Match(c)) {
-          transition[c].insert(next.begin(), next.end());
+          (*transition)[c].insert(cc->follow().begin(), cc->follow().end());
         }
       }
       break;
     }
     case Expr::kDot: {
       Dot *dot = static_cast<Dot*>(state);
-      ExprNFA next;
-      ExprToExprNFA(dot->follow(), next, non_greedy | dot->non_greedy());
       for (std::size_t c = 0; c < 256; c++) {
-        transition[c].insert(next.begin(), next.end());
+        (*transition)[c].insert(dot->follow().begin(), dot->follow().end());
       }
       break;
     }
@@ -197,35 +157,30 @@ bool DFA::Construct(std::size_t limit)
 {
   if (expr_info_.expr_root == NULL) return false;
   
-  std::queue<ExprNFA> queue;
-  std::vector<ExprNFA> transition(256);
+  std::queue<Subset> queue;
+  std::vector<Subset> transition(256);
 
   state_t dfa_id = 0;
   bool limit_over = false;
-  ExprNFA nfa;
+  Subset states = expr_info_.expr_root->first();
 
-  ExprToExprNFA(expr_info_.expr_root->first(), nfa);
-  ExpandStates(nfa);
+  ExpandStates(&states);
+  queue.push(states);
   
-  queue.push(nfa);
-  
-  nfa_map_[dfa_id] = nfa;
-  dfa_map_[nfa] = dfa_id++;
+  nfa_map_[dfa_id] = states;
+  dfa_map_[states] = dfa_id++;
 
   while (!queue.empty()) {
-    nfa = queue.front();
+    states = queue.front();
     queue.pop();
 
-    std::fill(transition.begin(), transition.end(), ExprNFA());
+    std::fill(transition.begin(), transition.end(), Subset());
     bool accept = false;
     bool endline = false;
-    bool exist_non_greedy = false;
 
-    VerifyStates(nfa, accept, endline);
-    
-    for (ExprNFA::iterator iter = nfa.begin(); iter != nfa.end(); ++iter) {
-      exist_non_greedy |= iter->non_greedy;
-      FillTransition(iter->state, iter->non_greedy, transition);
+    VerifyStates(states, accept, endline);
+    for (Subset::iterator iter = states.begin(); iter != states.end(); ++iter) {
+      FillTransition(*iter, &transition);
     }
 
     State &state = get_new_state();
@@ -241,33 +196,11 @@ bool DFA::Construct(std::size_t limit)
     }
 
     for (state_t i = 0; i < 256; i++) {
-      ExprNFA &next = transition[i];
-
-      ExpandStates(next);
-
+      Subset& next = transition[i];
+      ExpandStates(&next);
       accept = false;
       VerifyStates(next, accept, endline);
-      if (accept && exist_non_greedy) {
-        ExprNFA next_;
-        next_.insert(Tracer(expr_info_.eop, false));
-        for (ExprNFA::iterator iter = nfa.begin(); iter != nfa.end(); ++iter) {
-          if (iter->state->Match(i)) {
-            if (iter->non_greedy) {
-              next.erase(Tracer(expr_info_.eop, false));
-              ExprToExprNFA(iter->state->follow(), next);
-              accept = false;
-              VerifyStates(next, accept, endline);
-              if (accept) {
-                ExprToExprNFA(iter->state->follow(), next_);
-              }
-            } else {
-              ExprToExprNFA(iter->state->follow(), next_);
-            }
-          }
-        }
-        next.swap(next_);
-      }
-      
+
       if (next.empty()) {
         trans[i] = REJECT;
         state.dst_states.insert(REJECT);
@@ -301,22 +234,22 @@ bool DFA::Construct(const NFA &nfa, size_t limit)
 {
   state_t dfa_id = 0;
 
-  typedef std::set<NFA::state_t> NFA_;
+  typedef std::set<NFA::state_t> Subset_;
 
   std::map<std::set<NFA::state_t>, state_t> dfa_map;
-  std::queue<NFA_> queue;
-  const NFA_ &start_states = nfa.start_states();
+  std::queue<Subset_> queue;
+  const Subset_ &start_states = nfa.start_states();
 
   dfa_map[start_states] = dfa_id++;
   queue.push(start_states);
 
   while (!queue.empty()) {
-    NFA_ nfa_states = queue.front();
+    Subset_ nfa_states = queue.front();
     queue.pop();
-    std::vector<NFA_> transition(256);
+    std::vector<Subset_> transition(256);
     bool accept = false;
 
-    for (NFA_::iterator iter = nfa_states.begin(); iter != nfa_states.end(); ++iter) {
+    for (Subset_::iterator iter = nfa_states.begin(); iter != nfa_states.end(); ++iter) {
       const NFA::State &state = nfa[*iter];
       for (std::size_t i = 0; i < 256; i++) {
         transition[i].insert(state.transition[i].begin(), state.transition[i].end());
@@ -334,7 +267,7 @@ bool DFA::Construct(const NFA &nfa, size_t limit)
     }
     
     for (state_t i = 0; i < 256; i++) {
-      NFA_ &next = transition[i];
+      Subset_ &next = transition[i];
       if (next.empty()) {
         trans[i] = REJECT;
         state.dst_states.insert(REJECT);
@@ -352,58 +285,6 @@ bool DFA::Construct(const NFA &nfa, size_t limit)
   Finalize();
 
   return true;
-}
-
-DFA::state_t DFA::OnTheFlyConstructWithChar(state_t state, unsigned char input, Regen::Context *context) const
-{
-  ExprNFA nfa = nfa_map_[state], next;
-  
-  for (ExprNFA::iterator iter = nfa.begin(); iter != nfa.end(); ++iter) {
-    if (iter->state->non_greedy() && IsAcceptState(state)) continue;
-    StateExpr *s = iter->state;
-    if (s->Match(input)) {
-      ExprToExprNFA(s->follow(), next, s->non_greedy());
-    }
-  }
-
-  bool accept = false;
-  bool endline = false;
-  ExpandStates(next);
-  VerifyStates(next, accept, endline);
-  
-  if (next.empty()) {
-    transition_[state][input] = REJECT;
-    return REJECT;
-  }
-
-  if (dfa_map_.find(next) == dfa_map_.end()) {
-    State& s = get_new_state();
-    dfa_map_[next] = s.id;
-    nfa_map_[s.id] = next;
-    s.accept = accept;
-    s.endline = endline;
-  }
-
-  transition_[state][input] = dfa_map_[next];
-  return dfa_map_[next];
-}
-
-std::pair<DFA::state_t, const unsigned char *> DFA::OnTheFlyConstructWithString(state_t state, const unsigned char *begin, const unsigned char *end, Regen::Context *context) const
-{
-  state_t next;
-  const unsigned char *ptr;
-  for (ptr = begin; ptr < end; ptr++) {
-    if (transition_[state][*ptr] == UNDEF) {
-      next = OnTheFlyConstructWithChar(state, *ptr, context);
-      if (next == REJECT) break;
-      state = next;
-    } else {
-      break;
-    }
-  }
-
-  std::pair<state_t, const unsigned char *> ret(state, ptr);
-  return ret;
 }
 
 void DFA::Finalize()
@@ -625,6 +506,16 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
 #endif
 
   // setup enviroment on register
+  mov(arg3, arg2);
+  mov(arg2, ptr[arg1+sizeof(uint8_t*)]);
+  mov(arg1, ptr[arg1]);
+
+  const int sign = dfa.flag().reverse_match() ? -1 : 1;
+  if (dfa.flag().reverse_match()) {
+    dec(arg1); dec(arg2);
+    mov(tmp2, arg1); mov(arg1, arg2); mov(arg2, tmp2);
+  }
+  
   mov(tbl, (size_t)transition_table_ptr);
   mov(tmp2, 0);
   jmp("s0", T_NEAR);
@@ -634,7 +525,11 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
   L("return");
   test(arg3, arg3);
   je("finalize");
-  mov(ptr[arg3+sizeof(uint8_t*)], tmp2);
+  if (dfa.flag().reverse_match()) {
+    mov(ptr[arg3], tmp2); // result->set_begin(tmp2)
+  } else {
+    mov(ptr[arg3+sizeof(uint8_t*)], tmp2); // result->set_end(tmp2)
+  }
   L("finalize");
 #ifdef XBYAK32
   pop(ebx);
@@ -645,8 +540,6 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
   ret();
 
   align(16);
-
-  const int sign = dfa.flag().reverse_match() ? -1 : 1;
 
   DFA::state_t reset_state = DFA::UNDEF;
   
@@ -906,7 +799,7 @@ bool DFA::Compile(Regen::Options::CompileFlag olevel)
     }
   }
   xgen_ = new JITCompiler(*this);
-  CompiledMatch = (state_t (*)(const unsigned char *, const unsigned char *, Regen::Context*))xgen_->getCode();
+  CompiledMatch = (state_t (*)(const unsigned char**, const unsigned char**))xgen_->getCode();
   if (olevel_ < Regen::Options::O1) olevel_ = Regen::Options::O1;
   return olevel == olevel_;
 }
@@ -916,27 +809,34 @@ bool DFA::Reduce() { return false; }
 bool DFA::Compile(Regen::Options::CompileFlag) { return false; }
 #endif
 
-bool DFA::Match(const unsigned char *str, const unsigned char *end, Regen::Context *context) const
+bool DFA::Match(const Regen::StringPiece &string, Regen::StringPiece *result) const
 {
-  if (!complete_) return OnTheFlyMatch(str, end, context);
+  if (!complete_) return OnTheFlyMatch(string, result);
 
   state_t state = 0;
 
   if (olevel_ >= Regen::Options::O1) {
-    state = CompiledMatch(str, end, context);
-    if (context == NULL) {
+    state = CompiledMatch(string._udata(), result->_udata());
+    if (result == NULL) {
       return IsAcceptState(state);
     } else {
       if (flag_.suffix_match() && IsAcceptState(state)) {
-        context->set_end((const char *)end);
+        result->set_end(string.end());
         return true;
       } else {
-        return context->end() != NULL;
+        return result->end() != NULL;
       }
     }
   }
 
-  int dir = str < end ? 1 : -1;
+  int dir = 1;  
+  const unsigned char* str = string.ubegin();
+  const unsigned char* end = string.uend();
+  if (flag_.reverse_match()) {
+    dir = -1; str--; end--;
+    std::swap(str, end);
+  }
+
   while (str != end && (state = transition_[state][*str]) != DFA::REJECT) {
     str += dir;
   }
@@ -944,37 +844,66 @@ bool DFA::Match(const unsigned char *str, const unsigned char *end, Regen::Conte
   return state != DFA::REJECT ? states_[state].accept : false;
 }
 
-bool DFA::OnTheFlyMatch(const unsigned char *str, const unsigned char *end, Regen::Context *context) const
+bool DFA::OnTheFlyMatch(const Regen::StringPiece& string, Regen::StringPiece* result) const
 {
-  state_t state = 0, next = UNDEF;
   if (empty()) {
-    ExprNFA nfa;
-    ExprToExprNFA(expr_info_.expr_root->first(), nfa);
-    ExpandStates(nfa);
+    Subset states = expr_info_.expr_root->first();
+    ExpandStates(&states);
     bool accept = false;
     bool endline = false;
-    VerifyStates(nfa, accept, endline);
+    VerifyStates(states, accept, endline);
     State& s = get_new_state();
-    dfa_map_[nfa] = s.id;
-    nfa_map_[s.id] = nfa;
+    dfa_map_[states] = s.id;
+    nfa_map_[s.id] = states;
     s.accept = accept;
     s.endline = endline;
   }
 
-  while (str < end) {
-    next = transition_[state][*str++];
+  int dir = 1;  
+  const unsigned char* str = string.ubegin();
+  const unsigned char* end = string.uend();
+  if (flag_.reverse_match()) {
+    dir = -1; str--, end--;
+    std::swap(str, end);
+  }
+  
+  state_t state = 0, next = UNDEF;
+  
+  while (str != end) {
+    next = transition_[state][*str];
     if (next >= UNDEF) {
       if (next == REJECT) return false;
-      std::pair<state_t, const unsigned char *> config = OnTheFlyConstructWithString(state, str-1, end, context);
-      if (config.second >= end) {
-        state = config.first;
-        break;
-      } else if ((next = transition_[config.first][*(config.second)]) == DFA::REJECT) {
-        return false;
-      }
-      str = config.second+1;
+      do { // do matching with on-the-fly construction.
+        Subset& states = nfa_map_[state];
+        Subset nexts;
+
+        for (Subset::iterator iter = states.begin(); iter != states.end(); ++iter) {
+          if ((*iter)->Match(*str)) {
+            nexts.insert((*iter)->follow().begin(), (*iter)->follow().end());
+          }
+        }
+        ExpandStates(&nexts);
+
+        if (nexts.empty()) {
+          next = transition_[state][*str] = REJECT;
+        } else if (dfa_map_.find(nexts) == dfa_map_.end()) {
+          bool accept = false, endline = false;
+          VerifyStates(nexts, accept, endline);
+          State& s = get_new_state();
+          dfa_map_[nexts] = s.id;
+          nfa_map_[s.id] = nexts;
+          s.accept = accept;
+          next = transition_[state][*str] = s.id;
+        } else {
+          next = dfa_map_[nexts];
+        }
+        str += dir;
+        state = next;
+      } while (str != end && transition_[state][*str] == UNDEF);
+    } else {
+      str += dir;
+      state = next;
     }
-    state = next;
   }
 
   return state != DFA::REJECT ? IsAcceptOrEndlineState(state) : false;

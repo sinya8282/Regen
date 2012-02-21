@@ -2,8 +2,8 @@
 
 namespace regen {
 
-Regex::Regex(const std::string &regex, const Regen::Options flags):
-    regex_(regex),
+Regex::Regex(const Regen::StringPiece& pattern, const Regen::Options flags):
+    regex_(pattern.as_string()),
     flag_(flags),
     recursion_depth_(0),
     involved_char_(std::bitset<256>()),
@@ -510,7 +510,7 @@ CharClass* Regex::BuildCharClass(Lexer *lexer, CharClass *cc)
   if (range) {
     table.set('-');
   }
-
+  
   if (cc->count() == 1) {
     lexer->literal(lastc);
   } else if (cc->count() >= 128 && !cc->negative()) {
@@ -695,21 +695,12 @@ bool Regex::Compile(Regen::Options::CompileFlag olevel) {
   return olevel_ == olevel;
 }
 
-bool Regex::Match(const std::string &string, Regen::Context *context)  const {
-  const unsigned char* begin = (const unsigned char *)string.c_str();
-  return Match(begin, begin+string.length(), context);
-}
-
-bool Regex::Match(const char *begin, const char * end, Regen::Context *context) const {
-  return Match((const unsigned char*)begin, (const unsigned char*)end, context);
-}
-
-bool Regex::Match(const unsigned char *begin, const unsigned char * end, Regen::Context *context) const {
-  return dfa_.Match(begin, end, context);
+bool Regex::Match(const Regen::StringPiece& string, Regen::StringPiece *result)  const {
+  return dfa_.Match(string, result);
 }
 
 /* Thompson-NFA based matching */
-bool Regex::NFAMatch(const unsigned char *begin, const unsigned char *end, Regen::Context *context) const
+bool Regex::NFAMatch(const Regen::StringPiece& string, Regen::StringPiece *result) const
 {
   typedef std::vector<StateExpr*> NFA;
   std::size_t nfa_size = state_exprs_.size();
@@ -720,7 +711,7 @@ bool Regex::NFAMatch(const unsigned char *begin, const unsigned char *end, Regen
   NFA states, next_states;
   states.insert(states.begin(), expr_info_.expr_root->transition().first.begin(), expr_info_.expr_root->transition().first.end());
 
-  for (const unsigned char *p = begin; p < end; p++, step++) {
+  for (const unsigned char *p = string.ubegin(); p < string.uend(); p++, step++) {
     for (iter = states.begin(); iter != states.end(); ++iter) {
       StateExpr *s = *iter;
       if (s->Match(*p)) {

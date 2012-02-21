@@ -13,7 +13,7 @@ public:
  public:
     enum ParseFlag {
       NoParseFlags = 0,
-      MatchNL = 1 << 0,
+      IgnoreCase = 1 << 0,
       OneLine = 1 << 1,
       ReverseRegex = 1 << 2,
       ShortestMatch = 1 << 3,
@@ -44,13 +44,13 @@ public:
     enum CompileFlag {
       Onone = -1, O0 = 0, O1 = 1, O2 = 2, O3 = 3
     };
-    Options(ParseFlag flag = NoParseFlags);
+    Options(ParseFlag flag = NoParseFlags, const unsigned char delimiter = '\n');
     bool shortest_match() const { return shortest_match_; }
     void shortest_match(bool b) { shortest_match_ = b; }
     bool longest_match() const { return !shortest_match(); }
     void longest_match(bool b) { shortest_match_ = !b; }
-    bool match_nl() const { return match_nl_; }
-    void match_nl(bool b) { match_nl_ = b; }
+    bool ignore_case() const { return ignore_case_; }
+    void ignore_case(bool b) { ignore_case_ = b; }
     bool one_line() const { return one_line_; }
     void one_line(bool b) { one_line_ = b; }
     bool reverse_regex() const { return reverse_regex_; }
@@ -95,10 +95,10 @@ public:
     void encoding_utf8(bool b) { encoding_utf8_ = b; }
     bool encoding_ascii() const { return !encoding_utf8(); }
     void encoding_ascii(bool b) { encoding_utf8(!b); }
+    const unsigned char delimiter() const { return delimiter_; }
  private:
     bool shortest_match_;
-    bool dot_nl_;
-    bool match_nl_;
+    bool ignore_case_;
     bool one_line_;
     bool reverse_regex_;
     bool reverse_match_;
@@ -116,6 +116,7 @@ public:
     bool reverse_ext_;
     bool weakbackref_ext_;
     bool encoding_utf8_;
+    const unsigned char delimiter_;
   };
   static const Options DefaultOptions;
   struct Context {
@@ -128,16 +129,47 @@ public:
     const char * operator[](std::size_t index) const { return ptr[index]; }
     void clear() { ptr[0] = ptr[1] = NULL; }
   };
+  struct StringPiece {
+   public:
+    StringPiece() { clear(); }
+    StringPiece(const StringPiece &s) { set_begin(s.begin()); set_end(s.end()); }
+    StringPiece(const char* str) { set(str); }
+    StringPiece(const char* str, std::size_t length) { set(str, length); }
+    StringPiece(const std::string& str) { set(str); }
+    void set(const char* str) { ptr[0] = str; ptr[1] = str == NULL ? str : str + strlen(str); }
+    void set(const char* str, std::size_t length) { ptr[0] = str; ptr[1] = str + length; }
+    void set(const std::string& str) { ptr[0] = str.data(); ptr[1] = str.data() + str.length(); }
+    const char * data() const { return ptr[0]; }
+    const unsigned char * udata() const { return (const unsigned char *)ptr[0]; }
+    const char ** _data() const { return (const char**)ptr; }
+    const unsigned char ** _udata() const { return (const unsigned char **)ptr; }
+    const char * begin() const { return ptr[0]; }
+    const unsigned char * ubegin() const { return (const unsigned char*)ptr[0]; }
+    void set_begin(const char* p) { ptr[0] = p; }
+    const char * end() const { return ptr[1]; }
+    const unsigned char * uend() const { return (const unsigned char*)ptr[1]; }
+    void set_end(const char* p) { ptr[1] = p; }
+    const char * operator[](std::size_t index) const { return ptr[index]; }
+
+    void consume(int dir = 1) { ptr[0] += dir; }
+    void clear() { ptr[0] = ptr[1] = NULL; }
+    bool valid() const { return ptr[0] != NULL && ptr[1] != NULL && ptr[0] <= ptr[1]; }
+    std::size_t size() const { return !valid() ? 0 : ptr[1] - ptr[0]; }
+    std::size_t length() const { return size(); }
+    bool empty() const { return size() == 0; }
+    std::string as_string() const { return std::string(ptr[0], size()); }
+   private:
+    const char *ptr[2];
+  };
   Regen(const std::string &, Regen::Options = Regen::Options::NoParseFlags);
   ~Regen();
   bool Compile(Options::CompileFlag olevel = Options::O3);
 
-  bool Match(const char *, const char *, Context *context = NULL) const;
-  static bool Match(const char *, const char *, const Regen &, Context * context = NULL);
-  static bool FullMatch(const char *, const char *, const std::string &, Options, Context *context = NULL);
-  static bool PartialMatch(const char *, const char *, const std::string &, Options, Context *context = NULL);
-  static bool FullMatch(const char *, const char *, const std::string &, Context *context = NULL);
-  static bool PartialMatch(const char *, const char *, const std::string &, Context *context = NULL);
+  bool Match(const StringPiece& string, StringPiece* result = NULL) const;
+  static bool FullMatch(const StringPiece& string, const StringPiece& pattern, Options opt, StringPiece *result = NULL);
+  static bool FullMatch(const StringPiece& string, const StringPiece& pattern, StringPiece* result = NULL);
+  static bool PartialMatch(const StringPiece &string, const StringPiece& pattern, Options opt, StringPiece *result = NULL);
+  static bool PartialMatch(const StringPiece &string, const StringPiece& pattern, StringPiece *result = NULL);
 
 private:
   Regex *regex_;

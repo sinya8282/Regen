@@ -8,29 +8,14 @@ CodeSegment::CodeSegment(const DFA &dfa, Jitter &jitter, std::size_t code_segmen
     dfa_(dfa), jitter_(jitter), code_segment_size_(code_segment_size),
     reject_addr_(NULL), return_addr_(NULL),
 #ifdef XBYAK32
-    arg1(ecx),
-    arg2(edx),
-    arg3(ebx),
-    tbl (ebp),
-    tmp1(esi),
-    tmp2(edi),
-    reg_a(eax)
+    arg1(ecx), arg2(edx), arg3(ebx),
+    tbl (ebp), tmp1(esi), tmp2(edi), reg_a(eax)
 #elif defined(XBYAK64_WIN)
-    arg1(rcx),
-    arg2(rdx),
-    arg3(r8),
-    tbl (r9),
-    tmp1(r10),
-    tmp2(r11),
-    reg_a(rax),
+    arg1(rcx), arg2(rdx), arg3(r8),
+    tbl (r9), tmp1(r10), tmp2(r11), reg_a(rax),
 #else
-    arg1(rdi),
-    arg2(rsi),
-    arg3(rdx),
-    tbl (r8),
-    tmp1(r10),
-    tmp2(r11),
-    reg_a(rax)
+    arg1(rdi), arg2(rsi), arg3(rdx),
+    tbl (r8), tmp1(r10), tmp2(r11), reg_a(rax)
 #endif
 {
 }

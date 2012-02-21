@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
   Option opt;
   int opt_;
 
-  while ((opt_ = getopt(argc, argv, "cf:hHoO:qU")) != -1) {
+  while ((opt_ = getopt(argc, argv, "cf:hHoiO:qU")) != -1) {
     switch(opt_) {
       case 'c':
         opt.count_line = true;
@@ -38,6 +38,9 @@ int main(int argc, char *argv[])
       }
       case 'h':
         opt.print_file = -1;
+        break;
+      case 'i':
+        opt.pflag.ignore_case(true);
         break;
       case 'H':
         opt.print_file = 1;
@@ -90,32 +93,30 @@ int main(int argc, char *argv[])
 
 void grep(const Regen &re, const regen::Util::mmap_t &buf, const Option &opt)
 {
-  const char *str = (char*)buf.ptr;
-  const char *end = str + buf.size;
+  Regen::StringPiece string(buf.ptr, buf.size), result;
   static const char newline[] = "\n";
   int count = 0;
-  Regen::Context context;
-  while (re.Match(str, end, &context)) {
+  while (re.Match(string, &result)) {
     if (opt.only_matching) {
-      if (context.begin() == context.end()) {
-        str = context.end() + 1;
+      if (result.begin() == result.end()) {
+        string.set_begin(result.end() + 1);
       } else {
-        write(1, context.begin(), context.end()-context.begin());
+        write(1, result.begin(), result.size());
         write(1, newline, 1);
-        str = context.end();
+        string.set_begin(result.end());
       }
     } else {
-      const char *end_ = (const char*)memchr(context.end(), '\n', end-context.end());
-      if (end_ == NULL) end_ = end;
+      const char *end = (const char*)memchr(result.end(), '\n', end-result.end());
+      if (end == NULL) end = string.end();
       if (opt.count_line) {
         count++;
       } else {
-        const char *beg = get_line_beg(context.end(), str);
-        write(1, beg, end_-beg+1);
+        const char *beg = get_line_beg(result.end(), string.begin());
+        write(1, beg, end-beg+1);
       }
-      str = end_+1;
+      string.set_begin(end+1);
     }
-    if (str >= end) break;
+    if (string.empty()) break;
   }
   if (opt.count_line) printf("%d\n", count);
 }

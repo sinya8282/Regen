@@ -46,7 +46,24 @@ Lexer::Type Lexer::Consume()
     case ')': token_ = kRpar;      break;
     case '{': token_ = lex_repetition(); break;
     case '\\': token_ = lex_metachar();  break;
-    default: token_ = kLiteral;          break;
+    default:
+      if (flag_.ignore_case()) {
+        if ('A' <= literal_ && literal_ <= 'Z') {
+          table_.reset();
+          table_.set(literal_); table_.set(literal_+32);
+          token_ = kByteRange;
+        } else if ('a' <= literal_ && literal_ <= 'z') {
+          table_.reset();
+          table_.set(literal_); table_.set(literal_-32);
+          token_ = kByteRange;
+        } else {
+          token_ = kLiteral;
+          break;
+        }
+      } else {
+        token_ = kLiteral;
+        break;
+      }
   }
 
   return token_;
@@ -155,8 +172,23 @@ Lexer::Type Lexer::lex_metachar()
       break;
     }
     default:
-      token = kLiteral;
-      break;
+      if (flag_.ignore_case()) {
+        if ('A' <= literal_ && literal_ <= 'Z') {
+          table_.reset();
+          table_.set(literal_); table_.set(literal_+32);
+          token = kByteRange;
+        } else if ('a' <= literal_ && literal_ <= 'z') {
+          table_.reset();
+          table_.set(literal_); table_.set(literal_-32);
+          token = kByteRange;
+        } else {
+          token = kLiteral;
+          break;
+        }
+      } else {
+        token = kLiteral;
+        break;
+      }
   }
 
   return token;

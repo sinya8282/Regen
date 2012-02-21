@@ -69,11 +69,11 @@ int main(int argc, char *argv[]) {
       Regen r(regex, opt);
       r.Compile(olevel);
       compile_time += rdtsc();
-      Regen::Context context;
+      Regen::StringPiece string(mm.ptr, mm.size), result;
       matching_time -= rdtsc();
-      match = r.Match((const char*)mm.ptr, (const char*)mm.ptr+mm.size, &context);
+      match = r.Match(string, &result);
       matching_time += rdtsc();
-      if (print) printf("%s\n", std::string(context.begin(), context.end()-context.begin()).c_str());
+      if (print) printf("%s\n", result.data());
     } else {
 #ifdef REGEN_ENABLE_PARALLEL
       compile_time -= rdtsc();
@@ -82,8 +82,9 @@ int main(int argc, char *argv[]) {
       regen::SFA sfa(r.expr_root(), r.state_exprs(), thread_num);
       sfa.Compile(olevel);
       compile_time += rdtsc();
+      Regen::StringPiece string(mm.ptr, mm.size);
       matching_time -= rdtsc();
-      match = sfa.Match(mm.ptr, mm.ptr+mm.size);
+      match = sfa.Match(string);
       matching_time += rdtsc();
 #else
       exitmsg("SFA is not supported.\n");

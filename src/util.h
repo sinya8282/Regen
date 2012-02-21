@@ -88,7 +88,7 @@ struct mmap_t{
       fprintf(stderr, "ERR:CreateFileMapping %s\n", path);
       exit(1);
     }
-    ptr = reinterpret_cast<unsigned char*>(MapViewOfFile(h2, FILE_MAP_READ, 0, 0, 0));
+    ptr = MapViewOfFile(h2, FILE_MAP_READ, 0, 0, 0);
     if (ptr == NULL) {
       fprintf(stderr, "ERR:MapViewOfFile\n", path);
       exit(1);
@@ -106,7 +106,7 @@ struct mmap_t{
   { return ptr != (void *)-1; }
 
   uint64_t size;
-  unsigned char *ptr;
+  char *ptr;
   HANDLE h1, h2;
 };
 #else
@@ -122,7 +122,7 @@ struct mmap_t{
     int f = open(path, OPEN_MODE);
     struct stat statbuf;
     fstat(f, &statbuf);
-    ptr = (unsigned char *)mmap(0, statbuf.st_size, PROT, flags, f, 0);
+    ptr = (char *)mmap(0, statbuf.st_size, PROT, flags, f, 0);
     if (ptr == MAP_FAILED) exitmsg("can't mmap %s\n", path);
     size=statbuf.st_size;
     close(f);
@@ -136,7 +136,7 @@ struct mmap_t{
   { return ptr != (void *)-1; }
 
   size_t size;
-  unsigned char *ptr;
+  char *ptr;
 };
 #endif
 

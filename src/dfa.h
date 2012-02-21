@@ -39,14 +39,8 @@ class JITCompiler: public Xbyak::CodeGenerator {
 class Jitter;
 class DFA {
 public:
-  struct Tracer {
-    Tracer(StateExpr *s = NULL, bool n = false): state(s), non_greedy(n) {}
-    StateExpr *state;
-    bool non_greedy;
-    bool operator<(const Tracer &other) const { if (state == other.state) { return non_greedy < other.non_greedy; } else { return state < other.state; } }
-  };
-  typedef std::set<Tracer> ExprNFA;
   typedef uint32_t state_t;
+  typedef std::set<StateExpr*> Subset;
   enum StateType {
     REJECT = (state_t)-1,
     UNDEF  = (state_t)-2
@@ -111,23 +105,19 @@ public:
   bool IsEndlineState(std::size_t state) const { return state == REJECT ? false : states_[state].endline; }
   bool IsAcceptOrEndlineState(std::size_t state)  const { return IsAcceptState(state) | IsEndlineState(state); }
 
-  void VerifyStates(ExprNFA &, bool &, bool &) const;
-  void ExpandStates(ExprNFA &) const;
-  void ExprToExprNFA(std::set<StateExpr*> &, ExprNFA &, bool non_greedy = false) const;
-  void FillTransition(StateExpr *, bool, std::vector<ExprNFA> &);
-  bool Construct(std::size_t limit = std::numeric_limits<size_t>::max());
-  bool Construct(const NFA &nfa, std::size_t limit = std::numeric_limits<size_t>::max());
-  state_t OnTheFlyConstructWithChar(state_t state, unsigned char input, Regen::Context *context) const;
-  std::pair<state_t, const unsigned char *> OnTheFlyConstructWithString(state_t state, const unsigned char *begin, const unsigned char *end, Regen::Context *context) const;
+  void VerifyStates(const Subset&, bool&, bool&) const;
+  void ExpandStates(Subset*) const;
+  void FillTransition(StateExpr*, std::vector<Subset>*);
+
   void Complementify();
   virtual bool Minimize();
   bool Compile(Regen::Options::CompileFlag olevel = Regen::Options::O2);
-  virtual bool OnTheFlyMatch(const std::string &str, Regen::Context *context) const { return OnTheFlyMatch((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length(), context); }
-  virtual bool OnTheFlyMatch(const unsigned char *, const unsigned char*, Regen::Context *context) const;
-  virtual bool Match(const std::string &str, Regen::Context *context = NULL) const { return Match((unsigned char*)str.c_str(), (unsigned char *)str.c_str()+str.length(), context); }
-  virtual bool Match(const unsigned char *str, const unsigned char *end, Regen::Context *context = NULL) const;
+  virtual bool OnTheFlyMatch(const Regen::StringPiece& string, Regen::StringPiece* result = NULL) const;
+  virtual bool Match(const Regen::StringPiece& string, Regen::StringPiece* result = NULL) const;
   void state2label(state_t state, char* labelbuf) const;
 
+  bool Construct(std::size_t limit = std::numeric_limits<size_t>::max());
+  bool Construct(const NFA &nfa, std::size_t limit = std::numeric_limits<size_t>::max());
   iterator begin() { return states_.begin(); }
   iterator end() { return states_.end(); }
   const_iterator begin() const { return states_.begin(); }
@@ -139,14 +129,14 @@ public:
 protected:
   mutable std::vector<Transition> transition_;
   mutable std::deque<State> states_;
-  mutable std::map<ExprNFA, state_t> dfa_map_;
-  mutable std::map<state_t, ExprNFA> nfa_map_;
+  mutable std::map<Subset, state_t> dfa_map_;
+  mutable std::map<state_t, Subset> nfa_map_;
   ExprInfo expr_info_;
   bool complete_;
   bool minimum_;
   Regen::Options flag_;
   void Finalize();
-  state_t (*CompiledMatch)(const unsigned char *, const unsigned char *, Regen::Context*);
+  state_t (*CompiledMatch)(const unsigned char**, const unsigned char**);
   bool EliminateBranch();
   bool Reduce();
   Regen::Options::CompileFlag olevel_;

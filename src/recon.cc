@@ -139,6 +139,7 @@ void die(bool help = false)
   if (help) {
     printf("Regex selection and interpretation:\n"
            "  -E   PATTERN is an extended regular expression(&,!,&&,||,,,)\n"
+           "  -i   ignore case"
            "  -f   obtain PATTERN from FILE\n"
            "Output control:\n"
            "  -t   generate acceptable strings\n"
@@ -152,21 +153,26 @@ void die(bool help = false)
 
 int main(int argc, char *argv[]) {
   std::string regex;
-  bool info, minimize, automata, extended, reverse, encoding_utf8, sfa;
-  info = minimize = automata = extended = reverse = encoding_utf8 = sfa = false;
+  Regen::Options option;
+  bool info, minimize, automata, sfa;
+  info = minimize = automata = sfa = false;
   int opt;
   int seed = time(NULL);
   Generate generate = REGEN;
 
-  while ((opt = getopt(argc, argv, "amdchixEtrsSf:U")) != -1) {
+  while ((opt = getopt(argc, argv, "amdchiIxEtrsSf:U")) != -1) {
     switch(opt) {
       case 'h':
         die(true);
+        break;
       case 'i':
+        option.ignore_case(true);
+        break;;
+      case 'I':
         info = true;
         break;
       case 'E':
-        extended = true;
+        option.extended(true);
         break;
       case 'f': {
         std::ifstream ifs(optarg);
@@ -180,7 +186,7 @@ int main(int argc, char *argv[]) {
         generate = CGEN;
         break;
       case 'r':
-        reverse = true;
+        option.reverse_regex(true);
         break;
       case 'm':
         minimize = true;
@@ -199,7 +205,7 @@ int main(int argc, char *argv[]) {
         generate = DOTGEN;
         break;
       case 'U':
-        encoding_utf8 = true;
+        option.encoding_utf8(true);
         break;
       default: die();
     }
@@ -223,10 +229,6 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  regen::Regen::Options option;
-  option.extended(extended);
-  option.reverse(reverse);
-  option.encoding_utf8(encoding_utf8);
   regen::Regex r = regen::Regex(regex, option);
 
   if (info) {

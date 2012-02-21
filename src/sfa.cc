@@ -243,50 +243,51 @@ SFA::SFA(const DFA &dfa, std::size_t thread_num):
 
 void SFA::MatchTask(TaskArg targ) const
 {
-  const unsigned char *str = targ.str;
-  const unsigned char *end = targ.end;
 
   if (olevel_ >= Regen::Options::O1) {
-    partial_results_[targ.task_id] = CompiledMatch(str, end, NULL);
+    partial_results_[targ.task_id] = CompiledMatch(targ.string._udata(), NULL);
     return;
   }
   
   state_t state = 0;
-
+  const unsigned char* str = targ.string.ubegin(), * end = targ.string.ubegin();
+  
   while (str != end && (state = transition_[state][*str++]) != DFA::REJECT);
 
   partial_results_[targ.task_id] = state;
   return;
 }
 
-bool SFA::Match(const unsigned char *str, const unsigned char *end, Regen::Context *context) const
+bool SFA::Match(const Regen::StringPiece &string, Regen::StringPiece *result) const
 {
   if (!complete_) return false;
 
   std::size_t thread_num = thread_num_;
-  if (end-str <= 2)  {
+  if (string.size() <= 2)  {
     thread_num = 1;
-  } else if ((std::size_t)(end-str) < thread_num) {
-    thread_num = end-str;
+  } else if (string.size() < thread_num) {
+    thread_num = string.size();
   }
   partial_results_.resize(thread_num);
   boost::thread *threads[thread_num];
-  std::size_t task_string_length = (end-str) / thread_num;
-  std::size_t remainder_length = (end-str) % thread_num;
-  const unsigned char *str_ = str, *end_;
+  std::size_t task_string_length = string.size() / thread_num;
+  std::size_t remainder_length = string.size() % thread_num;
   TaskArg targ;
+  const char *str = string.begin();
 
   for (std::size_t i = 0; i < thread_num; i++) {
-    end_ = str_ + task_string_length;
-    if (i == thread_num - 1) end_ += remainder_length;
-    targ.str = str_;
-    targ.end = end_;
-    targ.task_id = i;
-    threads[i] = new boost::thread(
+    if (i == thread_num - 1) task_string_length += remainder_length;
+    targ.string.set(str, task_string_length);
+    if (flag_.reverse_match()) {
+      targ.task_id = thread_num - i - 1;
+    } else {
+      targ.task_id = i;
+    }
+    threads[targ.task_id] = new boost::thread(
         boost::bind(
             boost::bind(&regen::SFA::MatchTask, this, _1),
             targ));
-    str_ = end_;
+    str += task_string_length;
   }
 
   std::set<state_t> states, next_states;

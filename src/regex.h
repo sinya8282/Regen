@@ -17,7 +17,7 @@ namespace regen {
 
 class Regex {
 public:
-  Regex(const std::string &regex, const Regen::Options = Regen::Options::NoParseFlags);
+  Regex(const Regen::StringPiece& regex, const Regen::Options = Regen::Options::NoParseFlags);
   ~Regex() {}
   void PrintRegex() const;
   static void PrintRegex(const DFA &);
@@ -27,10 +27,8 @@ public:
   void DumpExprTree() const;
   bool Compile(Regen::Options::CompileFlag olevel = Regen::Options::O3);
   bool MinimizeDFA() { if (dfa_.Complete()) { dfa_.Minimize(); return true; } else return false; }
-  bool Match(const std::string &string, Regen::Context *context = NULL) const;
-  bool Match(const char *begin, const char *end, Regen::Context *context = NULL) const;
-  bool Match(const unsigned char *begin, const unsigned char *end, Regen::Context *context = NULL) const;
-  bool NFAMatch(const unsigned char *begin, const unsigned char *end, Regen::Context *context = NULL) const;
+  bool Match(const Regen::StringPiece& string, Regen::StringPiece *result = NULL) const;
+  bool NFAMatch(const Regen::StringPiece& string, Regen::StringPiece *result = NULL) const;
   const std::string& regex() const { return regex_; }
   const Must& must() const { return must_; }
   std::size_t max_length() const { return expr_info_.orig_root->max_length(); }
