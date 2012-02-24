@@ -208,17 +208,6 @@ bool DFA::Construct(std::size_t limit)
           state.dst_states.insert(REJECT);
           continue;
         }
-      } else if (!flag_.suffix_match() && flag_.longest_match()) {
-        /* Leftmost-Longest matching
-           if current state is accepted
-              and next state is not accepted
-           then no more transitions are needed. 
-        */
-        if (state.accept && !ContainAcceptState(next)) {
-          trans[c] = REJECT;
-          state.dst_states.insert(REJECT);
-          continue;
-        }
       }
       
       if (dfa_map_.find(next) == dfa_map_.end()) {
