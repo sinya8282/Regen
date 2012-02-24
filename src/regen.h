@@ -149,13 +149,18 @@ public:
     const char * begin() const { return ptr[0]; }
     const unsigned char * ubegin() const { return (const unsigned char*)ptr[0]; }
     void set_begin(const char* p) { ptr[0] = p; }
+    void set_ubegin(const unsigned char* p) { ptr[0] = (const char*)p; }
     const char * end() const { return ptr[1]; }
     const unsigned char * uend() const { return (const unsigned char*)ptr[1]; }
     void set_end(const char* p) { ptr[1] = p; }
+    void set_uend(const unsigned char* p) { ptr[1] = (const char*)p; }
     const char * operator[](std::size_t index) const { return ptr[index]; }
 
     void consume(int dir = 1) { ptr[0] += dir; }
     void clear() { ptr[0] = ptr[1] = NULL; }
+    void reverse() { if (!empty())
+      { std::swap(ptr[0], ptr[1]); if (ptr[0] > ptr[1]) { ptr[0]--; ptr[1]--; } else { ptr[0]++; ptr[1]++; } }
+    }
     bool valid() const { return ptr[0] != NULL && ptr[1] != NULL && ptr[0] <= ptr[1]; }
     std::size_t size() const { return !valid() ? 0 : ptr[1] - ptr[0]; }
     std::size_t length() const { return size(); }

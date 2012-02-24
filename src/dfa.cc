@@ -509,21 +509,13 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
   const Xbyak::Reg64& reg_a(rax);
 #endif
   // setup enviroment on register
+  const int sign = dfa.flag().reverse_match() ? -1 : 1;
+  push(arg2);
+  push(arg1);
   mov(tbl, (size_t)transition_table_ptr);
   mov(tmp2, 0);
-  push(arg2);
-  int sign = 1;
-  if (dfa.flag().reverse_match()) {
-    sign = -1;
-    push(arg1+sizeof(uint8_t*));
-    mov(arg2, ptr[arg1]);
-    mov(arg1, ptr[arg1+sizeof(uint8_t*)]);
-    dec(arg1); dec(arg2);
-  } else {
-    push(arg1);
-    mov(arg2, ptr[arg1+sizeof(uint8_t*)]);
-    mov(arg1, ptr[arg1]);
-  }
+  mov(arg2, ptr[arg1+sizeof(uint8_t*)]);
+  mov(arg1, ptr[arg1]);
 
   mov(tmp1, (std::size_t)&(states_addr_[0]));
   jmp(ptr[tmp1+arg3*sizeof(uint8_t*)]);
@@ -538,12 +530,7 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
   pop(tmp1);
   test(tmp1, tmp1);
   je("finalize");
-  if (dfa.flag().reverse_match()) {
-    inc(tmp2);
-    mov(ptr[tmp1], tmp2); // result->set_begin(tmp2)
-  } else {
-    mov(ptr[tmp1+sizeof(uint8_t*)], tmp2); // result->set_end(tmp2)
-  }
+  mov(ptr[tmp1], tmp2);
 
   L("finalize");
 #ifdef XBYAK32
@@ -824,48 +811,71 @@ bool DFA::Match(const Regen::StringPiece &string, Regen::StringPiece *result) co
 {
   if (!complete_) return OnTheFlyMatch(string, result);
 
-  state_t state = 0;
-
-  if (olevel_ >= Regen::Options::O1) {
-    Regen::StringPiece string_(string);
-    const unsigned char **arg1 = string_._udata(),
-        **arg2 = result->_udata();
-    state = CompiledMatch(arg1, arg2, state);
-    bool accept = IsAcceptState(state);
-    if (!accept && state != REJECT && string_.empty()) {
-      Subset endstates = nfa_map_[state];
-      ExpandStates(&endstates, string_.begin() == string_.begin(), true);
-      accept = ContainAcceptState(endstates);
-    }
-    if (result == NULL) {
-      return accept;
-    } else {
-      if (flag_.suffix_match() && accept) {
-        if (flag_.reverse_match()) {
-          result->set_begin(string.begin());
-        } else {
-          result->set_end(string.end());
-        }
-        return true;
-      } else {
-        return result->end() != NULL;
-      }
-    }
-  }
-
-  int dir = 1;  
-  const unsigned char* str = string.ubegin();
-  const unsigned char* end = string.uend();
+  Regen::StringPiece string_(string);
+  int sign = 1;
+  const unsigned char* matchptr = NULL;
   if (flag_.reverse_match()) {
-    dir = -1; str--; end--;
+    sign = -1;
+    string_.reverse();
+  }
+  const unsigned char* str = string_.ubegin(), * end = string_.uend();
+  state_t state = 0;
+  bool accept = false;
+
+  /* JITed matching */
+  if (olevel_ >= Regen::Options::O1) {
+    const unsigned char **arg1 = string_._udata();
+    state = CompiledMatch(arg1, &matchptr, state);
+    goto finalize;
+  }
+
+  /* while-tablelookup matching */
+  if (flag_.reverse_match()) {
+    sign = -1;
     std::swap(str, end);
+    str--; end--;
   }
 
-  while (str != end && (state = transition_[state][*str]) != DFA::REJECT) {
-    str += dir;
+  if (result == NULL) {
+    while (str != end && (state = transition_[state][*str]) != DFA::REJECT) {
+      str += sign;
+    }
+  } else {
+    if (IsAcceptState(state)) matchptr = str;
+    while (!string_.empty() && (state = transition_[state][*str]) != DFA::REJECT) {
+      if (IsAcceptState(state)) matchptr = str;
+      str += sign;
+    }
   }
 
-  return state != DFA::REJECT ? states_[state].accept : false;
+finalize:
+  accept = IsAcceptState(state);
+  if (!accept && state != REJECT && string_.empty()) {
+    Subset endstates = nfa_map_[state];
+    ExpandStates(&endstates, string.empty(), true);
+    accept = ContainAcceptState(endstates);
+  }
+  if (result == NULL) {
+    return accept;
+  } else {
+    if (flag_.suffix_match() && accept) {
+      if (flag_.reverse_match()) {
+        result->set_begin(string.begin());
+      } else {
+        result->set_end(string.end());
+      }
+      return true;
+    } else {
+      if (accept |= matchptr != NULL) {
+        if (flag_.reverse_match()) {
+          result->set_ubegin(matchptr+1);
+        } else {
+          result->set_uend(matchptr);
+        }
+      }
+      return accept;
+    }
+  }
 }
 
 bool DFA::OnTheFlyMatch(const Regen::StringPiece& string, Regen::StringPiece* result) const
