@@ -106,7 +106,7 @@ void grep(const Regen &re, const regen::Util::mmap_t &buf, const Option &opt)
         string.set_begin(result.end());
       }
     } else {
-      const char *end = (const char*)memchr(result.end(), '\n', end-result.end());
+      const char *end = (const char*)memchr(result.end(), '\n', string.end()-result.end());
       if (end == NULL) end = string.end();
       if (opt.count_line) {
         count++;
