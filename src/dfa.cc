@@ -173,13 +173,20 @@ bool DFA::Construct(std::size_t limit)
     Transition &trans = transition_[state.id];
     state.accept = ContainAcceptState(states);
 
-    //only Leftmost-Shortest matching
-    if (flag_.shortest_match() && state.accept) {
-      trans.fill(REJECT);
-      state.dst_states.insert(REJECT);
-      continue;
+    if (!flag_.suffix_match() && flag_.shortest_match()) {
+      /* Leftmost-Shortest matching
+         if current state is accepted
+         then no more transitions are needed.
+       */
+      if (state.accept) {
+        trans.fill(REJECT);
+        state.dst_states.insert(REJECT);
+        begline = false;
+        continue;
+      }
     }
 
+    // fill transitions of current state
     for (std::size_t c = 0; c < 256; c++) {
       Subset& next = transition[c];
       
@@ -201,6 +208,17 @@ bool DFA::Construct(std::size_t limit)
           state.dst_states.insert(REJECT);
           continue;
         }
+      } else if (!flag_.suffix_match() && flag_.longest_match()) {
+        /* Leftmost-Longest matching
+           if current state is accepted
+              and next state is not accepted
+           then no more transitions are needed. 
+        */
+        if (state.accept && !ContainAcceptState(next)) {
+          trans[c] = REJECT;
+          state.dst_states.insert(REJECT);
+          continue;
+        }
       }
       
       if (dfa_map_.find(next) == dfa_map_.end()) {
@@ -216,7 +234,6 @@ bool DFA::Construct(std::size_t limit)
       trans[c] = dfa_map_[next];
       state.dst_states.insert(dfa_map_[next]);
     }
-
     begline = false;
   }
 
@@ -258,9 +275,10 @@ bool DFA::Construct(const NFA &nfa, size_t limit)
     State &state = get_new_state();
     Transition &trans = transition_[state.id];
     state.accept = accept;
-    //only Leftmost-Shortest matching
-    if (flag_.shortest_match() && accept) {
+    //Leftmost-Shortest matching
+    if (!flag_.suffix_match() && flag_.shortest_match() && accept) {
       trans.fill(REJECT);
+      state.dst_states.insert(REJECT);
       continue;
     }
     
@@ -464,7 +482,7 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
     data_segment_size_(data_segment_size(dfa.size())),
     total_segment_size_(code_segment_size(dfa.size())+data_segment_size(dfa.size())), quick_filter_entry_(NULL)
 {
-  std::vector<const uint8_t*> states_addr(dfa.size());
+  states_addr_.resize(dfa.size());
 
   const uint8_t* code_addr_top = getCurr();
   const uint8_t** transition_table_ptr = (const uint8_t **)(code_addr_top + code_segment_size_);
@@ -481,7 +499,6 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
   push(edi);
   push(ebp);
   push(ebx);
-  const int P_ = 4 * 4;
   mov(arg1, ptr [esp + P_ + 4]);
   mov(arg2, ptr [esp + P_ + 8]);
   mov(arg3, ptr [esp + P_ + 12]);
@@ -502,32 +519,43 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
   const Xbyak::Reg64& tmp2(r11);
   const Xbyak::Reg64& reg_a(rax);
 #endif
-
   // setup enviroment on register
-  mov(arg3, arg2);
-  mov(arg2, ptr[arg1+sizeof(uint8_t*)]);
-  mov(arg1, ptr[arg1]);
-
-  const int sign = dfa.flag().reverse_match() ? -1 : 1;
-  if (dfa.flag().reverse_match()) {
-    dec(arg1); dec(arg2);
-    mov(tmp2, arg1); mov(arg1, arg2); mov(arg2, tmp2);
-  }
-  
   mov(tbl, (size_t)transition_table_ptr);
   mov(tmp2, 0);
-  jmp("s0", T_NEAR);
+  push(arg2);
+  int sign = 1;
+  if (dfa.flag().reverse_match()) {
+    sign = -1;
+    push(arg1+sizeof(uint8_t*));
+    mov(arg2, ptr[arg1]);
+    mov(arg1, ptr[arg1+sizeof(uint8_t*)]);
+    dec(arg1); dec(arg2);
+  } else {
+    push(arg1);
+    mov(arg2, ptr[arg1+sizeof(uint8_t*)]);
+    mov(arg1, ptr[arg1]);
+  }
+
+  mov(tmp1, (std::size_t)&(states_addr_[0]));
+  jmp(ptr[tmp1+arg3*sizeof(uint8_t*)]);
+
   L("reject");
   const uint8_t *reject_state_addr = getCurr();
   mov(reg_a, DFA::REJECT); // return false
+
   L("return");
-  test(arg3, arg3);
+  pop(tmp1);
+  mov(ptr[tmp1], arg1);
+  pop(tmp1);
+  test(tmp1, tmp1);
   je("finalize");
   if (dfa.flag().reverse_match()) {
-    mov(ptr[arg3], tmp2); // result->set_begin(tmp2)
+    inc(tmp2);
+    mov(ptr[tmp1], tmp2); // result->set_begin(tmp2)
   } else {
-    mov(ptr[arg3+sizeof(uint8_t*)], tmp2); // result->set_end(tmp2)
+    mov(ptr[tmp1+sizeof(uint8_t*)], tmp2); // result->set_end(tmp2)
   }
+
   L("finalize");
 #ifdef XBYAK32
   pop(ebx);
@@ -535,8 +563,9 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
   pop(edi);
   pop(esi);
 #endif
-  ret();
 
+  ret();
+  
   align(16);
 
   DFA::state_t reset_state = DFA::UNDEF;
@@ -582,18 +611,13 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
   for (std::size_t i = 0; i < dfa.size(); i++) {
     dfa.state2label(i, labelbuf);
     L(labelbuf);
-    states_addr[i] = getCurr();
+    states_addr_[i] = getCurr();
     if (dfa.IsAcceptState(i) && !dfa.flag().suffix_match()) {
-      inLocalLabel();
-      test(arg3, arg3);
-      je(".ret");
       mov(tmp2, arg1);
-      if (dfa.flag().longest_match()) jmp("@f");
-      L(".ret");
-      mov(reg_a, i);
-      jmp("return");
-      L("@@");
-      outLocalLabel();
+      if (dfa.flag().shortest_match()) {
+        mov(reg_a, i);
+        jmp("return");
+      }
     }
     // can transition without table lookup ?
     const DFA::AlterTrans &at = dfa[i].alter_transition;
@@ -713,7 +737,7 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
       } else if (next == reset_state) {
         transition_table_ptr[i*256+c] = quick_filter_entry_;
       } else {
-        transition_table_ptr[i*256+c] = states_addr[next];
+        transition_table_ptr[i*256+c] = states_addr_[next];
       }
     }
   }
@@ -797,7 +821,7 @@ bool DFA::Compile(Regen::Options::CompileFlag olevel)
     }
   }
   xgen_ = new JITCompiler(*this);
-  CompiledMatch = (state_t (*)(const unsigned char**, const unsigned char**))xgen_->getCode();
+  CompiledMatch = (state_t (*)(const unsigned char**, const unsigned char**, state_t))xgen_->getCode();
   if (olevel_ < Regen::Options::O1) olevel_ = Regen::Options::O1;
   return olevel == olevel_;
 }
@@ -815,18 +839,24 @@ bool DFA::Match(const Regen::StringPiece &string, Regen::StringPiece *result) co
 
   if (olevel_ >= Regen::Options::O1) {
     Regen::StringPiece string_(string);
-    state = CompiledMatch(string_._udata(), result->_udata());
+    const unsigned char **arg1 = string_._udata(),
+        **arg2 = result->_udata();
+    state = CompiledMatch(arg1, arg2, state);
     bool accept = IsAcceptState(state);
     if (!accept && state != REJECT && string_.empty()) {
       Subset endstates = nfa_map_[state];
-      ExpandStates(&endstates, string.begin() == string_.begin(), true);
+      ExpandStates(&endstates, string_.begin() == string_.begin(), true);
       accept = ContainAcceptState(endstates);
     }
     if (result == NULL) {
       return accept;
     } else {
       if (flag_.suffix_match() && accept) {
-        result->set_end(string.end());
+        if (flag_.reverse_match()) {
+          result->set_begin(string.begin());
+        } else {
+          result->set_end(string.end());
+        }
         return true;
       } else {
         return result->end() != NULL;

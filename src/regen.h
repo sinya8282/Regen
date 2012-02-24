@@ -132,10 +132,13 @@ public:
   struct StringPiece {
    public:
     StringPiece() { clear(); }
-    StringPiece(const StringPiece &s) { set_begin(s.begin()); set_end(s.end()); }
+    StringPiece(const StringPiece &s) { set(s); }
     StringPiece(const char* str) { set(str); }
+    StringPiece(const char* str, const char* end) { set(str, end); }
     StringPiece(const char* str, std::size_t length) { set(str, length); }
     StringPiece(const std::string& str) { set(str); }
+    void set(const StringPiece &s) { set_begin(s.begin()); set_end(s.end()); }
+    void set(const char* str, const char *end) { ptr[0] = str; ptr[1] = end; }
     void set(const char* str) { ptr[0] = str; ptr[1] = str == NULL ? str : str + strlen(str); }
     void set(const char* str, std::size_t length) { ptr[0] = str; ptr[1] = str + length; }
     void set(const std::string& str) { ptr[0] = str.data(); ptr[1] = str.data() + str.length(); }

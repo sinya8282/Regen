@@ -22,6 +22,7 @@ class JITCompiler: public Xbyak::CodeGenerator {
   std::size_t data_segment_size_;
   std::size_t total_segment_size_;
   std::vector<const uint8_t *> filter_table_;
+  std::vector<const uint8_t*> states_addr_;
   const uint8_t *quick_filter_entry_;
   static std::size_t code_segment_size(std::size_t state_num) {
     const std::size_t setup_code_size_ = 16;
@@ -136,7 +137,7 @@ protected:
   bool minimum_;
   Regen::Options flag_;
   void Finalize();
-  state_t (*CompiledMatch)(const unsigned char**, const unsigned char**);
+  state_t (*CompiledMatch)(const unsigned char**, const unsigned char**, state_t);
   bool EliminateBranch();
   bool Reduce();
   Regen::Options::CompileFlag olevel_;

@@ -71,15 +71,15 @@ bool Regen::Match(const StringPiece &string, StringPiece *result) const
   if (result != NULL && flag_.captured_match()) {
     bool match = regex_->Match(string, result);
     if (result->end() != NULL) {
-      if (flag_.full_match()) {
+      if (flag_.suffix_match()) {
         result->set_begin(string.begin());
       } else if (flag_.prefix_match()) {
         result->set_begin(string.begin());
       } else if (reverse_regex_ == NULL) {
         result->set_begin(result->end() - regex_->min_length());
       } else {
-        result->set_begin(string.begin());
-        reverse_regex_->Match(*result, result);
+        StringPiece string_(string.begin(), result->end());
+        reverse_regex_->Match(string_, result);
       }
     }
     return match;

@@ -245,7 +245,7 @@ void SFA::MatchTask(TaskArg targ) const
 {
 
   if (olevel_ >= Regen::Options::O1) {
-    partial_results_[targ.task_id] = CompiledMatch(targ.string._udata(), NULL);
+    partial_results_[targ.task_id] = CompiledMatch(targ.string._udata(), NULL, 0);
     return;
   }
   
