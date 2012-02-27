@@ -115,4 +115,14 @@ bool Regen::PartialMatch(const StringPiece& string, const StringPiece& pattern, 
   return re.Match(string, result);
 }
 
+bool Regen::Consume(const StringPiece& string, const StringPiece& pattern, StringPiece* result)
+{
+  return false;
+}
+
+bool Regen::Consume(const StringPiece& string, const StringPiece& pattern, Options opt, StringPiece* result)
+{
+  return false;
+}
+
 } // namespace regen

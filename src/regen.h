@@ -177,10 +177,18 @@ public:
   bool Compile(Options::CompileFlag olevel = Options::O3);
 
   bool Match(const StringPiece& string, StringPiece* result = NULL) const;
+  static bool Match(const StringPiece& string, const Regen& re, StringPiece* result = NULL) { return re.Match(string, result); }
+  
   static bool FullMatch(const StringPiece& string, const StringPiece& pattern, Options opt, StringPiece *result = NULL);
   static bool FullMatch(const StringPiece& string, const StringPiece& pattern, StringPiece* result = NULL);
+
   static bool PartialMatch(const StringPiece &string, const StringPiece& pattern, Options opt, StringPiece *result = NULL);
   static bool PartialMatch(const StringPiece &string, const StringPiece& pattern, StringPiece *result = NULL);
+
+  bool Consume(const StringPiece& string, StringPiece* result = NULL) const;
+  static bool Consume(const StringPiece& string, const Regen& re, StringPiece* result = NULL) { return re.Consume(string, result); }
+  static bool Consume(const StringPiece& string, const StringPiece& pattern, StringPiece* result = NULL);
+  static bool Consume(const StringPiece& string, const StringPiece& pattern, Options opt, StringPiece* result = NULL);
 
 private:
   Regex *regex_;
