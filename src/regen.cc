@@ -11,7 +11,7 @@ Regen::Options::Options(Regen::Options::ParseFlag flag, const unsigned char deli
     captured_match_(false), filtered_match_(false),
     complement_ext_(false), intersection_ext_(false), recursion_ext_(false), xor_ext_(false), shuffle_ext_(false),
     permutation_ext_(false), reverse_ext_(false), weakbackref_ext_(false),
-    encoding_utf8_(false),
+    encoding_utf8_(false), non_nullable_(false),
     delimiter_(delimiter)
 {
   shortest_match_ = flag & ShortestMatch;
@@ -33,6 +33,7 @@ Regen::Options::Options(Regen::Options::ParseFlag flag, const unsigned char deli
   reverse_ext_ = flag & ReverseExt;
   weakbackref_ext_ = flag & WeakBackRefExt;
   encoding_utf8_ = flag & EncodingUTF8;
+  non_nullable_ = flag & NonNullable;
 }
 
 Regen::Regen(const std::string &regex, const Regen::Options options):

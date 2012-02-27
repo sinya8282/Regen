@@ -37,9 +37,9 @@ public:
       WeakBackRefExt = 1 << 17,
       Extended =  ComplementExt | IntersectionExt | RecursionExt
       | XORExt | ShuffleExt | PermutationExt | ReverseExt | WeakBackRefExt,
-      /* Encodings: UTF8 xor Ascii (default) */
+      /* Encodings: UTF8 (ASCII is default) */
       EncodingUTF8 = 1 << 18,
-      EncodingAscii = 0
+      NonNullable = 1 << 19
     };
     enum CompileFlag {
       Onone = -1, O0 = 0, O1 = 1, O2 = 2, O3 = 3
@@ -95,6 +95,8 @@ public:
     void encoding_utf8(bool b) { encoding_utf8_ = b; }
     bool encoding_ascii() const { return !encoding_utf8(); }
     void encoding_ascii(bool b) { encoding_utf8(!b); }
+    bool non_nullable() const { return non_nullable_; }
+    void non_nullable(bool b) { non_nullable_ = b; }
     const unsigned char delimiter() const { return delimiter_; }
  private:
     bool shortest_match_;
@@ -116,6 +118,7 @@ public:
     bool reverse_ext_;
     bool weakbackref_ext_;
     bool encoding_utf8_;
+    bool non_nullable_;
     const unsigned char delimiter_;
   };
   static const Options DefaultOptions;
