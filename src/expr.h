@@ -40,12 +40,15 @@ public:
 };
 
 struct ExprInfo {
-  ExprInfo(): xor_num(0), expr_root(NULL), orig_root(NULL), eop(NULL), min_length(0) {}
+  ExprInfo(): xor_num(0), expr_root(NULL), orig_root(NULL), copied_root(NULL), extra_top(NULL), eop(NULL), min_length(0), max_length(0) {}
   std::size_t xor_num;
   Expr *expr_root;
   Expr *orig_root;
+  Expr *copied_root;
+  Expr *extra_top;
   EOP *eop;
   std::size_t min_length;
+  std::size_t max_length;
   std::bitset<256> involve;
 };
 
@@ -78,17 +81,17 @@ public:
     GenRandom, GenLong, GenShort, GenAll
   };
   
-  Expr(): parent_(NULL) {}
+  Expr(): nonnullable_(false), parent_(NULL) {}
   virtual ~Expr() {}
 
   std::size_t max_length() { return max_length_; }
   void set_max_length(int len) { max_length_ = len; }
   std::size_t min_length() { return min_length_; }
   void set_min_length(int len) { min_length_ = len; }
-  bool nullable() { return nullable_; }
+  bool nullable() { return nullable_ && !nonnullable_; }
   void set_nullable(bool b = true) { nullable_ = b; }
-  bool extra() { return extra_; }
-  void set_extra(bool b = true) { extra_ = b; }
+  bool nonnullable() { return nonnullable_; }
+  void set_nonnullable(bool b = true) { nonnullable_ = b; }
   Transition& transition() { return transition_; }
   std::set<StateExpr*>& first() { return transition_.first; }
   std::set<StateExpr*>& last() { return transition_.last; }
@@ -120,7 +123,7 @@ protected:
   std::size_t max_length_;
   std::size_t min_length_;
   bool nullable_;
-  bool extra_;
+  bool nonnullable_;
   Transition transition_;
   Expr *parent_;
 private:
@@ -154,22 +157,34 @@ struct ExprPool {
 
 class StateExpr: public Expr {
 public:
-  StateExpr(): state_id_(0), non_greedy_(false)
+  StateExpr(): state_id_(0), root_non_greedy_(false), non_greedy_(false), complete_non_greedy_(false), non_greedy_pair_(NULL), near_root_non_greedy_pair_(NULL)
   { max_length_ = min_length_ = 1; nullable_ = false; }
   ~StateExpr() {}
   void FillTransition() {}
   std::size_t state_id() { return state_id_; }
   void set_state_id(std::size_t id) { state_id_ = id; }
+  bool root_non_greedy() { return root_non_greedy_; }
+  void set_root_non_greedy(bool b = true) { root_non_greedy_ = non_greedy_ = b; }
   bool non_greedy() { return non_greedy_; }
-  void set_non_greedy(bool non_greedy = true) { non_greedy_ = non_greedy; }
+  void set_non_greedy(bool b = true) { non_greedy_ = b; }
+  bool complete_non_greedy() { return complete_non_greedy_; }
+  void set_complete_non_greedy(bool b = true) { complete_non_greedy_ = b; }
+  StateExpr* non_greedy_pair() { return non_greedy_pair_; }
+  void set_non_greedy_pair(StateExpr* s) { non_greedy_pair_ = s; }
+  StateExpr* near_root_non_greedy_pair() { return near_root_non_greedy_pair_; }
+  void set_near_root_non_greedy_pair(StateExpr* s) { near_root_non_greedy_pair_ = s; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
-  void NonGreedify()  { non_greedy_ = true; }
+  void NonGreedify()  { set_root_non_greedy(true); }
   virtual bool Match(const unsigned char c) { return false; }
   void FillPosition(ExprInfo *) { transition_.first.insert(this); transition_.last.insert(this); }
   void PatchBackRef(Expr *, std::size_t, ExprPool *) {}
 protected:
   std::size_t state_id_;
+  bool root_non_greedy_;
   bool non_greedy_;
+  bool complete_non_greedy_;
+  StateExpr* non_greedy_pair_;
+  StateExpr* near_root_non_greedy_pair_;
   DISALLOW_COPY_AND_ASSIGN(StateExpr);
 };
 
@@ -247,7 +262,7 @@ public:
   enum Type {
     kIntersection, kXOR, kBackRef
   };
-  Operator(Type type): pair_(NULL), optype_(type), active_(false), id_(0) { min_length_ = max_length_ = 0; }
+  Operator(Type type): pair_(NULL), optype_(type), active_(false), id_(0) { min_length_ = max_length_ = 0; nullable_ = false; }
   Operator(Operator *o): pair_(NULL), optype_(o->optype()), active_(o->active()), id_(o->id()) { min_length_ = max_length_ = 0; }
   ~Operator() {}
   Expr::Type type() { return Expr::kOperator; }  
@@ -387,7 +402,7 @@ private:
 
 class UnaryExpr: public Expr {
 public:
-  UnaryExpr(Expr* lhs, double probability): lhs_(lhs), probability_(probability) { lhs->set_parent(this); }
+  UnaryExpr(Expr* lhs, double probability = 0.0): lhs_(lhs), probability_(probability) { lhs->set_parent(this); }
   ~UnaryExpr() {}
   Expr* lhs() { return lhs_; }
   void  set_lhs(Expr *lhs) { lhs_ = lhs; }

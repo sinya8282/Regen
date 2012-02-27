@@ -108,18 +108,14 @@ void Regex::Parse()
   if (!lexer.backrefs().empty()) e = PatchBackRef(&lexer, e, &pool_);
 
   expr_info_.orig_root = e;
+
+  e->set_nonnullable(flag_.non_nullable());
   
   if (!flag_.prefix_match()) {
     // rewrite expression R when Prefix-free Matching is required
-    // if R can matches epsilon -> R, else -> !(.*R.*)R
-    Expr *dotstar1 = pool_.alloc<Star>(pool_.alloc<Dot>());
-    Expr *dotstar2 = pool_.alloc<Star>(pool_.alloc<Dot>());
-    Expr *dotstar3 = pool_.alloc<Star>(pool_.alloc<Dot>());
-    Expr *etop = e->Clone(&pool_);
-    etop = pool_.alloc<Concat>(etop, dotstar1, flag_.reverse_regex());
-    etop = pool_.alloc<Concat>(dotstar2, etop, flag_.reverse_regex());
-    etop = pool_.alloc<XOR>(etop, dotstar3, &pool_);
-    e = pool_.alloc<Concat>(etop, e, flag_.reverse_regex());
+    // R -> .*?R
+    Expr *dotstar = pool_.alloc<Star>(pool_.alloc<Dot>(), true);
+    e = pool_.alloc<Concat>(dotstar, e, flag_.reverse_regex());
   }
 
   expr_info_.eop = pool_.alloc<EOP>();
@@ -128,6 +124,7 @@ void Regex::Parse()
   expr_info_.expr_root = e;
   e->FillPosition(&expr_info_);
   expr_info_.min_length = expr_info_.orig_root->min_length();
+  expr_info_.max_length = expr_info_.orig_root->max_length();
   e->FillTransition();
 }
 

@@ -20,7 +20,7 @@ MAKE_SHARED_LIBRARY=-shared -Wl,-soname,libregen.so #,--version-script=libregen.
 endif
 
 CC=g++
-CFLAGS=-fPIC -O0 -Wall -g3 -fno-operator-names $(REGENFLAGS)
+CFLAGS=-fPIC -O3 -Wall -g3 -fno-operator-names $(REGENFLAGS)
 OBJS=$(SRC:.cc=.o)
 
 all: libregen recon fullmatch state_num regengrep test.o bench.o

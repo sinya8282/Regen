@@ -96,7 +96,7 @@ entry:
   std::size_t presize = states->size();
   for (std::map<std::size_t, Operator*>::iterator iter = exclusives_.begin();
        iter != exclusives_.end(); ++iter) {
-    Operator *op = static_cast<Operator *>(iter->second);
+    Operator *op = static_cast<Operator*>(iter->second);
     if (exclusives.find(op->pair()) == exclusives.end()) {
       states->insert(op->follow().begin(), op->follow().end());
     }
@@ -104,18 +104,21 @@ entry:
   }
 }
 
-void DFA::FillTransition(StateExpr* state, std::vector<Subset>* transition)
+void DFA::FillTransition(StateExpr* state, std::vector<Subset>* transition) const
 {
+  if (state->non_greedy()) MakeNonGreedy(state);
   switch (state->type()) {
     case Expr::kLiteral: {
       Literal *lit = static_cast<Literal*>(state);
       unsigned char index = lit->literal();
+      if (index == flag_.delimiter() && !flag_.one_line()) break;
       (*transition)[index].insert(lit->follow().begin(), lit->follow().end());
       break;
     }
     case Expr::kCharClass: {
       CharClass *cc = static_cast<CharClass*>(state);
       for (std::size_t c = 0; c < 256; c++) {
+        if (c == flag_.delimiter() && !flag_.one_line()) continue;
         if (cc->Match(c)) {
           (*transition)[c].insert(cc->follow().begin(), cc->follow().end());
         }
@@ -125,21 +128,68 @@ void DFA::FillTransition(StateExpr* state, std::vector<Subset>* transition)
     case Expr::kDot: {
       Dot *dot = static_cast<Dot*>(state);
       for (std::size_t c = 0; c < 256; c++) {
-        if (c != flag_.delimiter() || !flag_.one_line()) {
+        if (c == flag_.delimiter() && !flag_.one_line()) continue;
           (*transition)[c].insert(dot->follow().begin(), dot->follow().end());
-        }
       }
       break;
     }
     case Expr::kAnchor:
       if (!flag_.one_line()) {
       Anchor* an = static_cast<Anchor*>(state);
-      if (!flag_.one_line()) {
-        (*transition)[flag_.delimiter()].insert(an->follow().begin(), an->follow().end());
+      (*transition)[flag_.delimiter()].insert(an->follow().begin(), an->follow().end());
       }
       break;
-    }
     default: break;
+  }
+}
+
+void DFA::MakeNonGreedy(StateExpr* state) const {
+  if (state->complete_non_greedy()) return;
+  Subset follow_;
+
+  for (Subset::iterator iter = state->follow().begin(); iter != state->follow().end(); ++iter) {
+    StateExpr* next = *iter;
+    if (!next->non_greedy() && next->type() != Expr::kEOP) {
+      if (state->root_non_greedy()) {
+        if (next->near_root_non_greedy_pair() != NULL) {
+          follow_.insert(next->near_root_non_greedy_pair());
+        } else {
+          StateExpr* next_ = static_cast<StateExpr*>(next->Clone(&pool_));
+          next_->set_non_greedy(true);
+          next_->follow() = next->follow();
+          next->set_near_root_non_greedy_pair(next_);
+          next_->set_near_root_non_greedy_pair(next);
+          follow_.insert(next_);
+        }
+      } else {
+        if (next->non_greedy_pair() != NULL) {
+          follow_.insert(next->non_greedy_pair());
+        } else {
+          StateExpr* next_ = static_cast<StateExpr*>(next->Clone(&pool_));
+          next_->set_non_greedy(true);
+          next_->follow() = next->follow();
+          next->set_non_greedy_pair(next_);
+          next_->set_non_greedy_pair(next);
+          follow_.insert(next_);
+        }
+      }
+    } else {
+      follow_.insert(next);
+    }
+  }
+  state->follow() = follow_;
+  state->set_complete_non_greedy(true);
+}
+
+void DFA::TrimNonGreedy(Subset* states) const {
+  Subset trim;
+  for (Subset::iterator iter = states->begin(); iter != states->end(); ++iter) {
+    if ((*iter)->non_greedy()) trim.insert(*iter);
+  }
+  for (Subset::iterator iter = trim.begin(); iter != trim.end(); ++iter) {
+    StateExpr* state = *iter;
+    if (state->non_greedy_pair() != NULL) states->insert(state->non_greedy_pair());
+    states->erase(state);
   }
 }
 
@@ -155,6 +205,7 @@ bool DFA::Construct(std::size_t limit)
   Subset states = expr_info_.expr_root->first();
 
   ExpandStates(&states, begline);
+  if (ContainAcceptState(states)) TrimNonGreedy(&states);
   queue.push(states);
   
   nfa_map_[dfa_id] = states;
@@ -189,7 +240,7 @@ bool DFA::Construct(std::size_t limit)
     // fill transitions of current state
     for (std::size_t c = 0; c < 256; c++) {
       Subset& next = transition[c];
-      
+
       if (next.empty()) {
         trans[c] = REJECT;
         state.dst_states.insert(REJECT);
@@ -197,6 +248,7 @@ bool DFA::Construct(std::size_t limit)
       }
 
       ExpandStates(&next);
+      if (ContainAcceptState(next)) TrimNonGreedy(&next);
       
       if (c == flag_.delimiter() && !flag_.one_line()) {
         ExpandStates(&next, begline, true);
@@ -818,37 +870,27 @@ bool DFA::Match(const Regen::StringPiece &string, Regen::StringPiece *result) co
     sign = -1;
     string_.reverse();
   }
-  const unsigned char* str = string_.ubegin(), * end = string_.uend();
   state_t state = 0;
   bool accept = false;
 
-  /* JITed matching */
   if (olevel_ >= Regen::Options::O1) {
+    /* JITed matching */
     const unsigned char **arg1 = string_._udata();
     state = CompiledMatch(arg1, &matchptr, state);
-    goto finalize;
-  }
-
-  /* while-tablelookup matching */
-  if (flag_.reverse_match()) {
-    sign = -1;
-    std::swap(str, end);
-    str--; end--;
-  }
-
-  if (result == NULL) {
-    while (str != end && (state = transition_[state][*str]) != DFA::REJECT) {
-      str += sign;
-    }
   } else {
-    if (IsAcceptState(state)) matchptr = str;
-    while (!string_.empty() && (state = transition_[state][*str]) != DFA::REJECT) {
-      if (IsAcceptState(state)) matchptr = str;
-      str += sign;
+    if (result == NULL) {
+      while (!string_.empty() && (state = transition_[state][*string_.udata()]) != DFA::REJECT) {
+        string_.consume(sign);
+      }
+    } else {
+      if (IsAcceptState(state)) matchptr = string_.udata();
+      while (!string_.empty() && (state = transition_[state][*string_.udata()]) != DFA::REJECT) {
+        if (IsAcceptState(state)) matchptr = string_.udata();
+        string_.consume(sign);
+      }
     }
   }
 
-finalize:
   accept = IsAcceptState(state);
   if (!accept && state != REJECT && string_.empty()) {
     Subset endstates = nfa_map_[state];

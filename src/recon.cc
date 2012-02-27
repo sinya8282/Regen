@@ -146,6 +146,7 @@ void die(bool help = false)
            "  -d   generate DFA graph (Dot language)\n"
            "  -s   generate SFA graph (Dot language)\n"
            "  -m   minimizing DFA\n"
+           "  -P   partial match mode"
            );
   }
   exit(0);
@@ -153,14 +154,14 @@ void die(bool help = false)
 
 int main(int argc, char *argv[]) {
   std::string regex;
-  Regen::Options option;
+  Regen::Options option(Regen::Options::OneLine);
   bool info, minimize, automata, sfa;
   info = minimize = automata = sfa = false;
   int opt;
   int seed = time(NULL);
   Generate generate = REGEN;
 
-  while ((opt = getopt(argc, argv, "amdchiIxEtrsSf:U")) != -1) {
+  while ((opt = getopt(argc, argv, "PamdchiIxEtrsSf:U")) != -1) {
     switch(opt) {
       case 'h':
         die(true);
@@ -194,8 +195,8 @@ int main(int argc, char *argv[]) {
       case 'a':
         automata = true;
         break;
-      case 't': 
-        generate = TEXTGEN;
+      case 'P':
+        option.partial_match(true);
         break;
       case 'S':
         seed = atoi(optarg);
@@ -203,6 +204,9 @@ int main(int argc, char *argv[]) {
       case 's':
         sfa = true;
         generate = DOTGEN;
+        break;
+      case 't': 
+        generate = TEXTGEN;
         break;
       case 'U':
         option.encoding_utf8(true);

@@ -277,25 +277,22 @@ void Operator::PatchBackRef(Expr *patch, std::size_t i, ExprPool *p)
 
 void Concat::FillPosition(ExprInfo *info)
 {
-  if (lhs_->extra()) {
-    ExprInfo dummy_info;
-    lhs_->FillPosition(&dummy_info);
-  } else {
-    lhs_->FillPosition(info);
-  }
+  lhs_->FillPosition(info);
   rhs_->FillPosition(info);
 
-  if (lhs_->max_length() == std::numeric_limits<size_t>::max() || rhs_->max_length() == std::numeric_limits<size_t>::max()) {
+  if (lhs_->max_length() == std::numeric_limits<size_t>::max()
+      || rhs_->max_length() == std::numeric_limits<size_t>::max()) {
     max_length_ = std::numeric_limits<size_t>::max();
   } else {
     max_length_ = lhs_->max_length() + rhs_->max_length();
   }
+
   min_length_ = lhs_->min_length() + rhs_->min_length();
   nullable_ = lhs_->nullable() && rhs_->nullable();
 
   first() = lhs_->first();
 
-  if (lhs_->nullable()) {
+  if (lhs_->nullable() && lhs_ != info->copied_root) {
     first().insert(rhs_->first().begin(), rhs_->first().end());
   }
 
@@ -392,13 +389,13 @@ void Union::Generate(std::set<std::string> &g, GenOpt opt, std::size_t n)
 }
 
 Intersection::Intersection(Expr *lhs, Expr *rhs, ExprPool *p):
-    BinaryExpr(lhs, rhs), lhs__(lhs), rhs__(rhs)
+    BinaryExpr(lhs, rhs)
 {
   Operator::NewPair(&lop_, &rop_, Operator::kIntersection, p);
-  lhs_ = p->alloc<Concat>(lhs_, lop_);
-  rhs_ = p->alloc<Concat>(rhs_, rop_);
-  lhs_->set_parent(this);
-  rhs_->set_parent(this);
+  lhs__ = p->alloc<Concat>(lhs_, lop_);
+  rhs__ = p->alloc<Concat>(rhs_, rop_);
+  lhs__->set_parent(this);
+  rhs__->set_parent(this);
 }
 
 void Intersection::FillPosition(ExprInfo* info)
@@ -410,11 +407,11 @@ void Intersection::FillPosition(ExprInfo* info)
   info->involve &= tmp_info.involve;
   info->xor_num += tmp_info.xor_num - xor_num;
 
-  nullable_ = lhs__->nullable() && rhs__->nullable();
+  nullable_ = lhs_->nullable() & rhs_->nullable();
   max_length_ = std::min(lhs_->max_length(), rhs_->max_length());
   min_length_ = std::max(lhs_->min_length(), rhs_->min_length());
 
-  first() = first();
+  first() = lhs_->first();
   first().insert(rhs_->first().begin(), rhs_->first().end());
 
   last() = lhs_->last();
@@ -443,7 +440,7 @@ void Intersection::Generate(std::set<std::string> &g, GenOpt opt, std::size_t n)
 }
 
 XOR::XOR(Expr* lhs, Expr* rhs, ExprPool *p):
-    BinaryExpr(lhs, rhs), lhs__(lhs), rhs__(rhs)
+    BinaryExpr(lhs, rhs)
 {
   Operator::NewPair(&lop_, &rop_, Operator::kXOR, p);
   lhs_ = p->alloc<Concat>(lhs, lop_);
@@ -458,7 +455,7 @@ void XOR::FillPosition(ExprInfo *info)
   rhs_->FillPosition(info);
 
   nullable_ = lhs__->nullable() ^ rhs__->nullable();
-  max_length_ = std::max(lhs_->max_length(), rhs_->max_length());
+  max_length_ = std::max(lhs__->max_length(), rhs__->max_length());
   if (lhs_->min_length() == rhs_->min_length() == 0) {
     min_length_ = 1; // not zero, unknown.
   } else {

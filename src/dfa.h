@@ -108,7 +108,9 @@ public:
 
   bool ContainAcceptState(const Subset&) const;
   void ExpandStates(Subset*, bool begline = false, bool endline = false) const;
-  void FillTransition(StateExpr*, std::vector<Subset>*);
+  void FillTransition(StateExpr*, std::vector<Subset>*) const;
+  void MakeNonGreedy(StateExpr*) const;
+  void TrimNonGreedy(Subset*) const;
 
   void Complementify();
   virtual bool Minimize();
@@ -133,7 +135,8 @@ protected:
   mutable std::map<Subset, state_t> dfa_map_;
   mutable std::map<state_t, Subset> nfa_map_;
   ExprInfo expr_info_;
-  bool complete_;
+  mutable ExprPool pool_;
+  mutable bool complete_;
   bool minimum_;
   Regen::Options flag_;
   void Finalize();
