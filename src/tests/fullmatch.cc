@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
       compile_time -= rdtsc();
       regen::Regex r = regen::Regex(regex);
       r.Compile(Regen::Options::O0);
-      regen::SFA sfa(r.expr_root(), r.state_exprs(), thread_num);
+      regen::SFA sfa(r.dfa(), thread_num);
       sfa.Compile(olevel);
       compile_time += rdtsc();
       Regen::StringPiece string(mm.ptr, mm.size);
