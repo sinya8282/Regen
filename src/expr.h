@@ -2,6 +2,7 @@
 #define REGEN_EXPR_H_
 
 #include <list>
+#include <algorithm>
 #include "util.h"
 
 namespace regen {

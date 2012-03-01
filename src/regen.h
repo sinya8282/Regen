@@ -2,6 +2,7 @@
 #define REGEN_H_
 
 #include <string>
+#include <string.h>
 
 namespace regen {
 
