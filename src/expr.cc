@@ -392,10 +392,11 @@ Intersection::Intersection(Expr *lhs, Expr *rhs, ExprPool *p):
     BinaryExpr(lhs, rhs)
 {
   Operator::NewPair(&lop_, &rop_, Operator::kIntersection, p);
-  lhs__ = p->alloc<Concat>(lhs_, lop_);
-  rhs__ = p->alloc<Concat>(rhs_, rop_);
-  lhs__->set_parent(this);
-  rhs__->set_parent(this);
+  lhs__ = lhs_; rhs__ = rhs_;
+  lhs_ = p->alloc<Concat>(lhs__, lop_);
+  rhs_ = p->alloc<Concat>(rhs__, rop_);
+  lhs_->set_parent(this);
+  rhs_->set_parent(this);
 }
 
 void Intersection::FillPosition(ExprInfo* info)
@@ -407,9 +408,9 @@ void Intersection::FillPosition(ExprInfo* info)
   info->involve &= tmp_info.involve;
   info->xor_num += tmp_info.xor_num - xor_num;
 
-  nullable_ = lhs_->nullable() & rhs_->nullable();
-  max_length_ = std::min(lhs_->max_length(), rhs_->max_length());
-  min_length_ = std::max(lhs_->min_length(), rhs_->min_length());
+  nullable_ = lhs__->nullable() & rhs__->nullable();
+  max_length_ = std::min(lhs__->max_length(), rhs__->max_length());
+  min_length_ = std::max(lhs__->min_length(), rhs__->min_length());
 
   first() = lhs_->first();
   first().insert(rhs_->first().begin(), rhs_->first().end());
@@ -443,8 +444,9 @@ XOR::XOR(Expr* lhs, Expr* rhs, ExprPool *p):
     BinaryExpr(lhs, rhs)
 {
   Operator::NewPair(&lop_, &rop_, Operator::kXOR, p);
-  lhs_ = p->alloc<Concat>(lhs, lop_);
-  rhs_ = p->alloc<Concat>(rhs, rop_);
+  lhs__ = lhs_; rhs__ = rhs_;
+  lhs_ = p->alloc<Concat>(lhs__, lop_);
+  rhs_ = p->alloc<Concat>(rhs__, rop_);
   lhs_->set_parent(this);
   rhs_->set_parent(this);
 }
@@ -456,7 +458,7 @@ void XOR::FillPosition(ExprInfo *info)
 
   nullable_ = lhs__->nullable() ^ rhs__->nullable();
   max_length_ = std::max(lhs__->max_length(), rhs__->max_length());
-  if (lhs_->min_length() == rhs_->min_length() == 0) {
+  if (lhs__->min_length() == rhs__->min_length() == 0) {
     min_length_ = 1; // not zero, unknown.
   } else {
     min_length_ = std::min(lhs_->min_length(), rhs_->min_length());
