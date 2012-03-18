@@ -9,7 +9,7 @@
 #include "sfa.h"
 #include "generator.h"
 
-enum Generate { DOTGEN, REGEN, CGEN, TEXTGEN };
+enum Generate { DOTGEN, REGEN, CGEN, TEXTGEN, KEYWORD };
 
 void Dispatch(Generate generate, const regen::DFA &dfa) {
   switch (generate) {
@@ -23,6 +23,7 @@ void Dispatch(Generate generate, const regen::DFA &dfa) {
       regen::Regex::PrintRegex(dfa);
       break;
     case TEXTGEN:
+    case KEYWORD:
       break;
   }
 }
@@ -145,6 +146,7 @@ void die(bool help = false)
            "  -t   generate acceptable strings\n"
            "  -d   generate DFA graph (Dot language)\n"
            "  -s   generate SFA graph (Dot language)\n"
+           "  -k   extract keywords"
            "  -m   minimizing DFA\n"
            "  -P   partial match mode"
            );
@@ -161,16 +163,20 @@ int main(int argc, char *argv[]) {
   int seed = time(NULL);
   Generate generate = REGEN;
 
-  while ((opt = getopt(argc, argv, "PamdchiIxEtrsSf:U")) != -1) {
+  while ((opt = getopt(argc, argv, "PamdchiIkxEtrsSf:U")) != -1) {
     switch(opt) {
       case 'h':
         die(true);
         break;
       case 'i':
         option.ignore_case(true);
-        break;;
+        break;
       case 'I':
         info = true;
+        break;
+      case 'k':
+        generate = KEYWORD;
+        option.filtered_match(true);
         break;
       case 'E':
         option.extended(true);
@@ -244,6 +250,13 @@ int main(int argc, char *argv[]) {
   } else if (generate == REGEN && !minimize) {
     r.PrintRegex();
     return 0;
+  } else if (generate == KEYWORD) {
+    printf("is: %s\nleft: %s\nright: %s\nin:\n", r.expr_info().key.is.data(),
+           r.expr_info().key.left.data(), r.expr_info().key.right.data());
+    for (std::set<std::string>::iterator iter = r.expr_info().key.in.begin();
+         iter != r.expr_info().key.in.end(); ++iter) {
+      printf("%s\n", iter->data());
+    }
   } else {
     r.Compile(Regen::Options::O0);
     if (minimize) r.MinimizeDFA();

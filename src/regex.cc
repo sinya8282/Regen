@@ -110,6 +110,8 @@ void Regex::Parse()
   expr_info_.orig_root = e;
 
   e->set_nonnullable(flag_.non_nullable());
+
+  if (flag_.filtered_match()) e->FillKeywords(&expr_info_.key, &expr_info_.involve);
   
   if (!flag_.prefix_match()) {
     // rewrite expression R when Prefix-free Matching is required

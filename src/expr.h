@@ -40,6 +40,13 @@ public:
   virtual void Visit(Star *e) { Visit((UnaryExpr*)e); }
 };
 
+struct Keywords {
+  std::string is;
+  std::string left;
+  std::string right;
+  std::set<std::string> in;
+};
+
 struct ExprInfo {
   ExprInfo(): xor_num(0), expr_root(NULL), orig_root(NULL), copied_root(NULL), extra_top(NULL), eop(NULL), min_length(0), max_length(0) {}
   std::size_t xor_num;
@@ -51,13 +58,7 @@ struct ExprInfo {
   std::size_t min_length;
   std::size_t max_length;
   std::bitset<256> involve;
-};
-
-struct Must {
-  std::string *is;
-  std::string *left;
-  std::string *right;
-  std::set<std::string> in;
+  Keywords key;
 };
 
 struct Transition {
@@ -108,6 +109,7 @@ public:
   virtual Expr* Clone(ExprPool *) = 0;
   virtual void NonGreedify() = 0;
   virtual void FillPosition(ExprInfo *) = 0;
+  virtual void FillKeywords(Keywords *, std::bitset<256> *) = 0;
   virtual void FillTransition() = 0;
   virtual void Serialize(std::vector<Expr*> &v, ExprPool *p) { v.push_back(Clone(p)); }
   virtual void Factorize(std::vector<Expr*> &v) { v.push_back(this); }
@@ -178,6 +180,7 @@ public:
   void NonGreedify()  { set_root_non_greedy(true); }
   virtual bool Match(const unsigned char c) { return false; }
   void FillPosition(ExprInfo *) { transition_.first.insert(this); transition_.last.insert(this); }
+  void FillKeywords(Keywords *, std::bitset<256> *) {}
   void PatchBackRef(Expr *, std::size_t, ExprPool *) {}
 protected:
   std::size_t state_id_;
@@ -197,7 +200,8 @@ public:
   Expr::Type type() { return Expr::kLiteral; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   bool Match(unsigned char c) { return c == literal_; };
-  void FillPosition(ExprInfo *info) { transition_.first.insert(this); transition_.last.insert(this); info->involve.set(literal_); }
+  void FillPosition(ExprInfo *info) { transition_.first.insert(this); transition_.last.insert(this); }
+  void FillKeywords(Keywords *key, std::bitset<256> *);
   Expr *Clone(ExprPool *p) { return p->alloc<Literal>(literal_); };
   void Generate(std::set<std::string> &g, GenOpt opt, std::size_t n) { g.insert(std::string(1, literal_)); }
 private:
@@ -220,7 +224,8 @@ public:
   Expr::Type type() { return Expr::kCharClass; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   bool Match(const unsigned char c) { return Involve(c); };
-  void FillPosition(ExprInfo *info) { transition_.first.insert(this); transition_.last.insert(this); if (negative_) { std::bitset<256> table__ = table_; table__.flip(); info->involve |= table__; } else { info->involve |= table_; } }
+  void FillPosition(ExprInfo *info) { transition_.first.insert(this); transition_.last.insert(this); }
+  void FillKeywords(Keywords *, std::bitset<256> *);
   Expr *Clone(ExprPool *p) { return p->alloc<CharClass>(table_, negative_); };
   void Generate(std::set<std::string> &g, GenOpt opt, std::size_t n);
 private:
@@ -237,6 +242,7 @@ public:
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   bool Match(const unsigned char c) { return true; };
   void FillPosition(ExprInfo *info) { transition_.first.insert(this); transition_.last.insert(this); info->involve.set(); }
+  void FillKeywords(Keywords *, std::bitset<256> *);
   Expr *Clone(ExprPool *p) { return p->alloc<Dot>(); };
   void Generate(std::set<std::string> &g, GenOpt opt, std::size_t n);
 private:
@@ -344,6 +350,7 @@ Concat(Expr *lhs, Expr *rhs, bool reverse = false): BinaryExpr(lhs, rhs) { if (r
   ~Concat() {}
   void FillPosition(ExprInfo *);
   void FillTransition();
+  void FillKeywords(Keywords *, std::bitset<256> *);
   Expr::Type type() { return Expr::kConcat; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool *p) { return p->alloc<Concat>(lhs_->Clone(p), rhs_->Clone(p)); };
@@ -360,6 +367,7 @@ public:
   ~Union() {}
   void FillPosition(ExprInfo *);
   void FillTransition();
+  void FillKeywords(Keywords *, std::bitset<256> *);
   Expr::Type type() { return Expr::kUnion; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool *p) { return p->alloc<Union>(lhs_->Clone(p), rhs_->Clone(p)); };
@@ -375,6 +383,7 @@ public:
   ~Intersection() {}
   void FillPosition(ExprInfo *);
   void FillTransition();
+  void FillKeywords(Keywords *, std::bitset<256> *);
   Expr::Type type() { return Expr::kIntersection; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool *p) { return p->alloc<Intersection>(lhs__->Clone(p), rhs__->Clone(p), p); };
@@ -391,6 +400,7 @@ public:
   ~XOR() {}
   void FillPosition(ExprInfo *);
   void FillTransition();
+  void FillKeywords(Keywords *, std::bitset<256> *);
   Expr::Type type() { return Expr::kXOR; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool *p) { return p->alloc<XOR>(lhs__->Clone(p), rhs__->Clone(p), p); }
@@ -426,6 +436,7 @@ public:
   ~Qmark() {}
   void FillPosition(ExprInfo *);
   void FillTransition();
+  void FillKeywords(Keywords *, std::bitset<256> *);
   Expr::Type type() { return Expr::kQmark; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool *p) { return p->alloc<Qmark>(lhs_->Clone(p), non_greedy_, probability_); };
@@ -443,6 +454,7 @@ public:
   ~Star() {}
   void FillPosition(ExprInfo *);
   void FillTransition();
+  void FillKeywords(Keywords *, std::bitset<256> *);
   Expr::Type type() { return Expr::kStar; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool *p) { return p->alloc<Star>(lhs_->Clone(p), non_greedy_, probability_); };
@@ -458,6 +470,7 @@ public:
   ~Plus() {}
   void FillPosition(ExprInfo *);
   void FillTransition();
+  void FillKeywords(Keywords *, std::bitset<256> *);
   Expr::Type type() { return Expr::kPlus; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   Expr* Clone(ExprPool* p) { return p->alloc<Plus>(lhs_->Clone(p), probability_); };

@@ -154,6 +154,16 @@ void Expr::_Permutation(std::vector<Expr*> &v, std::bitset<8> &perm, std::vector
   }
 }
 
+void Literal::FillKeywords(Keywords *key, std::bitset<256> *involve)
+{
+  if (key != NULL) {
+    key->is.assign(1, literal_);
+    key->left = key->right = key->is;
+    key->in.insert(key->is);
+  }
+  involve->set(literal_);
+}
+
 CharClass::CharClass(StateExpr *e1, StateExpr *e2):
     negative_(false)
 {
@@ -183,6 +193,19 @@ top:
   if (count() >= 128 && !negative()) {
     flip();
     set_negative(true);
+  }
+}
+
+void CharClass::FillKeywords(Keywords *key, std::bitset<256> *involve)
+{
+  *involve = table_;
+  if (negative_) involve->flip();
+  if (key != NULL) {
+    for (std::size_t i = 0; i < 256; i++) {
+      if (involve->test(i)) {
+        key->in.insert(std::string(1, i));
+      }
+    }
   }
 }
 
@@ -241,6 +264,16 @@ void Dot::Generate(std::set<std::string> &g, GenOpt opt, std::size_t n)
     g.insert(std::string(1, (char)i));
   }
   Trim(g, opt, n);
+}
+
+void Dot::FillKeywords(Keywords *key, std::bitset<256> *involve)
+{
+  involve->set();
+  if (key != NULL) {
+    for (std::size_t i = 0; i < 256; i++) {
+      key->in.insert(std::string(1, i));
+    }
+  }
 }
 
 void Operator::PatchBackRef(Expr *patch, std::size_t i, ExprPool *p)
@@ -310,6 +343,33 @@ void Concat::FillTransition()
   lhs_->FillTransition();
 }
 
+void Concat::FillKeywords(Keywords *key, std::bitset<256> *involve)
+{
+  if (key != NULL) {
+    Keywords key_;
+    rhs_->FillKeywords(&key_, involve);
+    lhs_->FillKeywords(key, involve);
+
+    key->in.insert(key_.in.begin(), key_.in.end());
+    if (key_.left != "" && key->right != "") {
+      key->in.erase(key->right);
+      key->in.erase(key_.left);
+      key->in.insert(key->right+key_.left);
+    }
+
+    key->right = key_.right;
+    
+    if (key->is != "" && key_.is != "") {
+      key->is = key->right = key->left = key->is + key_.is;
+    } else {
+      key->is.assign("");
+    }
+  } else {
+    rhs_->FillKeywords(NULL, involve);
+    lhs_->FillKeywords(NULL, involve);
+  }
+}
+
 void Concat::Serialize(std::vector<Expr*> &v, ExprPool *p)
 {
   std::size_t ini = v.size();
@@ -365,6 +425,51 @@ void Union::FillTransition()
 {
   rhs_->FillTransition();
   lhs_->FillTransition();
+}
+
+void Union::FillKeywords(Keywords *key, std::bitset<256> *involve)
+{
+  if (key != NULL) {
+    Keywords key_;
+    std::size_t i;
+    rhs_->FillKeywords(&key_, involve);
+    lhs_->FillKeywords(key, involve);
+    
+    std::set<std::string> s;
+    for (std::set<std::string>::iterator iter1 = key_.in.begin();
+         iter1 != key_.in.end(); ++iter1) {
+      for (std::set<std::string>::iterator iter2 = key->in.begin();
+           iter2 != key->in.end(); ++iter2) {
+        /* for simplicity, we consider only longest common substrings(lcs) */
+        std::string longest;
+        for(size_t start=0, length=1; start + length <= iter1->size();) {
+          std::string tmp = iter1->substr(start, length);
+          if (std::string::npos != iter2->find(tmp)) {
+            tmp.swap(longest);
+            ++length;
+          } else ++start;
+        }
+        if (longest.size() != 0) s.insert(longest);
+      }
+    }
+    key->in = s;
+
+    if (key->is != key_.is) key->is.assign("");
+
+    for (i = 0; i < std::min(key->left.size(), key_.left.size()); i++) {
+      if (key->left[i] != key_.left[i]) break;
+    }
+    key->left.assign(key_.left, 0, i);
+
+    std::size_t min = std::min(key->right.size(), key_.right.size());
+    for (i = 0; i < min; i++) {
+      if (key->right[min-i-1] != key_.right[min-i-1]) break;
+    }
+    key->right.assign(key_.right, min-i, i);
+  } else {
+    rhs_->FillKeywords(NULL, involve);
+    lhs_->FillKeywords(NULL, involve);
+  }
 }
 
 void Union::Serialize(std::vector<Expr*> &v, ExprPool *p)
@@ -440,6 +545,10 @@ void Intersection::Generate(std::set<std::string> &g, GenOpt opt, std::size_t n)
   Trim(g, opt, n);
 }
 
+void Intersection::FillKeywords(Keywords *key, std::bitset<256> *)
+{
+}
+
 XOR::XOR(Expr* lhs, Expr* rhs, ExprPool *p):
     BinaryExpr(lhs, rhs)
 {
@@ -500,6 +609,10 @@ void XOR::Generate(std::set<std::string> &g, GenOpt opt, std::size_t n)
   Trim(g, opt, n);
 }
 
+void XOR::FillKeywords(Keywords *key, std::bitset<256> *)
+{
+}
+
 void Qmark::FillPosition(ExprInfo *info)
 {
   lhs_->FillPosition(info);
@@ -515,6 +628,11 @@ void Qmark::FillPosition(ExprInfo *info)
 void Qmark::FillTransition()
 {
   lhs_->FillTransition();
+}
+
+void Qmark::FillKeywords(Keywords *key, std::bitset<256> *involve)
+{
+  lhs_->FillKeywords(NULL, involve);
 }
 
 double frand()
@@ -556,6 +674,11 @@ void Star::FillTransition()
   lhs_->FillTransition();
 }
 
+void Star::FillKeywords(Keywords *key, std::bitset<256> *involve)
+{
+  lhs_->FillKeywords(NULL, involve);
+}
+
 void Star::Generate(std::set<std::string> &g, GenOpt opt, std::size_t n)
 {
   if (probability_ != 0.0 && frand() < probability_) {
@@ -591,6 +714,13 @@ void Plus::FillTransition()
 {
   Connect(lhs_->last(), lhs_->first());
   lhs_->FillTransition();
+}
+
+void Plus::FillKeywords(Keywords *key, std::bitset<256> *involve)
+{
+  lhs_->FillKeywords(key, involve);
+
+  key->is.assign("");
 }
 
 void Plus::Generate(std::set<std::string> &g, GenOpt opt, std::size_t n)

@@ -30,7 +30,6 @@ public:
   bool Match(const Regen::StringPiece& string, Regen::StringPiece *result = NULL) const;
   bool NFAMatch(const Regen::StringPiece& string, Regen::StringPiece *result = NULL) const;
   const std::string& regex() const { return regex_; }
-  const Must& must() const { return must_; }
   std::size_t max_length() const { return expr_info_.max_length; }
   std::size_t min_length() const { return expr_info_.min_length; }
   std::size_t must_max_length() const { return must_max_length_; }
@@ -61,7 +60,6 @@ private:
   std::size_t recursion_depth_;
   std::vector<StateExpr*> state_exprs_;
 
-  Must must_;
   std::size_t must_max_length_;
   const std::string must_max_word_;
   std::bitset<256> involved_char_;

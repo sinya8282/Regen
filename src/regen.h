@@ -73,7 +73,7 @@ public:
     bool captured_match() const { return captured_match_; }
     void captured_match(bool b) { captured_match_ = b; }
     bool filtered_match() const { return filtered_match_ && !prefix_match(); }
-    void filtered_match(bool b) { filtered_match_ = b; }
+    void filtered_match(bool b) { filtered_match_ = b; prefix_match(!b); }
     bool complement_ext() const { return complement_ext_; }
     void complement_ext(bool b) { complement_ext_ = b; }
     bool intersection_ext() const { return intersection_ext_; }
