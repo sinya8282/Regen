@@ -434,6 +434,22 @@ void Union::FillKeywords(Keywords *key, std::bitset<256> *involve)
     std::size_t i;
     rhs_->FillKeywords(&key_, involve);
     lhs_->FillKeywords(key, involve);
+
+    if (!key->no_candidates && !key_.no_candidates) {
+      if (key->candidates.empty() && key->in.empty() ||
+          key_.candidates.empty() && key_.in.empty()) {
+        key->no_candidates = true;
+        key->candidates.clear();
+      } else {
+        key->candidates.insert(key_.candidates.begin(), key_.candidates.end());
+        key->candidates.insert(key_.in.begin(), key_.in.end());
+        key->candidates.insert(key->in.begin(), key->in.end());
+        if (key->candidates.size() > 32) {
+          key->no_candidates = true;
+          key->candidates.clear();
+        }
+      }
+    }
     
     std::set<std::string> s;
     for (std::set<std::string>::iterator iter1 = key_.in.begin();

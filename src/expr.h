@@ -41,10 +41,15 @@ public:
 };
 
 struct Keywords {
+  Keywords(): no_candidates(false) {}
+  static bool compare_keywords(const std::string& lhs, const std::string & rhs)
+  { return lhs.size() > rhs.size(); }
   std::string is;
   std::string left;
   std::string right;
   std::set<std::string> in;
+  std::set<std::string> candidates;
+  bool no_candidates;
 };
 
 struct ExprInfo {

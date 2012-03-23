@@ -257,6 +257,11 @@ int main(int argc, char *argv[]) {
          iter != r.expr_info().key.in.end(); ++iter) {
       printf("%s\n", iter->data());
     }
+    puts("candidates:");
+    for (std::set<std::string>::iterator iter = r.expr_info().key.candidates.begin();
+         iter != r.expr_info().key.candidates.end(); ++iter) {
+      printf("%s\n", iter->data());
+    }
   } else {
     r.Compile(Regen::Options::O0);
     if (minimize) r.MinimizeDFA();
