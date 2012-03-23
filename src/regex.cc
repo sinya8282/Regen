@@ -116,7 +116,7 @@ void Regex::Parse()
   if (!flag_.prefix_match()) {
     // rewrite expression R when Prefix-free Matching is required
     // R -> .*?R
-    Expr *dotstar = pool_.alloc<Star>(pool_.alloc<Dot>(), true);
+    Expr *dotstar = pool_.alloc<Star>(pool_.alloc<Dot>(true), true);
     e = pool_.alloc<Concat>(dotstar, e, flag_.reverse_regex());
   }
 

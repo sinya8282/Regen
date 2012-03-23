@@ -128,8 +128,9 @@ void DFA::FillTransition(StateExpr* state, std::vector<Subset>* transition) cons
     case Expr::kDot: {
       Dot *dot = static_cast<Dot*>(state);
       for (std::size_t c = 0; c < 256; c++) {
-        if (c == flag_.delimiter() && !flag_.one_line()) continue;
-          (*transition)[c].insert(dot->follow().begin(), dot->follow().end());
+        if (c == flag_.delimiter() && !flag_.one_line()
+            && !dot->match_delimiter()) continue;
+        (*transition)[c].insert(dot->follow().begin(), dot->follow().end());
       }
       break;
     }
@@ -249,18 +250,6 @@ bool DFA::Construct(std::size_t limit)
 
       ExpandStates(&next);
       if (ContainAcceptState(next)) TrimNonGreedy(&next);
-      
-      if (c == flag_.delimiter() && !flag_.one_line()) {
-        ExpandStates(&next, begline, true);
-        if (ContainAcceptState(next)) {
-          next.clear();
-          next.insert(expr_info_.eop);
-        } else {
-          trans[c] = REJECT;
-          state.dst_states.insert(REJECT);
-          continue;
-        }
-      }
       
       if (dfa_map_.find(next) == dfa_map_.end()) {
         if (dfa_id < limit) {

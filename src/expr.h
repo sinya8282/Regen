@@ -241,16 +241,18 @@ private:
 
 class Dot: public StateExpr {
 public:
-  Dot() {}
+  Dot(bool b = false): match_delimiter_(b) {}
   ~Dot() {}
   Expr::Type type() { return Expr::kDot; }
   void Accept(ExprVisitor* visit) { visit->Visit(this); };
   bool Match(const unsigned char c) { return true; };
   void FillPosition(ExprInfo *info) { transition_.first.insert(this); transition_.last.insert(this); info->involve.set(); }
   void FillKeywords(Keywords *, std::bitset<256> *);
+  bool match_delimiter() { return match_delimiter_; }
   Expr *Clone(ExprPool *p) { return p->alloc<Dot>(); };
   void Generate(std::set<std::string> &g, GenOpt opt, std::size_t n);
 private:
+  bool match_delimiter_;
   DISALLOW_COPY_AND_ASSIGN(Dot);
 };
 

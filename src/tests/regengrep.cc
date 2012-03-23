@@ -112,6 +112,7 @@ void grep(const Regen &re, const regen::Util::mmap_t &buf, const Option &opt)
         count++;
       } else {
         const char *beg = get_line_beg(result.end(), string.begin());
+        if (*beg == '\n') beg++;
         write(1, beg, end-beg+1);
       }
       string.set_begin(end+1);
