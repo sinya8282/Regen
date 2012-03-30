@@ -510,7 +510,8 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
     CodeGenerator(code_segment_size(dfa.size()) + data_segment_size(dfa.size())),
     code_segment_size_(code_segment_size(dfa.size())),
     data_segment_size_(data_segment_size(dfa.size())),
-    total_segment_size_(code_segment_size(dfa.size())+data_segment_size(dfa.size())), quick_filter_entry_(NULL)
+    total_segment_size_(code_segment_size(dfa.size())+data_segment_size(dfa.size())), filter_entry_(NULL),
+    reset_state_(DFA::UNDEF)
 {
   states_addr_.resize(dfa.size());
 
@@ -585,42 +586,55 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
   
   align(16);
 
-  DFA::state_t reset_state = DFA::UNDEF;
-  
-  if (dfa.flag().filtered_match() && dfa.expr_info().involve.count() < 126 && dfa.expr_info().min_length > 2) {
-    /* (very simple) quick filter */
-    std::size_t len = dfa.expr_info().min_length;
-    quick_filter_entry_ = getCurr();
-    filter_table_.resize(256);
-    mov(reg_a, (size_t)&(filter_table_[0]));
-    const uint8_t *quick_filter_main = getCurr();
-    add(arg1, (len - 1) * sign);
-    if (dfa.flag().reverse_match()) {
-      cmp(arg2, arg1);
-    } else { 
-      cmp(arg1, arg2);
-    }
-    jge("reject", T_NEAR);
-    movzx(tmp1, byte[arg1]);
-    jmp(ptr[reg_a+tmp1*sizeof(uint8_t*)]);
-
-    const uint8_t *quick_filter_end = getCurr();
-    sub(arg1, (len - 1) * sign);
-    
-    for (std::size_t i = 0; i < 256; i++) {
-      if (dfa.expr_info().involve[i]) {
-        filter_table_[i] = quick_filter_end;
+  if (dfa.flag().filtered_match()) {
+    /* generate filter code conditionaly. */
+    if (dfa.expr_info().key.longest_keyword().length() > 1) {
+      /* regex has keyword (which will be contained acceptable string certainly).
+         so, we can try to search keyword firstly. */
+      if (mie::isAvaiableSSE42()) {
+        /* fastest keyword search with SSE4.2. */
       } else {
-        if (reset_state == DFA::UNDEF) reset_state = dfa[0][i];
-        filter_table_[i] = quick_filter_main;
+        /* or simple quick search algorithm. */
       }
+    } else if (dfa.expr_info().key.longest_keyword().length() > 1) {
+      /* memchr */
+      
     }
+    else if (dfa.expr_info().involve.count() < 126 && dfa.expr_info().min_length > 2) {
+      /* (cheap but effective) quick filter. */
+      std::size_t len = dfa.expr_info().min_length;
+      filter_entry_ = getCurr();
+      filter_table_.resize(256);
+      mov(reg_a, (size_t)&(filter_table_[0]));
+      const uint8_t *quick_filter_main = getCurr();
+      add(arg1, (len - 1) * sign);
+      if (dfa.flag().reverse_match()) {
+        cmp(arg2, arg1);
+      } else { 
+        cmp(arg1, arg2);
+      }
+      jge("reject", T_NEAR);
+      movzx(tmp1, byte[arg1]);
+      jmp(ptr[reg_a+tmp1*sizeof(uint8_t*)]);
 
-    char labelbuf[100];
-    dfa.state2label(reset_state, labelbuf);
-    jmp(labelbuf, T_NEAR);
+      const uint8_t *quick_filter_end = getCurr();
+      sub(arg1, (len - 1) * sign);
     
-    align(16);
+      for (std::size_t i = 0; i < 256; i++) {
+        if (dfa.expr_info().involve[i]) {
+          filter_table_[i] = quick_filter_end;
+        } else {
+          if (reset_state_ == DFA::UNDEF) reset_state_ = dfa[0][i];
+          filter_table_[i] = quick_filter_main;
+        }
+      }
+
+      char labelbuf[100];
+      dfa.state2label(reset_state_, labelbuf);
+      jmp(labelbuf, T_NEAR);
+    
+      align(16);
+    }
   }
   
   char labelbuf[100];
@@ -751,8 +765,8 @@ JITCompiler::JITCompiler(const DFA &dfa, std::size_t state_code_size = 64):
       DFA::state_t next = trans[c];
       if (next == DFA::REJECT) {
         transition_table_ptr[i*256+c] = reject_state_addr;
-      } else if (next == reset_state) {
-        transition_table_ptr[i*256+c] = quick_filter_entry_;
+      } else if (filter_entry_ != NULL && next == reset_state_) {
+        transition_table_ptr[i*256+c] = filter_entry_;
       } else {
         transition_table_ptr[i*256+c] = states_addr_[next];
       }

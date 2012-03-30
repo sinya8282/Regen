@@ -7,6 +7,7 @@
 #if REGEN_ENABLE_JIT
 #include "jitter.h"
 #include <xbyak/xbyak.h>
+#include "ext/str_util.hpp"
 #endif
 
 namespace regen {
@@ -23,7 +24,8 @@ class JITCompiler: public Xbyak::CodeGenerator {
   std::size_t total_segment_size_;
   std::vector<const uint8_t *> filter_table_;
   std::vector<const uint8_t*> states_addr_;
-  const uint8_t *quick_filter_entry_;
+  const uint8_t *filter_entry_;
+  uint32_t reset_state_;
   static std::size_t code_segment_size(std::size_t state_num) {
     const std::size_t setup_code_size_ = 16;
     const std::size_t state_code_size_ = 64;

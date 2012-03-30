@@ -49,6 +49,8 @@ struct Keywords {
   std::string right;
   std::set<std::string> in;
   std::set<std::string> candidates;
+  const std::string& longest_keyword() const
+  { static const std::string empty; return in.empty() ? empty : *std::max_element(in.begin(), in.end(), compare_keywords); }
   bool no_candidates;
 };
 
