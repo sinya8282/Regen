@@ -526,7 +526,6 @@ void Intersection::FillPosition(ExprInfo* info)
   std::size_t xor_num = info->xor_num;
   lhs_->FillPosition(&tmp_info);
   rhs_->FillPosition(info);
-  info->involve &= tmp_info.involve;
   info->xor_num += tmp_info.xor_num - xor_num;
 
   nullable_ = lhs__->nullable() & rhs__->nullable();
