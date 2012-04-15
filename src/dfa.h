@@ -6,7 +6,7 @@
 #include "expr.h"
 #if REGEN_ENABLE_JIT
 #include "jitter.h"
-#include <xbyak/xbyak.h>
+#include "ext/xbyak/xbyak.h"
 #include "ext/str_util.hpp"
 #endif
 
