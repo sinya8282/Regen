@@ -23,7 +23,7 @@ CC=g++
 CFLAGS=-fPIC -O3 -Wall -g3 -fno-operator-names $(REGENFLAGS)
 OBJS=$(SRC:.cc=.o)
 
-all: libregen recon fullmatch state_num regengrep test.o bench.o
+all: libregen recon fullmatch state_num regengrep tests/test_all bench.o
 
 libregen: $(OBJS)
 	$(CC) $(OBJS) $(MAKE_SHARED_LIBRARY) -o libregen.so $(CFLAGS) $(LIBTHREAD)
@@ -40,14 +40,14 @@ state_num: tests/state_num.cc libregen
 regengrep: tests/regengrep.cc libregen
 	$(CC) tests/regengrep.cc -o $@ $(CFLAGS) $(LIBTHREAD) -L$(PWD) -lregen
 
-test: test.o
-	@./test.o
+test: tests/test_all
+	@tests/test_all
 
 bench: bench.o
 	@./bench.o
 
-test.o: tests/test.cc $(OBJS)
-	$(CC) tests/test.cc $(OBJS) -o test.o $(CFLAGS) $(LIBTHREAD)
+tests/test_all: tests/test_all.cc libregen
+	$(CC) tests/test_all.cc tests/gtest-all.cc tests/gtest_main.cc -L$(PWD) -lregen -o tests/test_all $(CFLAGS) $(LIBTHREAD)
 
 bench.o: tests/bench.cc $(OBJS)
 	$(CC) tests/bench.cc $(OBJS) -o bench.o $(CFLAGS) $(LIBTHREAD)
@@ -56,7 +56,7 @@ bench.o: tests/bench.cc $(OBJS)
 	$(CC) -c $< $(CFLAGS)
 
 clean:
-	rm -rf $(OBJS) test.o bench.o sfa.h.gch recon test bench fullmatch state_num regengrep *.dSYM libregen.so
+	rm -rf $(OBJS) tests/test_all.o bench.o sfa.h.gch recon test bench fullmatch state_num regengrep *.dSYM libregen.so
 
 depend:
 	sed '/^# DO NOT DELETE THIS LINE/q' Makefile > tmp
