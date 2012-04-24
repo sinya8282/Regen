@@ -436,8 +436,8 @@ void Union::FillKeywords(Keywords *key, std::bitset<256> *involve)
     lhs_->FillKeywords(key, involve);
 
     if (!key->no_candidates && !key_.no_candidates) {
-      if (key->candidates.empty() && key->in.empty() ||
-          key_.candidates.empty() && key_.in.empty()) {
+      if ((key->candidates.empty() && key->in.empty()) ||
+          (key_.candidates.empty() && key_.in.empty())) {
         key->no_candidates = true;
         key->candidates.clear();
       } else {
@@ -582,7 +582,7 @@ void XOR::FillPosition(ExprInfo *info)
 
   nullable_ = lhs__->nullable() ^ rhs__->nullable();
   max_length_ = std::max(lhs__->max_length(), rhs__->max_length());
-  if (lhs__->min_length() == rhs__->min_length() == 0) {
+  if (lhs__->min_length() == 0 && rhs__->min_length() == 0) {
     min_length_ = 1; // not zero, unknown.
   } else {
     min_length_ = std::min(lhs_->min_length(), rhs_->min_length());

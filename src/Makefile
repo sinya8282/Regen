@@ -22,23 +22,24 @@ endif
 CC=g++
 CFLAGS=-fPIC -O3 -Wall -g3 -fno-operator-names $(REGENFLAGS)
 OBJS=$(SRC:.cc=.o)
+BINFLAG=-L$(PWD) -lregen -Xlinker -rpath -Xlinker $(PWD)
 
 all: libregen.so recon fullmatch state_num regengrep tests/test_all bench.o
 
 libregen.so: $(OBJS)
 	$(CC) $(OBJS) $(MAKE_SHARED_LIBRARY) -o libregen.so $(CFLAGS) $(LIBTHREAD)
 
-recon: recon.cc $(OBJS)
-	$(CC) recon.cc $(OBJS) -o $@ $(CFLAGS) $(LIBTHREAD)
+recon: recon.cc libregen.so
+	$(CC) recon.cc $(OBJS) -o $@ $(CFLAGS) $(BINFLAG) $(LIBTHREAD)
 
 fullmatch: tests/fullmatch.cc libregen.so
-	$(CC) tests/fullmatch.cc -o $@ $(CFLAGS) $(LIBTHREAD) -L$(PWD) -lregen
+	$(CC) tests/fullmatch.cc -o $@ $(CFLAGS) $(BINFLAG) $(LIBTHREAD)
 
 state_num: tests/state_num.cc libregen.so
-	$(CC) tests/state_num.cc -o $@ $(CFLAGS) $(LIBTHREAD) -L$(PWD) -lregen
+	$(CC) tests/state_num.cc -o $@ $(CFLAGS) $(BINFLAG) $(LIBTHREAD)
 
 regengrep: tests/regengrep.cc libregen.so
-	$(CC) tests/regengrep.cc -o $@ $(CFLAGS) $(LIBTHREAD) -L$(PWD) -lregen
+	$(CC) tests/regengrep.cc -o $@ $(CFLAGS) $(BINFLAG) $(LIBTHREAD)
 
 test: tests/test_all
 	@tests/test_all
@@ -47,10 +48,10 @@ bench: bench.o
 	@./bench.o
 
 tests/test_all: tests/test_all.cc libregen.so
-	$(CC) tests/test_all.cc tests/gtest-all.cc tests/gtest_main.cc -L$(PWD) -lregen -o tests/test_all $(CFLAGS) $(LIBTHREAD)
+	$(CC) tests/test_all.cc tests/gtest-all.cc tests/gtest_main.cc -o tests/test_all -pthread $(CFLAGS)  $(BINFLAG) $(LIBTHREAD)
 
-bench.o: tests/bench.cc $(OBJS)
-	$(CC) tests/bench.cc $(OBJS) -o bench.o $(CFLAGS) $(LIBTHREAD)
+bench.o: tests/bench.cc libregen.so
+	$(CC) tests/bench.cc -o bench.o $(CFLAGS) $(BINFLAG) $(LIBTHREAD)
 
 .cc.o:
 	$(CC) -c $< $(CFLAGS)

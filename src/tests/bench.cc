@@ -1,5 +1,6 @@
 #include "../regen.h"
 #include "../regex.h"
+#include "../util.h"
 
 struct testcase {
   testcase(std::string regex_, std::string text_, std::string pretty_, bool result_): regex(regex_), text(text_), pretty(pretty_), result(result_) {}
@@ -81,7 +82,7 @@ int main(int argc, char *argv[]) {
   for (std::size_t i = 0; i < bench.size(); i++) {
     printf("BENCH %"PRIuS" : regex = /%s/ text = \"%s\"\n" , i, bench[i].regex.c_str(), bench[i].pretty.c_str());
     if (!result[i].result) puts("FAIL\n");
-    printf("%s : compile time = %llu, matching time = %llu\n", ostr[olevel+1], result[i].compile_time, result[i].matching_time);
+    printf("%s : compile time = %"PRIuS", matching time = %"PRIuS"\n", ostr[olevel+1], static_cast<size_t>(result[i].compile_time), static_cast<size_t>(result[i].matching_time));
   }
   return 0;
 }

@@ -201,7 +201,7 @@ Lexer::Type Lexer::lex_repetition()
   probability_ = 0.0;
   bool probability = false;
 
-  if ('0' <= *ptr && *ptr <= '9' || *ptr == '.') {
+  if (('0' <= *ptr && *ptr <= '9') || *ptr == '.') {
     if (*ptr != '.') {
       do {
         lower_repetition_ *= 10;
@@ -228,7 +228,7 @@ Lexer::Type Lexer::lex_repetition()
   if (*ptr == ',') {
     ptr++;
     upper_repetition_ = 0;
-    if ('0' <= *ptr && *ptr <= '9' || *ptr == '.') {
+    if (('0' <= *ptr && *ptr <= '9') || *ptr == '.') {
       if (*ptr != '.') {
         do {
           upper_repetition_ *= 10;

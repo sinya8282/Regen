@@ -1,5 +1,6 @@
 #include "../regex.h"
 #include "../sfa.h"
+#include "../util.h"
 
 static inline uint64_t rdtsc()
 {
@@ -91,8 +92,8 @@ int main(int argc, char *argv[]) {
 #endif
     }
 
-    printf("compile time = %llu, matching time = %llu, %s\n",
-           compile_time, matching_time, match ? "match" : "not match." );
+    printf("compile time = %"PRIuS", matching time = %"PRIuS", %s\n",
+           static_cast<size_t>(compile_time), static_cast<size_t>(matching_time), match ? "match" : "not match." );
   }
   
   return 0;
