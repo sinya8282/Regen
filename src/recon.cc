@@ -275,7 +275,7 @@ int main(int argc, char *argv[]) {
       regen::SFA s(r.dfa());
       Dispatch(generate, s);
     } else
-#endif REGEN_ENABLE_PARALLEL
+#endif //REGEN_ENABLE_PARALLEL
     {
       Dispatch(generate, r.dfa());
     }
