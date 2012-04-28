@@ -20,44 +20,53 @@ MAKE_SHARED_LIBRARY=-shared -Wl,-soname,libregen.so #,--version-script=libregen.
 endif
 
 CC=g++
-CFLAGS=-fPIC -O3 -Wall -g3 -fno-operator-names $(REGENFLAGS)
+CFLAGS=-fPIC -O3 -Wall -fno-operator-names $(REGENFLAGS)
+BINDIR=bin
 OBJS=$(SRC:.cc=.o)
-BINFLAG=-L$(PWD) -lregen -Xlinker -rpath -Xlinker $(PWD)
+BINFLAG=-L$(PWD)/$(BINDIR) -lregen -Xlinker -rpath -Xlinker $(PWD)/$(BINDIR)
+APP=$(addprefix $(BINDIR)/, recon fullmatch state_num regengrep bench)
 
-all: libregen.so recon fullmatch state_num regengrep tests/test_all bench.o
+lib: $(BINDIR)/libregen.so
 
-libregen.so: $(OBJS)
-	$(CC) $(OBJS) $(MAKE_SHARED_LIBRARY) -o libregen.so $(CFLAGS) $(LIBTHREAD)
+app: $(APP)
 
-recon: recon.cc libregen.so
+all: lib $(BINDIR)/test_all app
+
+$(BINDIR)/libregen.so: $(OBJS)
+	$(CC) $(OBJS) $(MAKE_SHARED_LIBRARY) -o $(BINDIR)/libregen.so $(CFLAGS) $(LIBTHREAD)
+
+$(BINDIR)/recon: recon.cc $(BINDIR)/libregen.so
 	$(CC) recon.cc $(OBJS) -o $@ $(CFLAGS) $(BINFLAG) $(LIBTHREAD)
 
-fullmatch: tests/fullmatch.cc libregen.so
-	$(CC) tests/fullmatch.cc -o $@ $(CFLAGS) $(BINFLAG) $(LIBTHREAD)
+$(BINDIR)/fullmatch: app/fullmatch.cc $(BINDIR)/libregen.so
+	$(CC) app/fullmatch.cc -o $@ $(CFLAGS) $(BINFLAG) $(LIBTHREAD)
 
-state_num: tests/state_num.cc libregen.so
-	$(CC) tests/state_num.cc -o $@ $(CFLAGS) $(BINFLAG) $(LIBTHREAD)
+$(BINDIR)/state_num: app/state_num.cc $(BINDIR)/libregen.so
+	$(CC) app/state_num.cc -o $@ $(CFLAGS) $(BINFLAG) $(LIBTHREAD)
 
-regengrep: tests/regengrep.cc libregen.so
-	$(CC) tests/regengrep.cc -o $@ $(CFLAGS) $(BINFLAG) $(LIBTHREAD)
+$(BINDIR)/regengrep: app/regengrep.cc $(BINDIR)/libregen.so
+	$(CC) app/regengrep.cc -o $@ $(CFLAGS) $(BINFLAG) $(LIBTHREAD)
 
-test: tests/test_all
-	@tests/test_all
+test: $(BINDIR)/test_all
+	@$(BINDIR)/test_all
 
-bench: bench.o
-	@./bench.o
+bench: $(BINDIR)/bench
+	@$(BINDIR)/bench
 
-tests/test_all: tests/test_all.cc libregen.so
-	$(CC) tests/test_all.cc tests/gtest-all.cc tests/gtest_main.cc -o tests/test_all -pthread $(CFLAGS)  $(BINFLAG) $(LIBTHREAD)
+$(BINDIR)/test_all: tests/test_all.cc $(BINDIR)/libregen.so
+	$(CC) tests/test_all.cc tests/gtest-all.cc tests/gtest_main.cc -o $@ -pthread $(CFLAGS)  $(BINFLAG) $(LIBTHREAD)
 
-bench.o: tests/bench.cc libregen.so
-	$(CC) tests/bench.cc -o bench.o $(CFLAGS) $(BINFLAG) $(LIBTHREAD)
+$(BINDIR)/bench: tests/bench.cc $(BINDIR)/libregen.so
+	$(CC) tests/bench.cc -o $@ $(CFLAGS) $(BINFLAG) $(LIBTHREAD)
 
 .cc.o:
 	$(CC) -c $< $(CFLAGS)
 
-clean:
-	rm -rf $(OBJS) tests/test_all bench.o sfa.h.gch recon test bench fullmatch state_num regengrep *.dSYM libregen.so
+objclean:
+	rm -rf *.o
+
+clean: objclean
+	rm -rf $(BINDIR)/*
 
 depend:
 	sed '/^# DO NOT DELETE THIS LINE/q' Makefile > tmp
