@@ -14,7 +14,7 @@ SRC=regen.cc regex.cc lexer.cc expr.cc exprutil.cc nfa.cc dfa.cc generator.cc $(
 endif
 
 ifeq ($(shell uname),Darwin)
-MAKE_SHARED_LIBRARY=-dynamiclib #-exported_symbols_list libregen.symbols.darwin
+MAKE_SHARED_LIBRARY=-dynamiclib  #-exported_symbols_list libregen.symbols.darwin
 else
 MAKE_SHARED_LIBRARY=-shared -Wl,-soname,libregen.so #,--version-script=libregen.symbols
 endif
