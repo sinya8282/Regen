@@ -1,13 +1,13 @@
-#include "util.h"
-#include "lexer.h"
-#include "regen.h"
-#include "regex.h"
-#include "expr.h"
-#include "exprutil.h"
-#include "nfa.h"
-#include "dfa.h"
-#include "sfa.h"
-#include "generator.h"
+#include "../util.h"
+#include "../lexer.h"
+#include "../regen.h"
+#include "../regex.h"
+#include "../expr.h"
+#include "../exprutil.h"
+#include "../nfa.h"
+#include "../dfa.h"
+#include "../sfa.h"
+#include "../generator.h"
 
 enum Generate { DOTGEN, REGEN, CGEN, TEXTGEN, KEYWORD };
 

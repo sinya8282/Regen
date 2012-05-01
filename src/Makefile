@@ -35,8 +35,8 @@ all: lib $(BINDIR)/test_all app
 $(BINDIR)/libregen.so: $(OBJS)
 	$(CC) $(OBJS) $(MAKE_SHARED_LIBRARY) -o $(BINDIR)/libregen.so $(CFLAGS) $(LIBTHREAD)
 
-$(BINDIR)/recon: recon.cc $(BINDIR)/libregen.so
-	$(CC) recon.cc $(OBJS) -o $@ $(CFLAGS) $(BINFLAG) $(LIBTHREAD)
+$(BINDIR)/recon: app/recon.cc $(BINDIR)/libregen.so
+	$(CC) app/recon.cc $(OBJS) -o $@ $(CFLAGS) $(BINFLAG) $(LIBTHREAD)
 
 $(BINDIR)/fullmatch: app/fullmatch.cc $(BINDIR)/libregen.so
 	$(CC) app/fullmatch.cc -o $@ $(CFLAGS) $(BINFLAG) $(LIBTHREAD)
