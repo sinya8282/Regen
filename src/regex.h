@@ -35,6 +35,7 @@ public:
   std::size_t must_max_length() const { return must_max_length_; }
   const std::string& must_max_word() const { return must_max_word_; }
   const DFA& dfa() const { return dfa_; }
+  DFA& dfa() { return dfa_; }
   Regen::Options::CompileFlag olevel() const { return olevel_; }
   Expr* expr_root() const { return expr_info_.expr_root; }
   const ExprInfo& expr_info() const { return expr_info_; }

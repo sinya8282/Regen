@@ -20,7 +20,7 @@ MAKE_SHARED_LIBRARY=-shared -Wl,-soname,libregen.so #,--version-script=libregen.
 endif
 
 CC=g++
-CFLAGS=-fPIC -O3 -Wall -fno-operator-names $(REGENFLAGS)
+CFLAGS=-fPIC -O0 -g3 -Wall -fno-operator-names $(REGENFLAGS)
 BINDIR=bin
 OBJS=$(SRC:.cc=.o)
 BINFLAG=-L$(PWD)/$(BINDIR) -lregen -Xlinker -rpath -Xlinker $(PWD)/$(BINDIR)
