@@ -12,11 +12,11 @@ move to source directory
 and build Regen
 % make all
 or build Regen with no JIT-ver
-% make REGEN_ENABLE_XBYAK=no
+% make REGEN_ENABLE_JIT=no
 or no Parallelization.
 % make REGEN_ENABLE_PARALLEL=no
 or enable neither.
-% make REGEN_ENABLE_XBYAK=no REGEN_ENABLE_XBYAK=no
+% make REGEN_ENABLE_JIT=no REGEN_ENABLE_PARALLEL=no
 
 * test and behcnmarks
 % make test
