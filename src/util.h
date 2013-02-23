@@ -34,6 +34,7 @@ typedef unsigned char uint8_t;
 #else
 #include <sys/mman.h>
 #include <fcntl.h>
+#include <unistd.h>
 #endif
 
 #ifdef _LP64
