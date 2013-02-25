@@ -6,7 +6,7 @@ int main(int argc, char *argv[]) {
   std::string regex;
   int opt;
   bool n,d,s,m,E;
-  n = d = s = m = false;
+  n = d = s = m = E = false;
 
   while ((opt = getopt(argc, argv, "Ef:ndsm")) != -1) {
     switch(opt) {
