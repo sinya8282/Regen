@@ -7,7 +7,7 @@ SRC_=jitter.cc
 endif
 ifeq ($(REGEN_ENABLE_PARALLEL),yes)
 REGENFLAGS+=-DREGEN_ENABLE_PARALLEL
-LIBTHREAD=-lboost_thread-mt -lboost_system-mt
+LIBTHREAD=-lboost_thread -lboost_system
 SRC=regen.cc regex.cc lexer.cc expr.cc exprutil.cc nfa.cc dfa.cc sfa.cc generator.cc $(SRC_)
 else
 SRC=regen.cc regex.cc lexer.cc expr.cc exprutil.cc nfa.cc dfa.cc generator.cc $(SRC_)
